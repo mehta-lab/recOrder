@@ -1,4 +1,5 @@
 import imagej
+import pywt
 
 def stitch_MIST(path_to_fiji,
                 img_dir, filename_pattern, output_dir,  output_filename,
@@ -52,11 +53,40 @@ def stitch_MIST(path_to_fiji,
                    "debuglevel": "NONE"
                   }
 
-    ij = imagej.init(path_to_fiji)
-    ij.py.run_plugin('MIST', args=args)
+    try:
+        ij = imagej.init(path_to_fiji)
+    except:
+        raise ImportError("Make sure a local installation of Fiji + MIST is installed")
 
+    ij.py.run_plugin('MIST', args=args)
 
 def write_video():
     pass
 
 def denoise():
+    pass
+
+#TODO: Make compatible with image reader for either Stokes or Intensity data
+def wavelet_softThreshold(img, wavelet, threshold, level=1, axes=None):
+    '''
+    soft thresholding in the nD wavelet space
+    Input:
+        img       : ndarray, image or volume in nD space
+        wavelet   : str,     type of wavelet to use (pywt.wavelist() to find the whole list)
+        threshold : float,   threshold value
+    Output:
+        img_thres : ndarray, denoised image or volume in nD space
+    '''
+
+    coeffs = pywt.wavedecn(img, wavelet, level=level, axes=axes)
+
+    for i in range(level + 1):
+        if i == 0:
+            coeffs[i] = softTreshold(coeffs[i], threshold)
+        else:
+            for item in coeffs[i]:
+                coeffs[i][item] = softTreshold(coeffs[i][item], threshold)
+
+    img_thres = pywt.waverecn(coeffs, wavelet, axes=axes)
+
+    return img_thres
