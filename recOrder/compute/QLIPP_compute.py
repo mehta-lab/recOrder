@@ -237,7 +237,6 @@ def reconstruct_QLIPP_3D(position, bg_data, reconstructor, method='Tikhonov',
     print(f'Finished Computing Birefringence ({elapsed_time:0.2f} min)')
     
     print('Computing 3d Phase...')
-    start_time = time.time()
     
     S0_stack = np.transpose(BF_stack,(1,2,0))
     
