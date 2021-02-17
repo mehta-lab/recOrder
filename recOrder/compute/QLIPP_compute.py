@@ -127,11 +127,10 @@ def initialize_reconstructor(image_dim, wavelength, swing, N_channel, NA_obj, NA
     start_time = time.time()
     recon = setup(image_dim, lambda_illu, ps, NA_obj, NA_illu, z_defocus, chi=chi,
                  n_media=n_media, cali=cali, bg_option=bg_option, 
-                 A_matrix=inst_mat, QLIPP_birefringence_only = False, 
-                 phase_deconv='3D',illu_mode='BF', use_gpu=False, gpu_id=0)
+                 A_matrix=inst_mat, QLIPP_birefringence_only = False, pad_z=pad_z, 
+                 phase_deconv='3D',illu_mode='BF', use_gpu=use_gpu, gpu_id=gpu_id)
     
     recon.N_channel = N_channel
-    recon.pad_z = pad_z
     
     elapsed_time=(time.time()-start_time)/60
     print(f'Finished Initializing Reconstructor ({elapsed_time:0.2f} min)')
@@ -240,17 +239,8 @@ def reconstruct_QLIPP_3D(position, bg_data, reconstructor, method='Tikhonov',
     
     S0_stack = np.transpose(BF_stack,(1,2,0))
     
-    if recon.pad_z != 0:
-        S0_pad = np.pad(S0_stack,((0,0),(0,0),(recon.pad_z,recon.pad_z)), mode='constant',constant_values=S0_stack.mean())
-        
-        phase3d =  recon.Phase_recon_3D(S0_pad, absorption_ratio=0.0, method=method, reg_re = reg_re, reg_im = reg_im,\
-                       rho = rho, lambda_re = lambda_re, lambda_im = lambda_im, itr = itr, verbose=True)
-        
-        phase3d = phase3d[:,:,recon.pad_z:-(recon.pad_z)]
-        
-    else:
     
-        phase3d =  recon.Phase_recon_3D(S0_stack, absorption_ratio=0.0, method=method, reg_re = reg_re, reg_im = reg_im,\
+    phase3d =  recon.Phase_recon_3D(S0_stack, absorption_ratio=0.0, method=method, reg_re = reg_re, reg_im = reg_im,\
                        rho = rho, lambda_re = lambda_re, lambda_im = lambda_im, itr = itr, verbose=True)
         
         
