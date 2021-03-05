@@ -29,6 +29,6 @@ def translate_3D(image_stack, shift, binning=1, size_z_param=0, size_z_um = 0):
             shift[1] = shift[1] / binning
             shift[2] = shift[2] / binning
                 
-        image = affine_transform(image, np.ones(3), shift, order=1)
+        image = affine_transform(img, np.ones(3), shift, order=1)
         registered_images.append(image)
     return np.asarray(registered_images)
