@@ -6,7 +6,7 @@ import glob
 import time
 
 
-def load_bg(bg_path, height, width):
+def load_bg(bg_path, height, width, ROI = None, cropped = False):
     """ Load QLIPP background dataset
     
     bg_path  : str
@@ -26,13 +26,21 @@ def load_bg(bg_path, height, width):
    
     """
     
+    
     bg_paths = glob.glob(bg_path+'*.tif')
     bg_paths.sort()
 #     print(bg_paths)
     bg_data = np.zeros([len(bg_paths),height,width])
     
     for i in range(len(bg_paths)):
-        bg_data[i,:,:] = tiff.imread(bg_paths[i])
+        img = tiff.imread(bg_paths[i])
+        
+        if cropped==True:
+            bg_data[i,:,:] = np.mean(img[ROI[1]:ROI[1]+ROI[3], ROI[0]:ROI[0]+ROI[2]])
+            
+        else:
+            bg_data[i,:,:] = img
+                                 
 
     return bg_data
 
@@ -203,6 +211,7 @@ def reconstruct_QLIPP_3D(position, bg_data, reconstructor, method='Tikhonov',
     print('Computing Birefringence...')
 
 #     bg_data = load_bg(bg_path, height, width)
+
     bg_stokes = recon.Stokes_recon(bg_data)
     bg_stokes = recon.Stokes_transform(bg_stokes)
             

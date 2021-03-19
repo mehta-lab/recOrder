@@ -27,15 +27,19 @@ log = logging.getLogger(__name__)
 
 class MicromanagerReader:
 
-    def __init__(self, folder, extract_data=False, log_level=logging.ERROR):
+    def __init__(self, folder: str, extract_data: bool = False, log_level: int = logging.ERROR):
         """
-        loads ome-tiff files in folder into zarr or numpy arrays
+        reads ome-tiff files into zarr or numpy arrays
         Strategy:
-            1. read all files in folder
-            2. search for the file whose omexml does not contain the element tag "BinaryOnly"-> this is the master ome-tiff
-            3. each series represents a micro-manager stage position.  upon call for data, assign this data to a dict
-        :param folder: folder containing all ome-tiff files
-        :param reader: tifffile or aicsimageio
+            1. search the file's omexml metadata for the "master file" location
+            2. load the master file
+            3. read micro-manager metadata into class attributes
+        :param folder: str
+            folder or file containing all ome-tiff files
+        :param extract_data: bool
+            True if ome_series should be extracted immediately
+        :param log_level: int
+            One of 0, 10, 20, 30, 40, 50 for NOTSET, DEBUG, INFO, WARNING, ERROR, CRITICAL respectively
         """
 
         logging.basicConfig(
@@ -59,7 +63,7 @@ class MicromanagerReader:
         self._set_mm_meta()
 
         if extract_data:
-            self.extract_data(self.master_ome_tiff)
+            self._create_stores(self.master_ome_tiff)
 
     def _set_mm_meta(self):
         with TiffFile(self.master_ome_tiff) as tif:
@@ -92,7 +96,7 @@ class MicromanagerReader:
             out.update({dev_pos['Device']: dev_pos['Position_um']})
         return out
 
-    def extract_data(self, master_ome):
+    def _create_stores(self, master_ome):
         """
         extract all series from ome-tiff and place into dict of (pos: zarr)
         :param master_ome: full path to master OME-tiff
@@ -113,40 +117,46 @@ class MicromanagerReader:
 
         from xml.etree import ElementTree as etree  # delayed import
 
-        def tag_search(root_, tag_name='BinaryOnly'):
-            """
-            returns True if tag_name is present
-            """
-            for element in root_:
-                if element.tag.endswith(tag_name):
-                    log.warning(f'OME series: not an ome-tiff master file')
-                    return True
-            return False
+        ome_master = None
 
-        for file in os.listdir(folder_):
-            log.info(f"checking {file} for ome-master records")
-            if not file.endswith('.ome.tif'):
-                continue
-            with TiffFile(os.path.join(folder_, file)) as tiff:
-                omexml = tiff.pages[0].description
-                # get omexml root from first page
+        if os.path.isdir(folder_):
+            dirname = folder_
+            file = [f for f in os.listdir(folder_) if ".ome.tif" in f][0]
+        elif os.path.isfile(folder_) and folder_.endswith('.ome.tif'):
+            dirname = os.path.dirname(folder_)
+            file = folder_
+        else:
+            raise ValueError("supplied folder contains no ome.tif or is itself not an ome.tif")
+
+        log.info(f"checking {file} for ome-master records")
+
+        with TiffFile(os.path.join(dirname, file)) as tiff:
+            omexml = tiff.pages[0].description
+            # get omexml root from first page
+            try:
+                root = etree.fromstring(omexml)
+            except etree.ParseError as exc:
                 try:
+                    omexml = omexml.decode(errors='ignore').encode()
                     root = etree.fromstring(omexml)
-                except etree.ParseError as exc:
-                    try:
-                        omexml = omexml.decode(errors='ignore').encode()
-                        root = etree.fromstring(omexml)
-                    except Exception as ex:
-                        log.error(f"Exception while parsing root from omexml: {ex}")
+                except Exception as ex:
+                    log.error(f"Exception while parsing root from omexml: {ex}")
 
-                # search for tag corresponding to non-ome-tiff-master files
-                if not tag_search(root, "BinaryOnly"):
-                    ome_master = file
-                    break
-                else:
-                    continue
+            # search all elements for tags that identify ome-master tiff
+            for element in root:
+                # MetadataFile attribute identifies master-ome from a BinaryOnly non-master file
+                if element.tag.endswith('BinaryOnly'):
+                    log.warning(f'OME series: BinaryOnly: not an ome-tiff master file')
+                    ome_master = element.attrib['MetadataFile']
+                    return os.path.join(dirname, ome_master)
+                # Name attribute identifies master-ome from a master-ome file.
+                elif element.tag.endswith("Image"):
+                    log.warning(f'OME series: Master-ome found')
+                    ome_master = element.attrib['Name'] + ".ome.tif"
+                    return os.path.join(dirname, ome_master)
 
-        return os.path.join(folder_, ome_master)
+            if not ome_master:
+                raise AttributeError("no ome-master file found")
 
     def get_zarr(self, position):
         """
@@ -156,7 +166,7 @@ class MicromanagerReader:
         :return: zarr.array
         """
         if not self._positions:
-            self.extract_data(self.master_ome_tiff)
+            self._create_stores(self.master_ome_tiff)
         return self._positions[position]
 
     def get_array(self, position):
@@ -167,7 +177,7 @@ class MicromanagerReader:
         :return: np.ndarray
         """
         if not self._positions:
-            self.extract_data(self.master_ome_tiff)
+            self._create_stores(self.master_ome_tiff)
         return np.array(self._positions[position])
 
     def get_num_positions(self):
@@ -179,3 +189,28 @@ class MicromanagerReader:
             return len(self._positions)
         else:
             log.error("ome-tiff scenes not read.")
+
+
+# def main():
+#     no_positions = '/Users/bryant.chhun/Desktop/Data/reconstruct-order-2/image_files_tpzc_200tp_1p_5z_3c_2k_1'
+#     # multipositions = '/Users/bryant.chhun/Desktop/Data/reconstruct-order-2/image_stack_tpzc_50tp_4p_5z_3c_2k_1'
+#
+#     master_new_folder = '/Users/bryant.chhun/Desktop/Data/reconstruct-order-2/test_1/'
+#     non_master_new_folder = '/Users/bryant.chhun/Desktop/Data/reconstruct-order-2/test_1/'
+#     non_master_new_large_folder = '/Users/bryant.chhun/Desktop/Data/reconstruct-order-2/image_stack_tpzc_50tp_4p_5z_3c_2k_1/'
+#     non_master_old_large_folder = '/Users/bryant.chhun/Desktop/Data/reconstruct-order-2/mm2.0_20201113_50tp_4p_5z_3c_2k_1/'
+#
+#     master_old_folder = '/Volumes/comp_micro/rawdata/hummingbird/Janie/2021_02_03_40x_04NA_A549/48hr_RSV_IFN/Coverslip_1/C1_MultiChan_Stack_1/'
+#     non_master_old_folder = '/Volumes/comp_micro/rawdata/hummingbird/Janie/2021_02_03_40x_04NA_A549/48hr_RSV_IFN/Coverslip_1/C1_MultiChan_Stack_1/'
+#
+#     ivan_dataset = '/Volumes/comp_micro/rawdata/falcon/Ivan/20210128 HEK CAAX SiRActin/FOV1_1'
+#     ivan_file = 'FOV1_1_MMStack_Default_23.ome.tif'
+#
+#     r = MicromanagerReader(ivan_dataset)
+#     print(r.get_zarr(3))
+#     # print(r.get_master_ome())
+#     # print(r.get_num_positions())
+#
+#
+# if __name__ == "__main__":
+#     main()
