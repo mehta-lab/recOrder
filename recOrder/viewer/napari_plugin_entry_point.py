@@ -25,7 +25,7 @@ class RecOrderCombined(QWidget):
         ui.setupUi(self)
 
         # we need to add all our signal connections
-        SignalManager("combined", self, self)
+        SignalManager("combined", ui)
         # ui.qbutton_snap_and_correct.clicked[bool].connect(self._handle_snap)
 
     # def _handle_snap(self):
@@ -44,7 +44,7 @@ class RecOrderOffline(QWidget):
         ui.setupUi(self)
 
         # we need to add all our signal connections
-        SignalManager("offline", self, self)
+        SignalManager("offline", ui)
 
 
 class RecOrderAcquisition(QWidget):
@@ -57,7 +57,7 @@ class RecOrderAcquisition(QWidget):
         ui.setupUi(self)
 
         # we need to add all our signal connections
-        SignalManager("acquisition", self, self)
+        SignalManager("acquisition", ui)
 
 
 class RecOrderCalibration(QWidget):
@@ -70,7 +70,7 @@ class RecOrderCalibration(QWidget):
         ui.setupUi(self)
 
         # we need to add all our signal connections
-        SignalManager("calbiration", self, self)
+        SignalManager("calbiration", ui)
 
 
 @napari_hook_implementation
