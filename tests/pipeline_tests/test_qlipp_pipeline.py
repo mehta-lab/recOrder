@@ -153,10 +153,10 @@ def test_2D_reconstruction(setup_test_data, setup_data_save_folder):
     assert(array.shape == (1, len(config.output_channels), 1, 231, 498))
 
     # Check Stokes
-    assert(np.sum(np.abs(stokes[z, 0] - array[0, 4, 0]) ** 2) / np.sum(np.abs(stokes[z, 0]))**2 < 0.1)
-    assert(np.sum(np.abs(stokes[z, 1] - array[0, 5, 0]) ** 2) / np.sum(np.abs(stokes[z, 1]))**2 < 0.1)
-    assert(np.sum(np.abs(stokes[z, 2] - array[0, 6, 0]) ** 2) / np.sum(np.abs(stokes[z, 2]))**2 < 0.1)
-    assert(np.sum(np.abs(stokes[z, 3] - array[0, 7, 0]) ** 2) / np.sum(np.abs(stokes[z, 3]))**2 < 0.1)
+    assert(np.sum(np.abs(stokes[z, 0] - array[0, 4, 0]) ** 2) / np.sum(np.abs(stokes[z, 0]))**2 < 0.001)
+    assert(np.sum(np.abs(stokes[z, 1] - array[0, 5, 0]) ** 2) / np.sum(np.abs(stokes[z, 1]))**2 < 0.001)
+    assert(np.sum(np.abs(stokes[z, 2] - array[0, 6, 0]) ** 2) / np.sum(np.abs(stokes[z, 2]))**2 < 0.001)
+    assert(np.sum(np.abs(stokes[z, 3] - array[0, 7, 0]) ** 2) / np.sum(np.abs(stokes[z, 3]))**2 < 0.001)
 
     # Check Birefringence
     assert(np.sum(np.abs((birefringence[0, 0]/(2 * np.pi)*config.wavelength) - array[0, 0, 0]) ** 2)
