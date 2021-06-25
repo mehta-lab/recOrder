@@ -201,29 +201,29 @@ class qlipp_pipeline(PipelineInterface):
 
         t = pt[1]
         z = 0 if self.mode == '2D' else None
+        _slice = self.focus_slice if self.mode == '2D' else slice(None)
         fluor_idx = 0
-        birefringence = np.copy(birefringence[:, 0]) if self.mode == '2D' else birefringence
 
         for chan in range(len(self.output_channels)):
             if 'Retardance' in self.output_channels[chan]:
-                ret = birefringence[0] / (2 * np.pi) * self.config.wavelength
+                ret = birefringence[0, _slice] / (2 * np.pi) * self.config.wavelength
                 self.writer.write(ret, t=t, c=chan, z=z)
             elif 'Orientation' in self.output_channels[chan]:
-                self.writer.write(birefringence[1], t=t, c=chan, z=z)
+                self.writer.write(birefringence[1, _slice], t=t, c=chan, z=z)
             elif 'Brightfield' in self.output_channels[chan]:
-                self.writer.write(birefringence[2], t=t, c=chan, z=z)
+                self.writer.write(birefringence[2, _slice], t=t, c=chan, z=z)
             elif 'Phase3D' in self.output_channels[chan]:
                 self.writer.write(phase3D, t=t, c=chan, z=z)
             elif 'Phase2D' in self.output_channels:
                 self.writer.write(phase2D, t=t, c=chan, z=z)
             elif 'S0' in self.output_channels[chan]:
-                self.writer.write(stokes[:, 0], t=t, c=chan, z=z)
+                self.writer.write(stokes[_slice, 0], t=t, c=chan, z=z)
             elif 'S1' in self.output_channels[chan]:
-                self.writer.write(stokes[:, 1], t=t, c=chan, z=z)
+                self.writer.write(stokes[_slice, 1], t=t, c=chan, z=z)
             elif 'S2' in self.output_channels[chan]:
-                self.writer.write(stokes[:, 2], t=t, c=chan, z=z)
+                self.writer.write(stokes[_slice, 2], t=t, c=chan, z=z)
             elif 'S3' in self.output_channels[chan]:
-                self.writer.write(stokes[:, 3], t=t, c=chan, z=z)
+                self.writer.write(stokes[_slice, 3], t=t, c=chan, z=z)
 
             # Assume any other output channel in config is fluorescence
             else:
