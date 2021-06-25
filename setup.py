@@ -29,7 +29,8 @@ CLASSIFIERS = [
     'Operating System :: Microsoft :: Windows',
     'Operating System :: POSIX',
     'Operating System :: Unix',
-    'Operating System :: MacOS'
+    'Operating System :: MacOS',
+    'Framework :: napari'
 ]
 
 # populate packages
