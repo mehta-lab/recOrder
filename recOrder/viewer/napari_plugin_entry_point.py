@@ -77,4 +77,6 @@ class RecOrderCalibration(QWidget):
 def napari_experimental_provide_dock_widget():
     # you can return either a single widget, or a sequence of widgets
     # each widget is accessible as a new plugin that stacks in the side panel
-    return [RecOrderCombined, RecOrderOffline, RecOrderAcquisition, RecOrderCalibration]
+    # return [RecOrderCombined, RecOrderOffline, RecOrderAcquisition, RecOrderCalibration]
+    return [RecOrderOffline]
+

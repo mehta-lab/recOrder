@@ -69,12 +69,13 @@ class OfflineRecon:
                                   QtWidgets.QMessageBox.Ok | QtWidgets.QMessageBox.Cancel)
         return buttonReply == QtWidgets.QMessageBox.Ok
 
-    @pyqtSlot()
+    @pyqtSlot(bool)
     def set_config_load_path(self):
         """
         Opens a FOLDER browser dialog
         :return:
         """
+        print("CONNECTED SIGNAL")
         self.parent.le_path_to_config.setFocus()
         result = self._open_file_dialog(self.parent.config_path)
 
@@ -87,3 +88,6 @@ class OfflineRecon:
                 return
         else:
             self.parent.config_path = result
+
+
+

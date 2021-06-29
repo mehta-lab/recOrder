@@ -10,6 +10,7 @@ with open("README.md", "r") as fh:
     LONG_DESCRIPTION_content_type = "text/markdown"
     LONG_DESCRIPTION = __doc__
 LICENSE = 'Chan Zuckerberg Biohub Software License'
+VERSION = '1.0.0'
 
 INSTALL_REQUIRES = ['numpy', 'scipy', 'matplotlib', 'pycromanager']
 REQUIRES = []
