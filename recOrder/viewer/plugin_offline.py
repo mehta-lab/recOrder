@@ -1,12 +1,19 @@
 from PyQt5 import QtWidgets
-from PyQt5.QtWidgets import QFileDialog, QAction
+from PyQt5.QtWidgets import QFileDialog, QAction, QWidget
 from PyQt5.QtCore import pyqtSlot
+from recOrder.viewer.qtdesigner.recOrder_offline_06232021 import Ui_Form
 
 
-class OfflineRecon:
+class OfflineRecon(QWidget, Ui_Form):
 
     def __init__(self, parent):
-        self.parent = parent
+        super().__init__()
+        self.setupUi(parent)
+
+        self.config_path = None
+
+        # connect to buttons
+        self.qbutton_browse_config_file.clicked[bool].connect(self.set_config_load_path)
 
     # ==================================
     # FILE BROWSER TOOLS
@@ -76,18 +83,18 @@ class OfflineRecon:
         :return:
         """
         print("CONNECTED SIGNAL")
-        self.parent.le_path_to_config.setFocus()
-        result = self._open_file_dialog(self.parent.config_path)
+        self.le_path_to_config.setFocus()
+        result = self._open_file_dialog(self.config_path)
 
         # check that file is .yml type
         if '.yml' not in result:
             if self._warning_dialog_choice("configuration files must be of type .yml, continue?"):
-                self.parent.config_path = result
-                print("Config folder path changed to = "+str(self.parent.config_path))
+                self.config_path = result
+                print("Config folder path changed to = "+str(self.config_path))
             else:
                 return
         else:
-            self.parent.config_path = result
+            self.config_path = result
 
 
 

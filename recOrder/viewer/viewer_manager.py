@@ -22,17 +22,14 @@ class SignalManager:
     # todo: perhaps list function names and connections in a dictionary, similar to how configfile works
     #   then do assignment using setattr/getattr
 
-    def __init__(self, module_type, module):
+    def __init__(self, module_type, sig_module, slt_module):
         if module_type == "offline":
-
-            # INITIALIZE OFFLINE
-            OfflineRecon(module)
 
             # OFFLINE RECONSTRUCTION TAB SIGNALS
             for widget in OFFLINE.items():
-                m = getattr(module, widget[0])
+                m = getattr(sig_module, widget[0])
                 m_action = getattr(m, widget[1][0])
-                m_action.connect(getattr(OfflineRecon, widget[1][1]))
+                m_action.connect(getattr(slt_module, widget[1][1]))
 
         elif module_type == "acquisition":
             pass
