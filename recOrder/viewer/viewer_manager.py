@@ -1,14 +1,12 @@
-from recOrder.viewer.plugin_offline import OfflineRecon
-
 
 # each of these dictionaries contains mappings between pyqt widget names, action type, and connecting function name
 # {key: value} = {pyqt_widget_name : [action_type, function_name]}
 OFFLINE = \
     {
         'qbutton_browse_config_file':   ['clicked', 'set_config_load_path'],
-        # 'qbutton_loadconfig':           ['clicked', 'load_configuration_file'],
-        # 'qbutton_load_default_config':  ['clicked', 'load_default_config'],
-        # 'qbutton_save_config':          ['clicked', 'save_configuration_file'],
+        'qbutton_loadconfig':           ['clicked', 'load_configuration_file'],
+        'qbutton_load_default_config':  ['clicked', 'load_default_config'],
+        'qbutton_save_config':          ['clicked', 'save_configuration_file'],
         # 'qbutton_runReconstruction':    ['clicked', 'run_reconstruction'],
         # 'qbutton_stopReconstruction':   ['clicked', 'stop_reconstruction'],
     }
