@@ -22,8 +22,8 @@ class ZarrConverter:
     def __init__(self, input, output, data_type=None, replace_position_names=False, format_hcs=False):
 
         # Add Initial Checks
-        if len(glob.glob(os.path.join(input, '*.tif'))) == 0:
-            raise ValueError('Specific input contains no .tif files, please specify a valid input directory')
+        # if len(glob.glob(os.path.join(input, '*.tif'))) == 0:
+        #     raise ValueError('Specific input contains no .tif files, please specify a valid input directory')
         if not output.endswith('.zarr'):
             raise ValueError('Please specify .zarr at the end of your output')
 
@@ -34,7 +34,7 @@ class ZarrConverter:
         self.version = 'recOrder Converter version=0.4'
         self.data_directory = input
         self.save_directory = os.path.dirname(output)
-        self.files = glob.glob(os.path.join(self.data_directory, '*.tif'))
+        # self.files = glob.glob(os.path.join(self.data_directory, '*.tif'))
         self.data_type = data_type
         self.meta_file = None
 
@@ -63,7 +63,7 @@ class ZarrConverter:
         self.t_dim = None
         self.c_dim = None
         self.z_dim = None
-        self.dtype = self.reader.reader.dtype
+        self.dtype = self.reader.dtype
         self.p = self.reader.get_num_positions()
         self.t = self.reader.frames
         self.c = self.reader.channels
