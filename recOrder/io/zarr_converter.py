@@ -19,21 +19,21 @@ class ZarrConverter:
     for tiled acquisitions)
     """
 
-    def __init__(self, input, output, data_type=None, replace_position_names=False, format_hcs=False):
+    def __init__(self, input_dir, output_dir, data_type=None, replace_position_names=False, format_hcs=False):
 
         # Add Initial Checks
         # if len(glob.glob(os.path.join(input, '*.tif'))) == 0:
         #     raise ValueError('Specific input contains no .tif files, please specify a valid input directory')
-        if not output.endswith('.zarr'):
+        if not output_dir.endswith('.zarr'):
             raise ValueError('Please specify .zarr at the end of your output')
 
         # ignore tiffile warnings
         # warnings.filterwarnings('ignore')
 
         # Init File IO Properties
-        self.version = 'recOrder Converter version=0.4'
-        self.data_directory = input
-        self.save_directory = os.path.dirname(output)
+        self.version = 'recOrder Converter version=0.5'
+        self.data_directory = input_dir
+        self.save_directory = os.path.dirname(output_dir)
         # self.files = glob.glob(os.path.join(self.data_directory, '*.tif'))
         self.data_type = data_type
         self.meta_file = None
@@ -43,7 +43,7 @@ class ZarrConverter:
         print('Finished initializing data')
 
         self.summary_metadata = self.reader.mm_meta['Summary'] if self.reader.mm_meta else None
-        self.save_name = os.path.basename(output)
+        self.save_name = os.path.basename(output_dir)
         if self.data_type != 'upti':
             self.mfile_name = os.path.join(self.save_directory, f'{self.save_name.strip(".zarr")}_ImagePlaneMetadata.txt')
             self.meta_file = open(self.mfile_name, 'a')
@@ -375,8 +375,6 @@ class ZarrConverter:
         # loop is done in order in which the images were acquired
         print('Converting Images...')
         for coord in tqdm(self.coords, bar_format=bar_format):
-
-
             if self.data_type == 'ometiff':
                 # re-order coordinates into zarr format
                 coord_reorder = (coord[self.p_dim],
@@ -398,6 +396,16 @@ class ZarrConverter:
                 meta[f'{coord_reorder}'] = plane_meta
 
                 json.dump(meta, self.meta_file, indent=1)
+            elif self.data_type == 'pycromanager':
+                # write page metadata
+                # TODO: doesn't seem to work
+                # TODO: associate with Keyframe
+                plane_metadata = self.reader.reader.get_image_metadata(coord[self.p_dim],
+                                                                       coord[self.t_dim],
+                                                                       coord[self.c_dim],
+                                                                       coord[self.z_dim])
+                json.dump(plane_metadata, self.meta_file, indent=1)
+
             # get the memory mapped image
             img_raw = self.get_image_array(coord[self.p_dim], coord[self.t_dim], coord[self.c_dim], coord[self.z_dim])
 
@@ -408,7 +416,7 @@ class ZarrConverter:
             if not self._perform_image_check(img_raw, coord):
                 raise ValueError('Converted zarr image does not match the raw data. Conversion Failed')
 
-        # Put metadata into zarr store and cleanup
+        # Put summary metadata into zarr store and cleanup
         self.writer.store.attrs.update(self.metadata)
         if self.meta_file:
             self.meta_file.close()
