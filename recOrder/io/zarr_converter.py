@@ -411,13 +411,14 @@ class ZarrConverter:
                 json.dump(meta, self.meta_file, indent=1)
             elif self.data_type == 'pycromanager':
                 # write page metadata
-                # TODO: doesn't seem to work
-                # TODO: associate with Keyframe
                 plane_metadata = self.reader.reader.get_image_metadata(coord[self.p_dim],
                                                                        coord[self.t_dim],
                                                                        coord[self.c_dim],
                                                                        coord[self.z_dim])
-                json.dump(plane_metadata, self.meta_file, indent=1)
+
+                json.dump({f'FrameKey-{coord[self.p_dim]}-{coord[self.t_dim]}-'
+                           f'{coord[self.c_dim]}-{coord[self.z_dim]}': plane_metadata},
+                          self.meta_file, indent=1)
 
             # get the memory mapped image
             img_raw = self.get_image_array(coord[self.p_dim], coord[self.t_dim], coord[self.c_dim], coord[self.z_dim])
