@@ -20,6 +20,19 @@ class ZarrConverter:
     """
 
     def __init__(self, input_dir, output_dir, data_type=None, replace_position_names=False, format_hcs=False):
+        """
+
+        Parameters
+        ----------
+        input_dir: str
+            Input directory
+        output_dir: str
+            Output directory
+        data_type: str
+            input data type, optional
+        replace_position_names: bool
+        format_hcs: bool
+        """
 
         # Add Initial Checks
         # if len(glob.glob(os.path.join(input, '*.tif'))) == 0:
@@ -35,11 +48,11 @@ class ZarrConverter:
         self.data_directory = input_dir
         self.save_directory = os.path.dirname(output_dir)
         # self.files = glob.glob(os.path.join(self.data_directory, '*.tif'))
-        self.data_type = data_type
         self.meta_file = None
 
         print('Initializing Data...')
         self.reader = WaveorderReader(self.data_directory, data_type, extract_data=False)
+        self.data_type = self.reader.data_type
         print('Finished initializing data')
 
         self.summary_metadata = self.reader.mm_meta['Summary'] if self.reader.mm_meta else None
