@@ -6,9 +6,8 @@ from waveorder.io.writer import WaveorderWriter
 from waveorder.io.reader import WaveorderReader
 from recOrder.preproc.pre_processing import get_autocontrast_limits
 from recOrder.io.utils import create_grid_from_coordinates
-import glob
+import copy
 import json
-import warnings
 
 
 class ZarrConverter:
@@ -39,9 +38,6 @@ class ZarrConverter:
         #     raise ValueError('Specific input contains no .tif files, please specify a valid input directory')
         if not output_dir.endswith('.zarr'):
             raise ValueError('Please specify .zarr at the end of your output')
-
-        # ignore tiffile warnings
-        # warnings.filterwarnings('ignore')
 
         # Init File IO Properties
         self.version = 'recOrder Converter version=0.5'
@@ -88,6 +84,9 @@ class ZarrConverter:
         self.prefix_list = []
         print(f'Found Dataset {self.save_name} w/ dimensions (P, T, C, Z, Y, X): {self.dim}')
 
+        # Generate coordinate set
+        self._gen_coordset()
+
         # Initialize Metadata Dictionary
         self.metadata = dict()
         self.metadata['recOrder_Converter_Version'] = self.version
@@ -131,7 +130,7 @@ class ZarrConverter:
                        'channel': self.c,
                        'z': self.z}
 
-            self.dim_order = self.summary_metadata['AxisOrder']
+            self.dim_order = copy.copy(self.summary_metadata['AxisOrder'])
 
             dims = []
             for i in range(n_dim):
@@ -376,7 +375,6 @@ class ZarrConverter:
         # Run setup
         print('Running Conversion...')
         print('Setting up zarr')
-        self._gen_coordset()
         # self._gather_index_maps()
         self.init_zarr_structure()
         last_file = None
