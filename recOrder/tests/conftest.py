@@ -7,30 +7,68 @@ from wget import download
 def setup_test_data():
     # create /pytest_temp/ and /pytest_temp/rawdata/ folders,
     temp_folder = os.path.join(os.getcwd(), 'pytest_temp')
-    temp_data = os.path.join(temp_folder, 'rawdata')
+    test_data = os.path.join(temp_folder, 'test_data')
     if not os.path.isdir(temp_folder):
         os.mkdir(temp_folder)
         print("\nsetting up temp folder")
-    if not os.path.isdir(temp_data):
-        os.mkdir(temp_data)
+    if not os.path.isdir(test_data):
+        os.mkdir(test_data)
 
-    #  do
-    #  wnload data to /pytest_temp/rawdata/recOrder/ folder if it doesn't already exist
+    #  download data to /pytest_temp/ folder if it doesn't already exist
     url = 'https://zenodo.org/record/6249285/files/recOrder_testData.zip?download=1'
-    output = os.path.join(temp_data,  "recOrder_testData.zip")
-    if not os.path.isdir(os.path.join(temp_data, 'recOrder')):
-        print("Downloading test files...")
-        download(url, out=output)
-        shutil.unpack_archive(output, extract_dir=temp_data)
+    # output = os.path.join(test_data,  "recOrder_testData.zip")
+    output = os.path.join(test_data, "recOrder_test_Data.zip")
+    if not os.listdir(test_data):
+        # print("Downloading test files...")
+        # download(url, out=output)
+        shutil.unpack_archive(r'C:\Users\labelfree\Documents\recOrder_test_data.zip', extract_dir=test_data)
 
-    ometiff_data = os.path.join(temp_data,
-                                'recOrder', '2021_06_11_recOrder_pytest_20x_04NA', '2T_3P_81Z_231Y_498X_Kazansky_2')
-    zarr_data = os.path.join(temp_data,
-                             'recOrder', '2021_06_11_recOrder_pytest_20x_04NA_zarr', '2T_3P_81Z_231Y_498X_Kazansky.zarr')
-    bf_data = os.path.join(temp_data,
-                           'recOrder', '2021_06_11_recOrder_pytest_20x_04NA_BF_zarr', '2T_3P_81Z_231Y_498X_Kazansky.zarr')
+    yield test_data
 
-    yield temp_data, ometiff_data, zarr_data, bf_data
+    try:
+        # remove temp folder
+        shutil.rmtree(temp_folder)
+    except OSError as e:
+        print(f"Error while deleting temp folder: {e.strerror}")
+
+
+@pytest.fixture()
+def get_ometiff_data_dir(setup_test_data):
+    test_data = setup_test_data
+
+    ometiff_data = os.path.join(test_data,
+                                '2021_06_11_recOrder_pytest_20x_04NA', '2T_3P_81Z_231Y_498X_Kazansky_2')
+
+    return test_data, ometiff_data
+
+
+@pytest.fixture()
+def get_zarr_data_dir(setup_test_data):
+    test_data = setup_test_data
+
+    zarr_data = os.path.join(test_data,
+                             '2021_06_11_recOrder_pytest_20x_04NA_zarr', '2T_3P_81Z_231Y_498X_Kazansky.zarr')
+
+    return test_data, zarr_data
+
+
+@pytest.fixture()
+def get_bf_data_dir(setup_test_data):
+    test_data = setup_test_data
+
+    bf_data = os.path.join(test_data,
+                           '2021_06_11_recOrder_pytest_20x_04NA_BF_zarr', '2T_3P_81Z_231Y_498X_Kazansky.zarr')
+
+    return test_data, bf_data
+
+
+@pytest.fixture()
+def get_pycromanager_data_dir(setup_test_data):
+    test_data = setup_test_data
+
+    pm_data = os.path.join(test_data, 'mm2.0-20210713_pm0.13.2_2p_3t_2c_7z_1')
+
+    return test_data, pm_data
 
 # create /pytest_temp/data_save folder for each test then delete when test is done
 @pytest.fixture(scope='function')

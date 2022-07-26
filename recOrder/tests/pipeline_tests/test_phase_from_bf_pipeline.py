@@ -8,9 +8,9 @@ import numpy as np
 import os
 import zarr
 
-def test_pipeline_manager_initiate(setup_test_data, setup_data_save_folder):
+def test_pipeline_manager_initiate(get_bf_data_dir, setup_data_save_folder):
 
-    folder, ometiff_data, zarr_data, bf_data = setup_test_data
+    folder, bf_data = get_bf_data_dir
     save_folder = setup_data_save_folder
 
     path_to_config = os.path.join(dirname(dirname(abspath(__file__))), 'test_configs/phase/config_phase_full_pytest.yml')
@@ -23,8 +23,9 @@ def test_pipeline_manager_initiate(setup_test_data, setup_data_save_folder):
     assert(manager.pipeline is not None)
     assert(isinstance(manager.pipeline, PhaseFromBF))
 
-def test_bf_pipeline_initiate(setup_test_data, setup_data_save_folder):
-    folder, ometiff_data, zarr_data, bf_data = setup_test_data
+def test_bf_pipeline_initiate(get_bf_data_dir, setup_data_save_folder):
+
+    folder, bf_data = get_bf_data_dir
     save_folder = setup_data_save_folder
 
     path_to_config = os.path.join(dirname(dirname(abspath(__file__))), 'test_configs/phase/config_phase_full_pytest.yml')
@@ -47,9 +48,9 @@ def test_bf_pipeline_initiate(setup_test_data, setup_data_save_folder):
     assert(isinstance(pipeline.writer, WaveorderWriter))
     assert(pipeline.reconstructor is not None)
 
-def test_pipeline_manager_run(setup_test_data, setup_data_save_folder):
+def test_pipeline_manager_run(get_bf_data_dir, setup_data_save_folder):
 
-    folder, ometiff_data, zarr_data, bf_data = setup_test_data
+    folder, bf_data = get_bf_data_dir
     save_folder = setup_data_save_folder
 
     path_to_config = os.path.join(dirname(dirname(abspath(__file__))), 'test_configs/phase/config_phase_full_pytest.yml')
@@ -67,9 +68,9 @@ def test_pipeline_manager_run(setup_test_data, setup_data_save_folder):
     assert (store['Row_0']['Col_2']['Pos_002'])
     assert (array.shape == (2, 1, 81, manager.data.height, manager.data.width))
 
-def test_3D_reconstruction(setup_test_data, setup_data_save_folder):
+def test_3D_reconstruction(get_bf_data_dir, setup_data_save_folder):
 
-    folder, ometiff_data, zarr_data, bf_data = setup_test_data
+    folder, bf_data = get_bf_data_dir
     save_folder = setup_data_save_folder
 
     path_to_config = os.path.join(dirname(dirname(abspath(__file__))), 'test_configs/phase/config_phase_3D_pytest.yml')
@@ -96,9 +97,9 @@ def test_3D_reconstruction(setup_test_data, setup_data_save_folder):
     # Check Phase
     assert(np.sum(np.abs(phase3D[z] - array[0, 0, z]) ** 2) / np.sum(np.abs(phase3D[z])**2) < 0.1)
 
-def test_2D_reconstruction(setup_test_data, setup_data_save_folder):
+def test_2D_reconstruction(get_bf_data_dir, setup_data_save_folder):
 
-    folder, ometiff_data, zarr_data, bf_data = setup_test_data
+    folder, bf_data = get_bf_data_dir
     save_folder = setup_data_save_folder
 
     path_to_config = os.path.join(dirname(dirname(abspath(__file__))), 'test_configs/phase/config_phase_2D_pytest.yml')

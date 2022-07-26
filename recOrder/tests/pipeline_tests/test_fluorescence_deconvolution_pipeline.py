@@ -10,9 +10,9 @@ import numpy as np
 import os
 import zarr
 
-def test_pipeline_manager_initiate(setup_test_data, setup_data_save_folder):
+def test_pipeline_manager_initiate(get_zarr_data_dir, setup_data_save_folder):
 
-    folder, ometiff_data, zarr_data, bf_data = setup_test_data
+    folder, zarr_data = get_zarr_data_dir
     save_folder = setup_data_save_folder
 
     path_to_config = os.path.join(dirname(dirname(abspath(__file__))),
@@ -27,8 +27,9 @@ def test_pipeline_manager_initiate(setup_test_data, setup_data_save_folder):
     assert(manager.pipeline is not None)
     assert(isinstance(manager.pipeline, FluorescenceDeconvolution))
 
-def test_fluor_decon_pipeline_initiate(setup_test_data, setup_data_save_folder):
-    folder, ometiff_data, zarr_data, bf_data = setup_test_data
+def test_fluor_decon_pipeline_initiate(get_zarr_data_dir, setup_data_save_folder):
+
+    folder, zarr_data = get_zarr_data_dir
     save_folder = setup_data_save_folder
 
     path_to_config = os.path.join(dirname(dirname(abspath(__file__))),
@@ -51,9 +52,9 @@ def test_fluor_decon_pipeline_initiate(setup_test_data, setup_data_save_folder):
     assert(isinstance(pipeline.writer, WaveorderWriter))
     assert(pipeline.reconstructor is not None)
 
-def test_pipeline_manager_run(setup_test_data, setup_data_save_folder):
+def test_pipeline_manager_run(get_zarr_data_dir, setup_data_save_folder):
 
-    folder, ometiff_data, zarr_data, bf_data = setup_test_data
+    folder, zarr_data = get_zarr_data_dir
     save_folder = setup_data_save_folder
 
     path_to_config = os.path.join(dirname(dirname(abspath(__file__))),
@@ -72,8 +73,9 @@ def test_pipeline_manager_run(setup_test_data, setup_data_save_folder):
     assert (store['Row_0']['Col_2']['Pos_002'])
     assert (array.shape == (2, 2, 81, manager.data.height, manager.data.width))
 
-def test_3D_reconstruction(setup_test_data, setup_data_save_folder):
-    folder, ometiff_data, zarr_data, bf_data = setup_test_data
+def test_3D_reconstruction(get_zarr_data_dir, setup_data_save_folder):
+
+    folder, zarr_data = get_zarr_data_dir
     save_folder = setup_data_save_folder
 
     path_to_config = os.path.join(dirname(dirname(abspath(__file__))),
@@ -101,8 +103,9 @@ def test_3D_reconstruction(setup_test_data, setup_data_save_folder):
     # Check deconvolved fluor
     assert (np.sum(np.abs(fluor3D[z] - array[0, 0, z]) ** 2) / np.sum(np.abs(fluor3D[z])**2) < 0.1)
 
-def test_2D_reconstruction(setup_test_data, setup_data_save_folder):
-    folder, ometiff_data, zarr_data, bf_data = setup_test_data
+def test_2D_reconstruction(get_zarr_data_dir, setup_data_save_folder):
+
+    folder, zarr_data = get_zarr_data_dir
     save_folder = setup_data_save_folder
 
     path_to_config = os.path.join(dirname(dirname(abspath(__file__))),
@@ -131,9 +134,9 @@ def test_2D_reconstruction(setup_test_data, setup_data_save_folder):
     assert (np.sum(np.abs(fluor2D - array[0, 0, 0]) ** 2) / np.sum(np.abs(fluor2D)**2) < 0.1)
 
 
-def test_deconvolution_and_registration(setup_test_data, setup_data_save_folder):
+def test_deconvolution_and_registration(get_zarr_data_dir, setup_data_save_folder):
 
-    folder, ometiff_data, zarr_data, bf_data = setup_test_data
+    folder, zarr_data = get_zarr_data_dir
     save_folder = setup_data_save_folder
 
     path_to_config = os.path.join(dirname(dirname(abspath(__file__))),
