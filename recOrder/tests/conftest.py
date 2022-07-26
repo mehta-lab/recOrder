@@ -1,6 +1,8 @@
 import pytest
 import shutil
 import os
+from recOrder.io.config_reader import ConfigReader
+from recOrder.pipelines.pipeline_manager import PipelineManager
 from wget import download
 
 @pytest.fixture(scope="session")
@@ -70,6 +72,55 @@ def get_pycromanager_data_dir(setup_test_data):
 
     return test_data, pm_data
 
+
+@pytest.fixture()
+def init_fluor_decon_pipeline_manager(get_zarr_data_dir, setup_data_save_folder):
+    folder, zarr_data = get_zarr_data_dir
+    save_folder = setup_data_save_folder
+
+    path_to_config = os.path.abspath('./test_configs/fluor_deconv/config_fluor_full_pytest.yml')
+    config = ConfigReader(path_to_config, data_dir=zarr_data, save_dir=save_folder)
+    manager = PipelineManager(config)
+
+    return save_folder, config, manager
+
+
+@pytest.fixture()
+def init_phase_bf_pipeline_manager(get_bf_data_dir, setup_data_save_folder):
+    folder, bf_data = get_bf_data_dir
+    save_folder = setup_data_save_folder
+
+    path_to_config = os.path.abspath('./test_configs/phase/config_phase_full_pytest.yml')
+    config = ConfigReader(path_to_config, data_dir=bf_data, save_dir=save_folder)
+    manager = PipelineManager(config)
+
+    return save_folder, config, manager
+
+
+@pytest.fixture()
+def init_qlipp_pipeline_manager(get_zarr_data_dir, setup_data_save_folder):
+    folder, zarr_data = get_zarr_data_dir
+    save_folder = setup_data_save_folder
+
+    path_to_config = os.path.abspath('./test_configs/qlipp/config_qlipp_full_pytest.yml')
+    config = ConfigReader(path_to_config, data_dir=zarr_data, save_dir=save_folder)
+    manager = PipelineManager(config)
+
+    return save_folder, config, manager
+
+
+@pytest.fixture()
+def init_qlipp_tiff_pipeline_manager(get_ometiff_data_dir, setup_data_save_folder):
+    folder, ometiff_data = get_ometiff_data_dir
+    save_folder = setup_data_save_folder
+
+    path_to_config = os.path.abspath('./test_configs/qlipp/config_qlipp_full_pytest_tiff.yml')
+    config = ConfigReader(path_to_config, data_dir=ometiff_data, save_dir=save_folder)
+    manager = PipelineManager(config)
+
+    return save_folder, config, manager
+
+
 # create /pytest_temp/data_save folder for each test then delete when test is done
 @pytest.fixture(scope='function')
 def setup_data_save_folder():
@@ -86,3 +137,5 @@ def setup_data_save_folder():
         shutil.rmtree(data_save_folder)
     except OSError as e:
         print(f"Error while deleting temp folder: {e.strerror}")
+
+# TODO: replace large Kazansky dataset with smaller dataset
