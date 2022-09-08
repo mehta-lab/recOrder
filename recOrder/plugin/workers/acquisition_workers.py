@@ -9,6 +9,7 @@ from recOrder.compute.fluorescence_compute import initialize_fluorescence_recons
 from recOrder.io.zarr_converter import ZarrConverter
 from recOrder.io.metadata_reader import MetadataReader, get_last_metadata_file
 from napari.qt.threading import WorkerBaseSignals, WorkerBase
+from napari.utils.notifications import show_warning
 import logging
 from waveorder.io.writer import WaveorderWriter
 import tifffile as tiff
@@ -918,7 +919,8 @@ class PolarizationAcquisitionWorker(WorkerBase):
         channel_exposures = np.array(channel_exposures)
         if not np.all(channel_exposures == channel_exposures[0]):
             # warn user that not all channels exposures were the same
-            logging.warning('The exposure times of each State are not equal!\nAcquiring with the exposure of State0...')
+            warn_exposure_msg = 'The exposure times of each State are not equal!\nAcquiring with the exposure of State0...'
+            show_warning(warn_exposure_msg)
 
             # setting all channel exposures to the exposure of State0
             for i in range(len(self.settings['channels'])):
@@ -943,7 +945,6 @@ class PolarizationAcquisitionWorker(WorkerBase):
 
         # Acquire from MDA settings uses MM MDA GUI
         # Returns (1, 4/5, Z, Y, X) array
-        # logging.debug("Acquisition settings: " + repr(self.settings)) # TODO: remove this line
         stack = acquire_from_settings(self.calib_window.mm, self.settings, grab_images=True)
         self._check_abort()
 
