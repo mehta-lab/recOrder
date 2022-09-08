@@ -919,7 +919,8 @@ class PolarizationAcquisitionWorker(WorkerBase):
         channel_exposures = np.array(channel_exposures)
         if not np.all(channel_exposures == channel_exposures[0]):
             # warn user that not all channels exposures were the same
-            warn_exposure_msg = 'The exposure times of each State are not equal!\nAcquiring with the exposure of State0...'
+            warn_exposure_msg = f'The MDA exposure times are not equal!\n' \
+                                f'Acquiring with State0 exposure = {channel_exposures[0]} ms.'
             show_warning(warn_exposure_msg)
 
             # setting all channel exposures to the exposure of State0
