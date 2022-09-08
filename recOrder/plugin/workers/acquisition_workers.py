@@ -851,23 +851,21 @@ class PolarizationAcquisitionWorker(WorkerBase):
             logging.debug('Acquiring 2D stack')
 
             # Generate MDA Settings
-            settings = generate_acq_settings(self.calib_window.mm,
+            self.settings = generate_acq_settings(self.calib_window.mm,
                                              channel_group=self.channel_group,
                                              channels=channels,
                                              save_dir=self.snap_dir,
                                              prefix=self.prefix)
             self._check_abort()
-
-            # Acquire from MDA settings uses MM MDA GUI
-            # Returns (1, 4/5, 1, Y, X) array
-            stack = acquire_from_settings(self.calib_window.mm, settings, grab_images=True)
+            # acquire images
+            stack = self._acquire()
 
         # Acquire 3D stack
         else:
             logging.debug('Acquiring 3D stack')
 
             # Generate MDA Settings
-            settings = generate_acq_settings(self.calib_window.mm,
+            self.settings = generate_acq_settings(self.calib_window.mm,
                                              channel_group=self.channel_group,
                                              channels=channels,
                                              zstart=self.calib_window.z_start,
@@ -877,23 +875,8 @@ class PolarizationAcquisitionWorker(WorkerBase):
                                              prefix=self.prefix)
 
             self._check_abort()
-
-            # Check that all LF channels have the same exposure settings
-            channel_exposures = []
-            for i in range(len(settings['channels'])):
-                channel_exposures.append(settings['channels'][i]['exposure'])
-
-            channel_exposures = np.array(channel_exposures)
-            if not np.all(channel_exposures == channel_exposures[0]):
-                # TODO: warn user that not all channels exposures were the same
-                # setting all channel exposures to the exposure of State0
-                for i in range(len(settings['channels'])):
-                    settings['channels'][i]['exposure'] = channel_exposures[0]
-
-            # Acquire from MDA settings uses MM MDA GUI
-            # Returns (1, 4/5, Z, Y, X) array
-            stack = acquire_from_settings(self.calib_window.mm, settings, grab_images=True)
-            self._check_abort()
+            # acquire images
+            stack = self._acquire()
 
         # Cleanup acquisition by closing window, converting to zarr, and deleting temp directory
         self._cleanup_acq()
@@ -917,6 +900,54 @@ class PolarizationAcquisitionWorker(WorkerBase):
         self.bire_image_emitter.emit(birefringence)
         self.phase_image_emitter.emit(phase)
         self.meta_emitter.emit(meta)
+
+    def _check_exposure(self) -> None:
+        """
+        Check that all LF channels have the same exposure settings. If not, use the State0 exposure.
+
+        Parameters
+        ----------
+        settings:       (json) JSON dictionary conforming to MM SequenceSettings
+        """
+        logging.debug('Verifying exposure times...')
+        # parse exposure times
+        channel_exposures = []
+        for _, channel in enumerate(self.settings['channels']):
+            channel_exposures.append(channel['exposure'])
+
+        channel_exposures = np.array(channel_exposures)
+        if not np.all(channel_exposures == channel_exposures[0]):
+            # warn user that not all channels exposures were the same
+            logging.warning('The exposure times of each State are not equal!\nAcquiring with the exposure of State0...')
+
+            # setting all channel exposures to the exposure of State0
+            for i in range(len(self.settings['channels']) - 1):
+                self.settings['channels'][i + 1]['exposure'] = self.settings['channels'][0]['exposure']
+        
+        self._check_abort()
+
+    def _acquire(self) -> np.ndarray:
+        """
+        Acquire images.
+
+        Parameters
+        ----------
+        settings:       (json) JSON dictionary conforming to MM SequenceSettings
+
+        Returns
+        -------
+        stack:          (nd-array) Dimensions are (C, Z, Y, X). Z=1 for 2D acquisition.
+        """
+        # check if exposure times are the same
+        self._check_exposure()
+
+        # Acquire from MDA settings uses MM MDA GUI
+        # Returns (1, 4/5, Z, Y, X) array
+        # logging.debug("Acquisition settings: " + repr(self.settings)) # TODO: remove this line
+        stack = acquire_from_settings(self.calib_window.mm, self.settings, grab_images=True)
+        self._check_abort()
+
+        return stack
 
     def _reconstruct(self, stack):
         """
