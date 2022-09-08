@@ -912,7 +912,7 @@ class PolarizationAcquisitionWorker(WorkerBase):
         logging.debug('Verifying exposure times...')
         # parse exposure times
         channel_exposures = []
-        for _, channel in enumerate(self.settings['channels']):
+        for channel in self.settings['channels']:
             channel_exposures.append(channel['exposure'])
 
         channel_exposures = np.array(channel_exposures)
@@ -921,8 +921,8 @@ class PolarizationAcquisitionWorker(WorkerBase):
             logging.warning('The exposure times of each State are not equal!\nAcquiring with the exposure of State0...')
 
             # setting all channel exposures to the exposure of State0
-            for i in range(len(self.settings['channels']) - 1):
-                self.settings['channels'][i + 1]['exposure'] = self.settings['channels'][0]['exposure']
+            for i in range(len(self.settings['channels'])):
+                self.settings['channels'][i]['exposure'] = self.settings['channels'][0]['exposure']
         
         self._check_abort()
 
