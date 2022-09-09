@@ -914,7 +914,8 @@ class PolarizationAcquisitionWorker(WorkerBase):
         channel_exposures = np.array(channel_exposures)
         # check if exposure times are equal
         if not np.all(channel_exposures == channel_exposures[0]):
-            error_exposure_msg = f'The MDA exposure times are not equal! Aborting Acquisition...'
+            error_exposure_msg = f'The MDA exposure times are not equal! Aborting Acquisition.\n' \
+                                 f'Please manually set the exposure times to the same value from the MDA menu.'
 
             raise ValueError(error_exposure_msg)        
 
