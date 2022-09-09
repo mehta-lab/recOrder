@@ -924,10 +924,6 @@ class PolarizationAcquisitionWorker(WorkerBase):
         """
         Acquire images.
 
-        Parameters
-        ----------
-        settings:       (json) JSON dictionary conforming to MM SequenceSettings
-
         Returns
         -------
         stack:          (nd-array) Dimensions are (C, Z, Y, X). Z=1 for 2D acquisition.
