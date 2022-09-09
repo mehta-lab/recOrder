@@ -9,7 +9,6 @@ from recOrder.compute.fluorescence_compute import initialize_fluorescence_recons
 from recOrder.io.zarr_converter import ZarrConverter
 from recOrder.io.metadata_reader import MetadataReader, get_last_metadata_file
 from napari.qt.threading import WorkerBaseSignals, WorkerBase
-from napari.utils.notifications import show_warning
 import logging
 from waveorder.io.writer import WaveorderWriter
 import tifffile as tiff
@@ -904,11 +903,7 @@ class PolarizationAcquisitionWorker(WorkerBase):
 
     def _check_exposure(self) -> None:
         """
-        Check that all LF channels have the same exposure settings. If not, use the State0 exposure.
-
-        Parameters
-        ----------
-        settings:       (json) JSON dictionary conforming to MM SequenceSettings
+        Check that all LF channels have the same exposure settings. If not, abort Acquisition.
         """
         logging.debug('Verifying exposure times...')
         # parse exposure times
@@ -917,16 +912,12 @@ class PolarizationAcquisitionWorker(WorkerBase):
             channel_exposures.append(channel['exposure'])
 
         channel_exposures = np.array(channel_exposures)
+        # check if exposure times are equal
         if not np.all(channel_exposures == channel_exposures[0]):
-            # warn user that not all channels exposures were the same
-            warn_exposure_msg = f'The MDA exposure times are not equal!\n' \
-                                f'Acquiring with State0 exposure = {channel_exposures[0]} ms.'
-            show_warning(warn_exposure_msg)
+            error_exposure_msg = f'The MDA exposure times are not equal! Aborting Acquisition...'
 
-            # setting all channel exposures to the exposure of State0
-            for i in range(len(self.settings['channels'])):
-                self.settings['channels'][i]['exposure'] = self.settings['channels'][0]['exposure']
-        
+            raise ValueError(error_exposure_msg)        
+
         self._check_abort()
 
     def _acquire(self) -> np.ndarray:
