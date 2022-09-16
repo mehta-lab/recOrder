@@ -19,17 +19,25 @@ def preproc_denoise(stokes, params):
     stokes_denoised = np.copy(stokes)
     for chan in range(len(params)):
 
-        if 'S0' in params[chan][0]:
-            stokes_denoised[0] = wavelet_softThreshold(stokes[0], 'db8', params[chan][1], params[chan][2])
+        if "S0" in params[chan][0]:
+            stokes_denoised[0] = wavelet_softThreshold(
+                stokes[0], "db8", params[chan][1], params[chan][2]
+            )
 
-        elif 'S1' in params[chan][0]:
-            stokes_denoised[1] = wavelet_softThreshold(stokes[1], 'db8', params[chan][1], params[chan][2])
+        elif "S1" in params[chan][0]:
+            stokes_denoised[1] = wavelet_softThreshold(
+                stokes[1], "db8", params[chan][1], params[chan][2]
+            )
 
-        if 'S2' in params[chan][0]:
-            stokes_denoised[2] = wavelet_softThreshold(stokes[2], 'db8', params[chan][1], params[chan][2])
+        if "S2" in params[chan][0]:
+            stokes_denoised[2] = wavelet_softThreshold(
+                stokes[2], "db8", params[chan][1], params[chan][2]
+            )
 
-        if 'S3' in params[chan][0]:
-            stokes_denoised[3] = wavelet_softThreshold(stokes[3], 'db8', params[chan][1], params[chan][2])
+        if "S3" in params[chan][0]:
+            stokes_denoised[3] = wavelet_softThreshold(
+                stokes[3], "db8", params[chan][1], params[chan][2]
+            )
 
     return stokes_denoised
 
@@ -45,8 +53,9 @@ def find_focus(stack):
     focus_idx:  (int) Index corresponding to the focal plane of the stack
 
     """
+
     def brenner_gradient(im):
-        assert len(im.shape) == 2, 'Input image must be 2D'
+        assert len(im.shape) == 2, "Input image must be 2D"
         return np.mean((im[:-2, :] - im[2:, :]) ** 2)
 
     focus_scores = []
@@ -60,7 +69,7 @@ def find_focus(stack):
     return focus_idx_max, focus_idx_min
 
 
-def get_autocontrast_limits(img, clip=.01):
+def get_autocontrast_limits(img, clip=0.01):
     """
     Get contrast limits based on ignoring a certain % of pixels
 
@@ -75,7 +84,7 @@ def get_autocontrast_limits(img, clip=.01):
 
     """
 
-    low = np.percentile(img, clip*100)
-    high = np.percentile(img, (1-clip)*100)
+    low = np.percentile(img, clip * 100)
+    high = np.percentile(img, (1 - clip) * 100)
 
     return low, high
