@@ -2,13 +2,24 @@ from recOrder.io.config_reader import ConfigReader
 from waveorder.io.reader import WaveorderReader
 from waveorder.io.writer import WaveorderWriter
 from recOrder.io.utils import MockEmitter
-from recOrder.compute.qlipp_compute import reconstruct_phase2D, reconstruct_phase3D, initialize_reconstructor
+from recOrder.compute.qlipp_compute import (
+    reconstruct_phase2D,
+    reconstruct_phase3D,
+    initialize_reconstructor,
+)
 import numpy as np
 from recOrder.pipelines.base import PipelineInterface
 
-class PhaseFromBF(PipelineInterface):
 
-    def __init__(self, config: ConfigReader, data: WaveorderReader, writer: WaveorderWriter, num_t: int, emitter=MockEmitter()):
+class PhaseFromBF(PipelineInterface):
+    def __init__(
+        self,
+        config: ConfigReader,
+        data: WaveorderReader,
+        writer: WaveorderWriter,
+        num_t: int,
+        emitter=MockEmitter(),
+    ):
 
         # Dataset Parameters
         self.config = config
@@ -22,7 +33,7 @@ class PhaseFromBF(PipelineInterface):
         self.t = num_t
         self.output_channels = self.config.output_channels
         self._check_output_channels(self.output_channels)
-        self.mode = '2D' if 'Phase2D' in self.output_channels else '3D'
+        self.mode = "2D" if "Phase2D" in self.output_channels else "3D"
         self.bf_chan_idx = self.config.brightfield_channel_index
         self.fluor_idxs = []
 
@@ -34,31 +45,38 @@ class PhaseFromBF(PipelineInterface):
         self.slices = self.data.slices
         self.focus_slice = None
 
-        if self.mode == '2D':
+        if self.mode == "2D":
             self.slices = 1
             self.focus_slice = self.config.focus_zidx
 
         # Set image dimensions / writer parameters
         self.img_dim = (self.data.height, self.data.width, self.data.slices)
-        self.data_shape = (self.t, len(self.output_channels), self.slices, self.img_dim[0], self.img_dim[1])
+        self.data_shape = (
+            self.t,
+            len(self.output_channels),
+            self.slices,
+            self.img_dim[0],
+            self.img_dim[1],
+        )
         self.chunk_size = (1, 1, 1, self.data_shape[-2], self.data_shape[-1])
 
         # Initialize Reconstructor
-        self.reconstructor = initialize_reconstructor(pipeline='PhaseFromBF',
-                                                      image_dim=(self.img_dim[0], self.img_dim[1]),
-                                                      wavelength_nm=self.config.wavelength,
-                                                      NA_obj=self.config.NA_objective,
-                                                      NA_illu=self.config.NA_condenser,
-                                                      n_obj_media=self.config.n_objective_media,
-                                                      mag=self.config.magnification,
-                                                      n_slices=self.data.slices,
-                                                      z_step_um=self.data.z_step_size,
-                                                      pad_z=self.config.pad_z,
-                                                      pixel_size_um=self.config.pixel_size,
-                                                      mode=self.mode,
-                                                      use_gpu=self.config.use_gpu,
-                                                      gpu_id=self.config.gpu_id)
-
+        self.reconstructor = initialize_reconstructor(
+            pipeline="PhaseFromBF",
+            image_dim=(self.img_dim[0], self.img_dim[1]),
+            wavelength_nm=self.config.wavelength,
+            NA_obj=self.config.NA_objective,
+            NA_illu=self.config.NA_condenser,
+            n_obj_media=self.config.n_objective_media,
+            mag=self.config.magnification,
+            n_slices=self.data.slices,
+            z_step_um=self.data.z_step_size,
+            pad_z=self.config.pad_z,
+            pixel_size_um=self.config.pixel_size,
+            mode=self.mode,
+            use_gpu=self.config.use_gpu,
+            gpu_id=self.config.gpu_id,
+        )
 
     def _check_output_channels(self, output_channels):
         """
@@ -75,12 +93,14 @@ class PhaseFromBF(PipelineInterface):
         """
 
         for channel in output_channels:
-            if 'Phase3D' in channel:
+            if "Phase3D" in channel:
                 continue
-            elif 'Phase2D' in channel:
+            elif "Phase2D" in channel:
                 continue
-            elif 'Phase3D' in channel and 'Phase2D' in channel:
-                raise KeyError('Simultaneous 2D and 3D phase reconstruction not supported')
+            elif "Phase3D" in channel and "Phase2D" in channel:
+                raise KeyError(
+                    "Simultaneous 2D and 3D phase reconstruction not supported"
+                )
             else:
                 continue
 
@@ -130,19 +150,41 @@ class PhaseFromBF(PipelineInterface):
         phase2D = None
         phase3D = None
 
-        if 'Phase3D' in self.output_channels:
-            phase3D = reconstruct_phase3D(bf_data, self.reconstructor, method=self.config.phase_denoiser_3D,
-                                          reg_re=self.config.Tik_reg_ph_3D, rho=self.config.rho_3D,
-                                          lambda_re=self.config.TV_reg_ph_3D, itr=self.config.itr_3D)
+        if "Phase3D" in self.output_channels:
+            phase3D = reconstruct_phase3D(
+                bf_data,
+                self.reconstructor,
+                method=self.config.phase_denoiser_3D,
+                reg_re=self.config.Tik_reg_ph_3D,
+                rho=self.config.rho_3D,
+                lambda_re=self.config.TV_reg_ph_3D,
+                itr=self.config.itr_3D,
+            )
 
-        if 'Phase2D' in self.output_channels:
-            phase2D = reconstruct_phase2D(bf_data, self.reconstructor, method=self.config.phase_denoiser_2D,
-                                          reg_p=self.config.Tik_reg_ph_2D, rho=self.config.rho_2D,
-                                          lambda_p=self.config.TV_reg_ph_2D, itr=self.config.itr_2D)
+        if "Phase2D" in self.output_channels:
+            phase2D = reconstruct_phase2D(
+                bf_data,
+                self.reconstructor,
+                method=self.config.phase_denoiser_2D,
+                reg_p=self.config.Tik_reg_ph_2D,
+                rho=self.config.rho_2D,
+                lambda_p=self.config.TV_reg_ph_2D,
+                itr=self.config.itr_2D,
+            )
 
         return phase2D, phase3D
 
-    def write_data(self, p, t, pt_data, stokes, birefringence, phase2D, phase3D, modified_fluor):
+    def write_data(
+        self,
+        p,
+        t,
+        pt_data,
+        stokes,
+        birefringence,
+        phase2D,
+        phase3D,
+        modified_fluor,
+    ):
         """
         This function will iteratively write the data into its proper position, time, channel, z index.
         If any fluorescence channel is specificed in the config, it will be written in the order in which it appears
@@ -164,23 +206,38 @@ class PhaseFromBF(PipelineInterface):
         Writes a zarr array to to given save directory.
 
         """
-        z = 0 if self.mode == '2D' else None
-        slice_ = self.focus_slice if self.mode == '2D' else slice(None)
+        z = 0 if self.mode == "2D" else None
+        slice_ = self.focus_slice if self.mode == "2D" else slice(None)
         fluor_idx = 0
 
         for chan in range(len(self.output_channels)):
-            if 'Phase3D' in self.output_channels[chan]:
+            if "Phase3D" in self.output_channels[chan]:
                 self.writer.write(phase3D, p=p, t=t, c=chan, z=z)
-            elif 'Phase2D' in self.output_channels[chan]:
+            elif "Phase2D" in self.output_channels[chan]:
                 self.writer.write(phase2D, p=p, t=t, c=chan, z=z)
 
             # Assume any other output channel in config is fluorescence
             else:
-                if self.config.postprocessing.registration_use or self.config.postprocessing.deconvolution_use:
-                    self.writer.write(modified_fluor[fluor_idx][slice_], p=p, t=t, c=chan, z=z)
+                if (
+                    self.config.postprocessing.registration_use
+                    or self.config.postprocessing.deconvolution_use
+                ):
+                    self.writer.write(
+                        modified_fluor[fluor_idx][slice_],
+                        p=p,
+                        t=t,
+                        c=chan,
+                        z=z,
+                    )
                     fluor_idx += 1
                 else:
-                    self.writer.write(pt_data[self.fluor_idxs[fluor_idx], slice_], p=p, t=t, c=chan, z=z)
+                    self.writer.write(
+                        pt_data[self.fluor_idxs[fluor_idx], slice_],
+                        p=p,
+                        t=t,
+                        c=chan,
+                        z=z,
+                    )
                     fluor_idx += 1
 
             self.dimension_emitter.emit((p, t, chan))
