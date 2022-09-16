@@ -4,8 +4,19 @@ import time
 import numpy as np
 
 
-def initialize_fluorescence_reconstructor(img_dim, wavelength_nm, pixel_size_um, z_step_um, NA_obj, magnification, mode,
-                                          n_obj_media=1.0, pad_z=0, use_gpu=False, gpu_id=0):
+def initialize_fluorescence_reconstructor(
+    img_dim,
+    wavelength_nm,
+    pixel_size_um,
+    z_step_um,
+    NA_obj,
+    magnification,
+    mode,
+    n_obj_media=1.0,
+    pad_z=0,
+    use_gpu=False,
+    gpu_id=0,
+):
 
     """
     Initialize the fluorescence_deconvolution reconstructor for downstream tasks. See tags next to parameters
@@ -31,42 +42,47 @@ def initialize_fluorescence_reconstructor(img_dim, wavelength_nm, pixel_size_um,
 
     """
 
-    if mode != '2D' and mode != '3D':
-        raise ValueError(f'mode {mode} not understood.  Please specify "2D" or "3D"')
+    if mode != "2D" and mode != "3D":
+        raise ValueError(
+            f'mode {mode} not understood.  Please specify "2D" or "3D"'
+        )
 
-    deconv_mode = '2D-WF' if mode == '2D' else '3D-WF'
+    deconv_mode = "2D-WF" if mode == "2D" else "3D-WF"
 
     # account for lists, singular values + convert to numpy array
     if not isinstance(wavelength_nm, list):
         if isinstance(wavelength_nm, float) or isinstance(wavelength_nm, int):
             wavelength_nm = np.asarray([wavelength_nm])
         else:
-            raise ValueError('wavelength_nm must be a list of floats/ints or singular float/int')
+            raise ValueError(
+                "wavelength_nm must be a list of floats/ints or singular float/int"
+            )
     else:
         wavelength_nm = np.asarray(wavelength_nm)
 
-
-    print('Initializing Reconstructor...')
+    print("Initializing Reconstructor...")
     start_time = time.time()
 
-    reconstructor = fluorescence_microscopy(img_dim=img_dim,
-                                            lambda_emiss=wavelength_nm/1000,
-                                            ps=pixel_size_um/magnification,
-                                            psz=z_step_um,
-                                            NA_obj=NA_obj,
-                                            n_media=n_obj_media,
-                                            deconv_mode=deconv_mode,
-                                            pad_z=pad_z,
-                                            use_gpu=use_gpu,
-                                            gpu_id=gpu_id)
+    reconstructor = fluorescence_microscopy(
+        img_dim=img_dim,
+        lambda_emiss=wavelength_nm / 1000,
+        ps=pixel_size_um / magnification,
+        psz=z_step_um,
+        NA_obj=NA_obj,
+        n_media=n_obj_media,
+        deconv_mode=deconv_mode,
+        pad_z=pad_z,
+        use_gpu=use_gpu,
+        gpu_id=gpu_id,
+    )
 
     elapsed_time = (time.time() - start_time) / 60
-    print(f'Finished Initializing Reconstructor ({elapsed_time:0.2f} min)')
+    print(f"Finished Initializing Reconstructor ({elapsed_time:0.2f} min)")
 
     return reconstructor
 
 
-#TODO: figure out robust background correction method
+# TODO: figure out robust background correction method
 def calculate_background(data):
     """
     Calculate the background with uni-modal thresholding
@@ -86,7 +102,9 @@ def calculate_background(data):
         fluors = 1
         data = data[np.newaxis, :, :]
     else:
-        raise ValueError('invalid input data dimensions.  Data must be (N_fluor, Y, X) or (Y, X)')
+        raise ValueError(
+            "invalid input data dimensions.  Data must be (N_fluor, Y, X) or (Y, X)"
+        )
 
     background_vals = []
     for i in range(fluors):
@@ -95,7 +113,9 @@ def calculate_background(data):
     return background_vals
 
 
-def deconvolve_fluorescence_2D(data, reconstructor: fluorescence_microscopy, bg_level, reg=1e-4):
+def deconvolve_fluorescence_2D(
+    data, reconstructor: fluorescence_microscopy, bg_level, reg=1e-4
+):
     """
     Deconvolve 2D fluorescence image(s).  Will loop through multiple fluorescence channels
 
@@ -113,14 +133,18 @@ def deconvolve_fluorescence_2D(data, reconstructor: fluorescence_microscopy, bg_
     """
 
     if data.ndim > 3:
-        raise ValueError('invalid input data dimensions.  Data must be (N_fluor, Z, Y, X) or (Z, Y, X)')
+        raise ValueError(
+            "invalid input data dimensions.  Data must be (N_fluor, Z, Y, X) or (Z, Y, X)"
+        )
 
     deconvolved_data = reconstructor.deconvolve_fluor_2D(data, bg_level, reg)
 
     return deconvolved_data
 
 
-def deconvolve_fluorescence_3D(data, reconstructor: fluorescence_microscopy, bg_level, reg=1e-4):
+def deconvolve_fluorescence_3D(
+    data, reconstructor: fluorescence_microscopy, bg_level, reg=1e-4
+):
     """
     Deconvolve 3D fluorescence volume(s).  Will loop through multiple fluorescence channels
 
@@ -141,15 +165,21 @@ def deconvolve_fluorescence_3D(data, reconstructor: fluorescence_microscopy, bg_
     elif data.ndim == 3:
         data_process = np.transpose(data, (-2, -1, -3))
     else:
-        raise ValueError('invalid input data dimensions.  Data must be (N_fluor, Z, Y, X) or (Z, Y, X)')
+        raise ValueError(
+            "invalid input data dimensions.  Data must be (N_fluor, Z, Y, X) or (Z, Y, X)"
+        )
 
-    deconvolved_data = reconstructor.deconvolve_fluor_3D(data_process, bg_level, reg)
+    deconvolved_data = reconstructor.deconvolve_fluor_3D(
+        data_process, bg_level, reg
+    )
 
     if deconvolved_data.ndim == 4:
         deconvolved_data = np.transpose(deconvolved_data, (0, 3, 1, 2))
     elif deconvolved_data.ndim == 3:
         deconvolved_data = np.transpose(deconvolved_data, (2, 0, 1))
     else:
-        raise ValueError(f'Unexpected output dimensions: {deconvolved_data.shape}')
+        raise ValueError(
+            f"Unexpected output dimensions: {deconvolved_data.shape}"
+        )
 
     return deconvolved_data
