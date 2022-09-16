@@ -5,7 +5,10 @@ import psutil
 import textwrap
 import tifffile as tiff
 import numpy as np
-from waveorder.waveorder_reconstructor import fluorescence_microscopy, waveorder_microscopy
+from waveorder.waveorder_reconstructor import (
+    fluorescence_microscopy,
+    waveorder_microscopy,
+)
 
 
 def extract_reconstruction_parameters(reconstructor, magnification=None):
@@ -29,24 +32,34 @@ def extract_reconstruction_parameters(reconstructor, magnification=None):
         ps = ps * magnification if magnification else ps
 
     if isinstance(reconstructor, waveorder_microscopy):
-        attr_dict = {'phase_dimension': reconstructor.phase_deconv,
-                     'wavelength (nm)': np.round(reconstructor.lambda_illu * 1000 * reconstructor.n_media,1),
-                     'pad_z': reconstructor.pad_z,
-                     'n_objective_media': reconstructor.n_media,
-                     'bg_correction_option': reconstructor.bg_option,
-                     'objective_NA': reconstructor.NA_obj * reconstructor.n_media,
-                     'condenser_NA': reconstructor.NA_illu * reconstructor.n_media,
-                     'magnification': magnification,
-                     'swing': reconstructor.chi if reconstructor.N_channel == 4 else reconstructor.chi / 2 / np.pi,
-                     'pixel_size': ps}
+        attr_dict = {
+            "phase_dimension": reconstructor.phase_deconv,
+            "wavelength (nm)": np.round(
+                reconstructor.lambda_illu * 1000 * reconstructor.n_media, 1
+            ),
+            "pad_z": reconstructor.pad_z,
+            "n_objective_media": reconstructor.n_media,
+            "bg_correction_option": reconstructor.bg_option,
+            "objective_NA": reconstructor.NA_obj * reconstructor.n_media,
+            "condenser_NA": reconstructor.NA_illu * reconstructor.n_media,
+            "magnification": magnification,
+            "swing": reconstructor.chi
+            if reconstructor.N_channel == 4
+            else reconstructor.chi / 2 / np.pi,
+            "pixel_size": ps,
+        }
 
     elif isinstance(reconstructor, fluorescence_microscopy):
-        attr_dict = {'fluor_wavelength (nm)': list(reconstructor.lambda_emiss * reconstructor.n_media * 1000),
-                     'pad_z': reconstructor.pad_z,
-                     'n_objective_media': reconstructor.n_media,
-                     'objective_NA': reconstructor.NA_obj * reconstructor.n_media,
-                     'magnification': magnification,
-                     'pixel_size': ps}
+        attr_dict = {
+            "fluor_wavelength (nm)": list(
+                reconstructor.lambda_emiss * reconstructor.n_media * 1000
+            ),
+            "pad_z": reconstructor.pad_z,
+            "n_objective_media": reconstructor.n_media,
+            "objective_NA": reconstructor.NA_obj * reconstructor.n_media,
+            "magnification": magnification,
+            "pixel_size": ps,
+        }
 
     else:
         attr_dict = dict()
@@ -68,11 +81,16 @@ def load_bg(bg_path, height, width, ROI=None):
     bg_data   : (ndarray) Array of background data w/ dimensions (N_channel, Y, X)
     """
 
-    bg_paths = glob.glob(os.path.join(bg_path, '*.tif'))
+    bg_paths = glob.glob(os.path.join(bg_path, "*.tif"))
     bg_paths.sort()
     bg_data = np.zeros([len(bg_paths), height, width])
 
-    if ROI is not None and ROI != (0, 0, width, height): # TODO: Remove for 1.0.0
+    if ROI is not None and ROI != (
+        0,
+        0,
+        width,
+        height,
+    ):  # TODO: Remove for 1.0.0
         warning_msg = """
         Earlier versions of recOrder (0.1.2 and earlier) would have averaged over the background ROI. 
         This behavior is now considered a bug, and future versions of recOrder (0.2.0 and later) 
@@ -115,7 +133,7 @@ def create_grid_from_coordinates(xy_coords, rows, columns):
 
     # reshape XY coordinates into their proper 2D shape
     grid = np.reshape(coords_list, (rows, columns, 2))
-    pos_index_grid = np.zeros((rows,columns), 'uint16')
+    pos_index_grid = np.zeros((rows, columns), "uint16")
     keys = list(coords.keys())
     vals = list(coords.values())
 
@@ -127,9 +145,11 @@ def create_grid_from_coordinates(xy_coords, rows, columns):
 
     return pos_index_grid
 
+
 class MockEmitter:
     def emit(self, value):
         pass
+
 
 def get_unimodal_threshold(input_image):
     """Determines optimal unimodal threshold
@@ -143,7 +163,7 @@ def get_unimodal_threshold(input_image):
     hist_counts, bin_edges = np.histogram(
         input_image,
         bins=256,
-        range=(input_image.min(), np.percentile(input_image, 99.5))
+        range=(input_image.min(), np.percentile(input_image, 99.5)),
     )
     bin_centers = (bin_edges[:-1] + bin_edges[1:]) / 2
 
@@ -169,13 +189,13 @@ def get_unimodal_threshold(input_image):
         if per_dist > max_dist:
             best_threshold = x0
             max_dist = per_dist
-    assert best_threshold > -np.inf, 'Error in unimodal thresholding'
+    assert best_threshold > -np.inf, "Error in unimodal thresholding"
     return best_threshold
 
 
 def ram_message():
     """
-    Determine if the system's RAM capacity is sufficient for running reconstruction. 
+    Determine if the system's RAM capacity is sufficient for running reconstruction.
     The message should be treated as a warning if the RAM detected is less than 32 GB.
 
     Returns
@@ -187,17 +207,18 @@ def ram_message():
     is_warning = gb_available < 32
 
     if is_warning:
-        message = ' \n'.join(textwrap.wrap(
-               f'recOrder reconstructions often require more than the {gb_available:.1f} ' \
-               f'GB of RAM that this computer is equipped with. We recommend starting with reconstructions of small ' \
-               f'volumes ~1000 x 1000 x 10 and working up to larger volumes while monitoring your RAM usage with '
-               f'Task Manager or htop.',
-        ))
+        message = " \n".join(
+            textwrap.wrap(
+                f"recOrder reconstructions often require more than the {gb_available:.1f} "
+                f"GB of RAM that this computer is equipped with. We recommend starting with reconstructions of small "
+                f"volumes ~1000 x 1000 x 10 and working up to larger volumes while monitoring your RAM usage with "
+                f"Task Manager or htop.",
+            )
+        )
     else:
-        message = f'{gb_available:.1f} GB of RAM is available.'
-    
-    return (is_warning, message)
+        message = f"{gb_available:.1f} GB of RAM is available."
 
+    return (is_warning, message)
 
 
 def rec_bkg_to_wo_bkg(recorder_option) -> str:
@@ -213,7 +234,7 @@ def rec_bkg_to_wo_bkg(recorder_option) -> str:
     waveorder_option
 
     """
-    if recorder_option == 'local_fit+':
-        return 'local_fit'
+    if recorder_option == "local_fit+":
+        return "local_fit"
     else:
         return recorder_option
