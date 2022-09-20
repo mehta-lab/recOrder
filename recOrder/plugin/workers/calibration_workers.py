@@ -1,3 +1,4 @@
+from argparse import MetavarTypeHelpFormatter
 from qtpy.QtCore import Signal
 from napari.qt.threading import WorkerBaseSignals, WorkerBase, thread_worker
 from recOrder.compute.qlipp_compute import initialize_reconstructor, \
@@ -372,7 +373,7 @@ def load_calibration(calib, metadata: MetadataReader):
                 # set the swing value attribute (e.g. 'swing0')
                 if state != "ext":
                     swing_name = "swing" + state
-                    setattr(calib, swing_name, metadata.__getattribute__("Swing_" + state))
+                    setattr(calib, swing_name, metadata.Swing_measured[i + 1])
 
     _set_calib_attrs(calib, metadata)
 
