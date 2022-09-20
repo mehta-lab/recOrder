@@ -373,7 +373,7 @@ def load_calibration(calib, metadata: MetadataReader):
                 # set the swing value attribute (e.g. 'swing0')
                 if state != "ext":
                     swing_name = "swing" + state
-                    setattr(calib, swing_name, metadata.Swing_measured[i + 1])
+                    setattr(calib, swing_name, metadata.Swing_measured[i - 1])
 
     _set_calib_attrs(calib, metadata)
 
