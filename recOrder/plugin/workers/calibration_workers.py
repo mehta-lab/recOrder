@@ -1,4 +1,3 @@
-from argparse import MetavarTypeHelpFormatter
 from qtpy.QtCore import Signal
 from napari.qt.threading import WorkerBaseSignals, WorkerBase, thread_worker
 from recOrder.compute.qlipp_compute import initialize_reconstructor, \
