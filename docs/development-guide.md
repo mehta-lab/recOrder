@@ -22,7 +22,7 @@ cd recOrder
 pip install -e ".[dev]"
 ```
 
-## Set up the development environment
+## Set up a development environment
 
 ### Code linting
 
@@ -61,7 +61,3 @@ Although many of `recOrder`'s tests are automated, many features require manual 
 * Test the "Acquire Birefringence" button on a background FOV. Does a background-corrected background acquisition give random orientations?
 * Test the four "Acquire" buttons with varied combinations of 2D/3D, background correction settings, "Phase from BF" checkbox, and regularization parameters.
 * Use the data you collected to test "Offline" mode reconstructions with varied combinations of parameters.  
-
-## Release checklist
-
-TODO
