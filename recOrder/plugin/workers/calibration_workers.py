@@ -1,4 +1,4 @@
-from PyQt5.QtCore import pyqtSignal
+from qtpy.QtCore import Signal
 from napari.qt.threading import WorkerBaseSignals, WorkerBase, thread_worker
 from recOrder.compute.qlipp_compute import initialize_reconstructor, \
     reconstruct_qlipp_birefringence, reconstruct_qlipp_stokes
@@ -18,14 +18,14 @@ class CalibrationSignals(WorkerBaseSignals):
     Custom Signals class that includes napari native signals
     """
 
-    progress_update = pyqtSignal(tuple)
-    extinction_update = pyqtSignal(str)
-    intensity_update = pyqtSignal(object)
-    calib_assessment = pyqtSignal(str)
-    calib_assessment_msg = pyqtSignal(str)
-    calib_file_emit = pyqtSignal(str)
-    plot_sequence_emit = pyqtSignal(str)
-    aborted = pyqtSignal()
+    progress_update = Signal(tuple)
+    extinction_update = Signal(str)
+    intensity_update = Signal(object)
+    calib_assessment = Signal(str)
+    calib_assessment_msg = Signal(str)
+    calib_file_emit = Signal(str)
+    plot_sequence_emit = Signal(str)
+    aborted = Signal()
 
 
 class BackgroundSignals(WorkerBaseSignals):
@@ -33,9 +33,9 @@ class BackgroundSignals(WorkerBaseSignals):
     Custom Signals class that includes napari native signals
     """
 
-    bg_image_emitter = pyqtSignal(object)
-    bire_image_emitter = pyqtSignal(object)
-    aborted = pyqtSignal()
+    bg_image_emitter = Signal(object)
+    bire_image_emitter = Signal(object)
+    aborted = Signal()
 
 
 class CalibrationWorker(WorkerBase):
@@ -353,6 +353,28 @@ def load_calibration(calib, metadata: MetadataReader):
     -------
     calib           (object) updated recOrder Calibration Class
     """
+    calib.calib_scheme = metadata.Calibration_scheme
+
+    def _set_calib_attrs(calib, metadata):
+        """Set the retardance attributes in the recOrder Calibration object"""
+        if calib.calib_scheme == "4-State":
+            lc_states = ['ext', '0', '60', '120']
+        elif calib.calib_scheme == "5-State":
+            lc_states = ['ext', '0', '45', '90', '135']
+        else:
+            raise ValueError("Invalid calibration scheme in metadata: {calib.calib_scheme}")
+        for side in ("A", "B"):
+            retardance_values = metadata.__getattribute__("LC" + side + "_retardance")
+            for i, state in enumerate(lc_states):
+                # set the retardance value attribute (e.g. 'lca_0')
+                retardance_name = "lc" + side.lower() + "_" + state
+                setattr(calib, retardance_name, retardance_values[i])
+                # set the swing value attribute (e.g. 'swing0')
+                if state != "ext":
+                    swing_name = "swing" + state
+                    setattr(calib, swing_name, metadata.Swing_measured[i - 1])
+
+    _set_calib_attrs(calib, metadata)
 
     for state, lca, lcb in zip([f'State{i}' for i in range(5)], metadata.LCA_retardance, metadata.LCB_retardance):
         calib.define_lc_state(state, lca, lcb)
