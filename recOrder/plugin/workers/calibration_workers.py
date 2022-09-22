@@ -1,4 +1,4 @@
-from PyQt5.QtCore import pyqtSignal
+from qtpy.QtCore import Signal
 from napari.qt.threading import WorkerBaseSignals, WorkerBase, thread_worker
 from recOrder.compute.qlipp_compute import initialize_reconstructor, \
     reconstruct_qlipp_birefringence, reconstruct_qlipp_stokes
@@ -18,14 +18,14 @@ class CalibrationSignals(WorkerBaseSignals):
     Custom Signals class that includes napari native signals
     """
 
-    progress_update = pyqtSignal(tuple)
-    extinction_update = pyqtSignal(str)
-    intensity_update = pyqtSignal(object)
-    calib_assessment = pyqtSignal(str)
-    calib_assessment_msg = pyqtSignal(str)
-    calib_file_emit = pyqtSignal(str)
-    plot_sequence_emit = pyqtSignal(str)
-    aborted = pyqtSignal()
+    progress_update = Signal(tuple)
+    extinction_update = Signal(str)
+    intensity_update = Signal(object)
+    calib_assessment = Signal(str)
+    calib_assessment_msg = Signal(str)
+    calib_file_emit = Signal(str)
+    plot_sequence_emit = Signal(str)
+    aborted = Signal()
 
 
 class BackgroundSignals(WorkerBaseSignals):
@@ -33,9 +33,9 @@ class BackgroundSignals(WorkerBaseSignals):
     Custom Signals class that includes napari native signals
     """
 
-    bg_image_emitter = pyqtSignal(object)
-    bire_image_emitter = pyqtSignal(object)
-    aborted = pyqtSignal()
+    bg_image_emitter = Signal(object)
+    bire_image_emitter = Signal(object)
+    aborted = Signal()
 
 
 class CalibrationWorker(WorkerBase):
@@ -70,15 +70,19 @@ class CalibrationWorker(WorkerBase):
 
         self._check_abort()
 
-        # Calculate Blacklevel
         logging.info('Calculating Black Level ...')
         logging.debug('Calculating Black Level ...')
-        self.calib.calc_blacklevel()
+        self.calib.close_shutter_and_calc_blacklevel()
+
+        # Calculate Blacklevel
         logging.info(f'Black Level: {self.calib.I_Black:.0f}\n')
         logging.debug(f'Black Level: {self.calib.I_Black:.0f}\n')
 
         self._check_abort()
         self.progress_update.emit((10, 'Calibrating Extinction State...'))
+
+        # Open shutter
+        self.calib.open_shutter()
 
         # Set LC Wavelength:
         self.calib.set_wavelength(int(self.calib_window.wavelength))
@@ -89,6 +93,9 @@ class CalibrationWorker(WorkerBase):
 
         # Optimize States
         self._calibrate_4state() if self.calib_window.calib_scheme == '4-State' else self._calibrate_5state()
+
+        # Reset shutter autoshutter
+        self.calib.reset_shutter()
 
         # Return ROI to full FOV
         if self.calib_window.use_cropped_roi:
@@ -298,14 +305,10 @@ class BackgroundCaptureWorker(WorkerBase):
         self.calib.meta_file = os.path.join(bg_path, 'calibration_metadata.txt')
 
         microscope_params = {
-             'phase_dimension': None,
-             'pad_z': float(self.calib_window.ui.le_pad_z.text()) if self.calib_window.ui.le_pad_z.text() != '' else None,
              'n_objective_media': float(self.calib_window.ui.le_n_media.text()) if self.calib_window.ui.le_n_media.text() != '' else None,
-             'bg_correction_option': self.calib_window.bg_option,
              'objective_NA': float(self.calib_window.ui.le_obj_na.text()) if self.calib_window.ui.le_obj_na.text() != '' else None,
              'condenser_NA': float(self.calib_window.ui.le_cond_na.text()) if self.calib_window.ui.le_cond_na.text() != '' else None,
              'magnification': float(self.calib_window.ui.le_mag.text()) if self.calib_window.ui.le_mag.text() != '' else None,
-             'swing': self.calib_window.swing,
              'pixel_size': float(self.calib_window.ui.le_ps.text()) if self.calib_window.ui.le_ps.text() != '' else None
         }
 
@@ -350,17 +353,41 @@ def load_calibration(calib, metadata: MetadataReader):
     -------
     calib           (object) updated recOrder Calibration Class
     """
+    calib.calib_scheme = metadata.Calibration_scheme
+
+    def _set_calib_attrs(calib, metadata):
+        """Set the retardance attributes in the recOrder Calibration object"""
+        if calib.calib_scheme == "4-State":
+            lc_states = ['ext', '0', '60', '120']
+        elif calib.calib_scheme == "5-State":
+            lc_states = ['ext', '0', '45', '90', '135']
+        else:
+            raise ValueError("Invalid calibration scheme in metadata: {calib.calib_scheme}")
+        for side in ("A", "B"):
+            retardance_values = metadata.__getattribute__("LC" + side + "_retardance")
+            for i, state in enumerate(lc_states):
+                # set the retardance value attribute (e.g. 'lca_0')
+                retardance_name = "lc" + side.lower() + "_" + state
+                setattr(calib, retardance_name, retardance_values[i])
+                # set the swing value attribute (e.g. 'swing0')
+                if state != "ext":
+                    swing_name = "swing" + state
+                    setattr(calib, swing_name, metadata.Swing_measured[i - 1])
+
+    _set_calib_attrs(calib, metadata)
 
     for state, lca, lcb in zip([f'State{i}' for i in range(5)], metadata.LCA_retardance, metadata.LCB_retardance):
         calib.define_lc_state(state, lca, lcb)
 
     # Calculate black level after loading these properties
     calib.intensity_emitter = MockEmitter()
-    calib.calc_blacklevel()
+    calib.close_shutter_and_calc_blacklevel()
+    calib.open_shutter()
     set_lc_state(calib.mmc, calib.group, 'State0')
     calib.I_Ext = snap_and_average(calib.snap_manager)
     set_lc_state(calib.mmc, calib.group, 'State1')
     calib.I_Elliptical = snap_and_average(calib.snap_manager)
+    calib.reset_shutter()
 
     yield str(calib.calculate_extinction(calib.swing, calib.I_Black, calib.I_Ext, calib.I_Elliptical))
 

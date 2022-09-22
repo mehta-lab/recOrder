@@ -1,5 +1,8 @@
 import glob
+import logging
 import os
+import psutil
+import textwrap
 import tifffile as tiff
 import numpy as np
 from waveorder.waveorder_reconstructor import fluorescence_microscopy, waveorder_microscopy
@@ -56,9 +59,9 @@ def load_bg(bg_path, height, width, ROI=None):
     Parameters
     ----------
     bg_path         : (str) path to the folder containing background images
-    height          : (int) height of image in pixels
-    width           : (int) width of image in pixels
-    ROI             : (tuple)  ROI of the background images to use, if None, full FOV will be used
+    height          : (int) height of image in pixels # Remove for 1.0.0
+    width           : (int) width of image in pixels # Remove for 1.0.0
+    ROI             : (tuple)  ROI of the background images to use, if None, full FOV will be used # Remove for 1.0.0
 
     Returns
     -------
@@ -67,18 +70,29 @@ def load_bg(bg_path, height, width, ROI=None):
 
     bg_paths = glob.glob(os.path.join(bg_path, '*.tif'))
     bg_paths.sort()
-    bg_data = np.zeros([len(bg_paths), height, width])
+    
+    # Backwards compatibility warning
+    if ROI is not None and ROI != (0, 0, width, height): # TODO: Remove for 1.0.0
+        warning_msg = """
+        Earlier versions of recOrder (0.1.2 and earlier) would have averaged over the background ROI. 
+        This behavior is now considered a bug, and future versions of recOrder (0.2.0 and later) 
+        will not average over the background. 
+        """
+        logging.warning(warning_msg)
 
-    for i in range(len(bg_paths)):
-        img = tiff.imread(bg_paths[i])
+    # Load background images 
+    bg_img_list = []
+    for bg_path in bg_paths:
+        bg_img_list.append(tiff.imread(bg_path))
+    bg_img_arr = np.array(bg_img_list) # CYX
 
-        if ROI is not None and ROI != (0, 0, height, width):
-            bg_data[i, :, :] = np.mean(img[ROI[1]:ROI[1] + ROI[3], ROI[0]:ROI[0] + ROI[2]])
-
-        else:
-            bg_data[i, :, :] = img
-
-    return bg_data
+    # Error if shapes do not match
+    # TODO: 1.0.0 move these validation check to waveorder's Polscope_bg_correction
+    if bg_img_arr.shape[1:] != (height, width):
+        error_msg = "The background image has a different X/Y size than the acquired image."
+        raise ValueError(error_msg)
+        
+    return bg_img_arr # CYX
 
 
 def create_grid_from_coordinates(xy_coords, rows, columns):
@@ -165,3 +179,49 @@ def get_unimodal_threshold(input_image):
             max_dist = per_dist
     assert best_threshold > -np.inf, 'Error in unimodal thresholding'
     return best_threshold
+
+
+def ram_message():
+    """
+    Determine if the system's RAM capacity is sufficient for running reconstruction. 
+    The message should be treated as a warning if the RAM detected is less than 32 GB.
+
+    Returns
+    -------
+    ram_report    (is_warning, message)
+    """
+    BYTES_PER_GB = 2**30
+    gb_available = psutil.virtual_memory().total / BYTES_PER_GB
+    is_warning = gb_available < 32
+
+    if is_warning:
+        message = ' \n'.join(textwrap.wrap(
+               f'recOrder reconstructions often require more than the {gb_available:.1f} ' \
+               f'GB of RAM that this computer is equipped with. We recommend starting with reconstructions of small ' \
+               f'volumes ~1000 x 1000 x 10 and working up to larger volumes while monitoring your RAM usage with '
+               f'Task Manager or htop.',
+        ))
+    else:
+        message = f'{gb_available:.1f} GB of RAM is available.'
+    
+    return (is_warning, message)
+
+
+
+def rec_bkg_to_wo_bkg(recorder_option) -> str:
+    """
+    Converts recOrder's background options to waveorder's background options.
+
+    Parameters
+    ----------
+    recorder_option
+
+    Returns
+    -------
+    waveorder_option
+
+    """
+    if recorder_option == 'local_fit+':
+        return 'local_fit'
+    else:
+        return recorder_option
