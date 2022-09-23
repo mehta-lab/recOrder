@@ -159,8 +159,18 @@ def initialize_reconstructor(
     if calibration_scheme == "4-State":
         inst_mat = np.array(
             [
-                [1, 0, 0, -1],
-                [1, np.sin(2 * np.pi * swing), 0, -np.cos(2 * np.pi * swing)],
+                [
+                    1, 
+                    0, 
+                    0, 
+                    -1
+                ],
+                [
+                    1, 
+                    np.sin(2 * np.pi * swing), 
+                    0, 
+                    -np.cos(2 * np.pi * swing)
+                ],
                 [
                     1,
                     -0.5 * np.sin(2 * np.pi * swing),
