@@ -920,8 +920,18 @@ class QLIPP_Calibration:
             chi = self.swing
             inst_mat = np.array(
                 [
-                    [1, 0, 0, -1],
-                    [1, np.sin(2 * np.pi * chi), 0, -np.cos(2 * np.pi * chi)],
+                    [
+                        1, 
+                        0, 
+                        0, 
+                        -1
+                    ],
+                    [
+                        1, 
+                        np.sin(2 * np.pi * chi), 
+                        0, 
+                        -np.cos(2 * np.pi * chi)
+                    ],
                     [
                         1,
                         -0.5 * np.sin(2 * np.pi * chi),
