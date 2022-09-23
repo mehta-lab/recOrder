@@ -259,7 +259,7 @@ def reconstruct_qlipp_stokes(data, recon, bg_stokes=None):
             s_image = recon.Polscope_bg_correction(
                 np.transpose(stokes_data, (-4, -2, -1, -3)), bg_stokes
             )
-            s_image = np.transpose(s_image, (0, 3, 1, 2))  # Tranpose to CZYX
+            s_image = np.transpose(s_image, (0, 3, 1, 2))  # Transpose to CZYX
         else:
             s_image = recon.Polscope_bg_correction(
                 stokes_data, bg_stokes
