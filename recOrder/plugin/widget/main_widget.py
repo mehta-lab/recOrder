@@ -2110,9 +2110,13 @@ class MainWidget(QWidget):
                 raise EnvironmentError
 
             # Warn the use if there is a MicroManager/ZMQ version mismatch
-            bridge._main_socket.send({"command": "connect", "debug": False})
-            reply_json = bridge._main_socket.receive(timeout=500)
-            zmq_mm_version = reply_json['version']
+            bridge._master_socket.send(
+                {"command": "connect", "debug": False}
+            )  # latest versions of pycromanager use '_main_socket'
+            reply_json = bridge._master_socket.receive(
+                timeout=500
+            )  # latest versions of pycromanager use '_main_socket'
+            zmq_mm_version = reply_json["version"]
             if zmq_mm_version != ZMQ_TARGET_VERSION:
                 upgrade_str = (
                     "upgrade"
