@@ -407,13 +407,17 @@ def load_calibration(calib, metadata: MetadataReader):
     def _set_calib_attrs(calib, metadata):
         """Set the retardance attributes in the recOrder Calibration object"""
         if calib.calib_scheme == "4-State":
-            lc_states = ['ext', '0', '60', '120']
+            lc_states = ["ext", "0", "60", "120"]
         elif calib.calib_scheme == "5-State":
-            lc_states = ['ext', '0', '45', '90', '135']
+            lc_states = ["ext", "0", "45", "90", "135"]
         else:
-            raise ValueError("Invalid calibration scheme in metadata: {calib.calib_scheme}")
+            raise ValueError(
+                "Invalid calibration scheme in metadata: {calib.calib_scheme}"
+            )
         for side in ("A", "B"):
-            retardance_values = metadata.__getattribute__("LC" + side + "_retardance")
+            retardance_values = metadata.__getattribute__(
+                "LC" + side + "_retardance"
+            )
             for i, state in enumerate(lc_states):
                 # set the retardance value attribute (e.g. 'lca_0')
                 retardance_name = "lc" + side.lower() + "_" + state

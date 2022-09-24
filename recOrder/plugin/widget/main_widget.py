@@ -2089,8 +2089,8 @@ class MainWidget(QWidget):
         -------
 
         """
-        RECOMMENDED_MM = '20220901'
-        ZMQ_TARGET_VERSION = '4.2.0'
+        RECOMMENDED_MM = "20220901"
+        ZMQ_TARGET_VERSION = "4.2.0"
         try:
             # Try to open Bridge. Requires micromanager to be open with server running.
             # This does not fail gracefully, so I'm wrapping it in its own try-except block.
@@ -3188,7 +3188,7 @@ class MainWidget(QWidget):
             no_calibration_message = """Capturing a background requires calibrated liquid crystals. \
                 Please either run a calibration or load a calibration from file."""
             raise RuntimeError(no_calibration_message)
-            
+
         # Init worker and thread
         self.worker = BackgroundCaptureWorker(self, self.calib)
 

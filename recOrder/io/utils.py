@@ -83,9 +83,14 @@ def load_bg(bg_path, height, width, ROI=None):
 
     bg_paths = glob.glob(os.path.join(bg_path, "*.tif"))
     bg_paths.sort()
-    
+
     # Backwards compatibility warning
-    if ROI is not None and ROI != (0, 0, width, height): # TODO: Remove for 1.0.0
+    if ROI is not None and ROI != (
+        0,
+        0,
+        width,
+        height,
+    ):  # TODO: Remove for 1.0.0
         warning_msg = """
         Earlier versions of recOrder (0.1.2 and earlier) would have averaged over the background ROI. 
         This behavior is now considered a bug, and future versions of recOrder (0.2.0 and later) 
@@ -93,19 +98,19 @@ def load_bg(bg_path, height, width, ROI=None):
         """
         logging.warning(warning_msg)
 
-    # Load background images 
+    # Load background images
     bg_img_list = []
     for bg_path in bg_paths:
         bg_img_list.append(tiff.imread(bg_path))
-    bg_img_arr = np.array(bg_img_list) # CYX
+    bg_img_arr = np.array(bg_img_list)  # CYX
 
     # Error if shapes do not match
     # TODO: 1.0.0 move these validation check to waveorder's Polscope_bg_correction
     if bg_img_arr.shape[1:] != (height, width):
         error_msg = "The background image has a different X/Y size than the acquired image."
         raise ValueError(error_msg)
-        
-    return bg_img_arr # CYX
+
+    return bg_img_arr  # CYX
 
 
 def create_grid_from_coordinates(xy_coords, rows, columns):
