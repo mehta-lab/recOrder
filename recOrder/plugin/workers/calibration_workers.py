@@ -411,7 +411,7 @@ class BackgroundCaptureWorker(CalibrationWorkerBase, signals=BackgroundSignals):
             chunk_size=(1, 1, 1, rows, columns),
             chan_names=['Retardance', 'Orientation']
         )
-        writer.write(self.birefringence, p=0)
+        writer.write(self.birefringence[:2], p=0, t=0, z=0)
         # save intensity trace visualization
         import matplotlib.pyplot as plt
         plt.imsave(
