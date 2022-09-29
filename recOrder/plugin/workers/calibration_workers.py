@@ -19,9 +19,9 @@ import json
 
 # type hint/check
 from typing import TYPE_CHECKING
-from _typeshed import StrOrBytesPath
-# avoid circular import error
+# avoid runtime import error
 if TYPE_CHECKING:
+    from _typeshed import StrOrBytesPath
     from recOrder.plugin.widget.main_widget import MainWidget
     from recOrder.calib.Calibration import QLIPP_Calibration
 
