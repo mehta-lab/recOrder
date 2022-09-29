@@ -9,7 +9,9 @@ from recOrder.io.core_functions import set_lc_state, snap_and_average
 from recOrder.io.utils import MockEmitter
 from recOrder.calib.Calibration import LC_DEVICE_NAME
 from recOrder.io.metadata_reader import MetadataReader, get_last_metadata_file
+from waveorder.io.writer import WaveorderWriter
 import os
+import shutil
 import numpy as np
 import glob
 import logging
@@ -17,6 +19,7 @@ import json
 
 # type hint/check
 from typing import TYPE_CHECKING
+from _typeshed import StrOrBytesPath
 # avoid circular import error
 if TYPE_CHECKING:
     from recOrder.plugin.widget.main_widget import MainWidget
@@ -349,12 +352,12 @@ class BackgroundCaptureWorker(CalibrationWorkerBase, signals=BackgroundSignals):
 
         self._check_abort()
 
-        birefringence = reconstruct_qlipp_birefringence(stokes, recon)
+        self.birefringence = reconstruct_qlipp_birefringence(stokes, recon)
 
         self._check_abort()
 
         # Convert retardance to nm
-        retardance = birefringence[0] / (2 * np.pi) * self.calib_window.wavelength
+        retardance = self.birefringence[0] / (2 * np.pi) * self.calib_window.wavelength
 
         # Save metadata file and emit imgs
         meta_file = os.path.join(bg_path, 'calibration_metadata.txt')
@@ -379,12 +382,36 @@ class BackgroundCaptureWorker(CalibrationWorkerBase, signals=BackgroundSignals):
 
         self._check_abort()
 
+        self.save_bg_recon(bg_path)
+        self._check_abort()
+
         # Emit background images + background birefringence
         self.bg_image_emitter.emit(imgs)
-        self.bire_image_emitter.emit([retardance, birefringence[1]])
+        self.bire_image_emitter.emit((retardance, self.birefringence[1]))
 
         # Emit bg path
         self.bg_path_update_emitter.emit(bg_path)
+
+    def save_bg_recon(self, bg_path: StrOrBytesPath):
+        bg_recon_path = os.path.join(bg_path, "reconstruction")
+        # create the reconstruction directory
+        if not os.path.isdir(bg_path):
+            os.mkdir(bg_recon_path)
+        elif os.path.isfile(bg_recon_path):
+            os.remove(bg_recon_path)
+        else:
+            shutil.rmtree(bg_recon_path)
+        # save birefringence to zarr store
+        writer = WaveorderWriter(save_dir=bg_recon_path)
+        rows, columns = self.birefringence.shape[-2:]
+        writer.init_array(
+            position=0,
+            data_shape=(1, 2, 1, rows, columns),
+            chunk_size=(1, 1, 1, rows, columns),
+            chan_names=['Retardance', 'Orientation']
+        )
+        writer.write(self.birefringence, p=0)
+        
 
 @thread_worker
 def load_calibration(calib, metadata: MetadataReader):
