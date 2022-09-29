@@ -403,6 +403,7 @@ class BackgroundCaptureWorker(CalibrationWorkerBase, signals=BackgroundSignals):
             os.mkdir(bg_recon_path)
         # save raw reconstruction to zarr store
         writer = WaveorderWriter(save_dir=bg_recon_path)
+        writer.create_zarr_root(name="bg_reconstruction")
         rows, columns = self.birefringence.shape[-2:]
         writer.init_array(
             position=0,
