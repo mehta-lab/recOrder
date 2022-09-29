@@ -395,12 +395,12 @@ class BackgroundCaptureWorker(CalibrationWorkerBase, signals=BackgroundSignals):
     def _save_bg_recon(self, bg_path: StrOrBytesPath):
         bg_recon_path = os.path.join(bg_path, "reconstruction")
         # create the reconstruction directory
-        if not os.path.isdir(bg_path):
-            os.mkdir(bg_recon_path)
+        if os.path.isdir(bg_path):
+            shutil.rmtree(bg_recon_path)
         elif os.path.isfile(bg_recon_path):
             os.remove(bg_recon_path)
         else:
-            shutil.rmtree(bg_recon_path)
+            os.mkdir(bg_recon_path)
         # save raw reconstruction to zarr store
         writer = WaveorderWriter(save_dir=bg_recon_path)
         rows, columns = self.birefringence.shape[-2:]
