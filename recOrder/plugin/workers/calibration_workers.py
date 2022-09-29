@@ -357,7 +357,7 @@ class BackgroundCaptureWorker(CalibrationWorkerBase, signals=BackgroundSignals):
         self._check_abort()
 
         # Convert retardance to nm
-        retardance = self.birefringence[0] / (2 * np.pi) * self.calib_window.wavelength
+        self.retardance = self.birefringence[0] / (2 * np.pi) * self.calib_window.wavelength
 
         # Save metadata file and emit imgs
         meta_file = os.path.join(bg_path, 'calibration_metadata.txt')
@@ -382,17 +382,17 @@ class BackgroundCaptureWorker(CalibrationWorkerBase, signals=BackgroundSignals):
 
         self._check_abort()
 
-        self.save_bg_recon(bg_path)
+        self._save_bg_recon(bg_path)
         self._check_abort()
 
         # Emit background images + background birefringence
         self.bg_image_emitter.emit(imgs)
-        self.bire_image_emitter.emit((retardance, self.birefringence[1]))
+        self.bire_image_emitter.emit((self.retardance, self.birefringence[1]))
 
         # Emit bg path
         self.bg_path_update_emitter.emit(bg_path)
 
-    def save_bg_recon(self, bg_path: StrOrBytesPath):
+    def _save_bg_recon(self, bg_path: StrOrBytesPath):
         bg_recon_path = os.path.join(bg_path, "reconstruction")
         # create the reconstruction directory
         if not os.path.isdir(bg_path):
@@ -401,7 +401,7 @@ class BackgroundCaptureWorker(CalibrationWorkerBase, signals=BackgroundSignals):
             os.remove(bg_recon_path)
         else:
             shutil.rmtree(bg_recon_path)
-        # save birefringence to zarr store
+        # save raw reconstruction to zarr store
         writer = WaveorderWriter(save_dir=bg_recon_path)
         rows, columns = self.birefringence.shape[-2:]
         writer.init_array(
@@ -411,6 +411,22 @@ class BackgroundCaptureWorker(CalibrationWorkerBase, signals=BackgroundSignals):
             chan_names=['Retardance', 'Orientation']
         )
         writer.write(self.birefringence, p=0)
+        # save intensity trace visualization
+        import matplotlib.pyplot as plt
+        plt.imsave(
+            os.path.join(bg_recon_path,
+            "retardance.png"),
+            self.retardance,
+            cmap="gray"
+        )
+        plt.imsave(
+            os.path.join(bg_recon_path,
+            "orientation.png"),
+            self.birefringence[1], 
+            cmap="hsv",
+            vmin=0,
+            vmax=np.pi
+            )
         
 
 @thread_worker
