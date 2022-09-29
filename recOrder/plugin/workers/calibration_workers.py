@@ -395,7 +395,7 @@ class BackgroundCaptureWorker(CalibrationWorkerBase, signals=BackgroundSignals):
     def _save_bg_recon(self, bg_path: StrOrBytesPath):
         bg_recon_path = os.path.join(bg_path, "reconstruction")
         # create the reconstruction directory
-        if os.path.isdir(bg_path):
+        if os.path.isdir(bg_recon_path):
             shutil.rmtree(bg_recon_path)
         elif os.path.isfile(bg_recon_path):
             os.remove(bg_recon_path)
