@@ -283,7 +283,7 @@ class MainWidget(QWidget):
         self.ui.label_logo.setPixmap(logo_pixmap)
 
         # Get default config file
-        self.default_config_file = os.path.join(recorder_dir, "recOrder/plugin/config_offline_default.yml")
+        self.default_offline_config = os.path.join(recorder_dir, "recOrder/plugin/config_offline_default.yml")
 
         # Hide initial UI elements for later implementation or for later pop-up purposes
         self.ui.label_lca.hide()
@@ -2490,7 +2490,8 @@ class MainWidget(QWidget):
 
     @Slot(bool)
     def load_default_config(self):
-        self.load_config(self.default_config_file)
+        self.config_reader = ConfigReader(self.default_offline_config)
+        self._populate_from_config()
 
     @Slot(int)
     def update_sat_scale(self):
