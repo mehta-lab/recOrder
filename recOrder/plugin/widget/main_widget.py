@@ -2486,8 +2486,7 @@ class MainWidget(QWidget):
 
     @Slot(bool)
     def load_default_config(self):
-        self.config_reader = ConfigReader(mode='3D', method='QLIPP')
-        self._populate_from_config()
+        self.load_config("default_config.yml")
 
     @Slot(int)
     def update_sat_scale(self):
