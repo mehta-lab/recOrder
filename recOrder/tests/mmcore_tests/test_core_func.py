@@ -23,7 +23,7 @@ DEVICE_PROPERTY = ("deviceName", "propertyName")
 CONFIG_GROUP = "configGroup"
 CONFIG_NAME = "State0"
 # LC state in native units
-LC_STATE = np.random.rand(1)[0] ** 10
+LC_STATE = np.random.rand(1)[0] * 10
 
 
 def _get_mmcore_mock():
