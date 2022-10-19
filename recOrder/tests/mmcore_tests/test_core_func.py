@@ -2,7 +2,7 @@ from unittest.mock import MagicMock, Mock, call
 import pytest
 import numpy as np
 from numpy import ndarray
-from typing import Callable
+from typing import Callable, Tuple
 
 # tested components
 from recOrder.io.core_functions import *
@@ -143,8 +143,8 @@ def test_snap_and_average():
 
 
 def _set_lc_test(
-    tested_func: Callable[[object, tuple[str, str], float], None],
-    value_range: tuple[float, float],
+    tested_func: Callable[[object, Tuple[str, str], float], None],
+    value_range: Tuple[float, float],
 ):
     mmc = _get_mmcore_mock()
     valid_values, invalid_values = _get_examples(*value_range)
