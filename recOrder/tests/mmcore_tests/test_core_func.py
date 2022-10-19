@@ -119,8 +119,8 @@ def test_snap_image():
     assert image.shape == (PIXEL_COUNT,), image.shape
 
 
-def test_suspend_live_mm():
-    """Test `recOrder.io.core_functions.suspend_live_mm`."""
+def test_suspend_live_sm():
+    """Test `recOrder.io.core_functions.suspend_live_sm`."""
     snap_manager = _get_snap_manager_mock()
     with suspend_live_sm(snap_manager) as sm:
         sm.setSuspended.assert_called_once_with(True)
