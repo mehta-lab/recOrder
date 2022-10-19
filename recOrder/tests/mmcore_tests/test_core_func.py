@@ -1,4 +1,4 @@
-from unittest.mock import MagicMock, Mock, PropertyMock
+from unittest.mock import MagicMock, Mock
 from numpy.random import randint
 
 # tested components
@@ -99,10 +99,3 @@ def test_snap_and_average():
     sm = get_snap_manager_mock()
     mean = snap_and_average(sm)
     assert mean == SERIAL_IMAGE.mean(), mean
-
-
-if __name__ == "__main__":
-    test_snap_image()
-    test_suspend_live_mm()
-    test_snap_and_get_image()
-    test_snap_and_average()
