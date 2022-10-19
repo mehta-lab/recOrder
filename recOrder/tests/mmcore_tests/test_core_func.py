@@ -1,21 +1,32 @@
-from unittest.mock import MagicMock, Mock
-from numpy.random import randint
+from unittest.mock import MagicMock, Mock, call
+import pytest
+import numpy as np
+from numpy import ndarray
+from typing import Callable
 
 # tested components
 from recOrder.io.core_functions import *
 
 
+# TODO: move these to fixture or generate with Hypothesis
 # dynamic range
 TIFF_I_MAX = 2**16
 # image size
-IMAGE_WIDTH = randint(1, 2**12)
-IMAGE_HEIGHT = randint(1, 2**12)
+IMAGE_WIDTH = np.random.randint(1, 2**12)
+IMAGE_HEIGHT = np.random.randint(1, 2**12)
 PIXEL_COUNT = IMAGE_HEIGHT * IMAGE_WIDTH
 # serialized image from the pycromanager bridge
-SERIAL_IMAGE = randint(0, TIFF_I_MAX, size=(PIXEL_COUNT))
+SERIAL_IMAGE = np.random.randint(0, TIFF_I_MAX, size=(PIXEL_COUNT,))
+# LC device parameters
+# TODO: parameterize this example
+DEVICE_PROPERTY = ("deviceName", "propertyName")
+CONFIG_GROUP = "configGroup"
+CONFIG_NAME = "State0"
+# LC state in native units
+LC_STATE = np.random.rand(1)[0] ** 10
 
 
-def get_mmcore_mock():
+def _get_mmcore_mock():
     """Creates a mock for the `pycromanager.Core` object.
 
     Returns
@@ -23,11 +34,14 @@ def get_mmcore_mock():
     MagicMock
         MMCore mock object
     """
-    mmcore_mock_config = {"getImage": Mock(return_value=SERIAL_IMAGE)}
+    mmcore_mock_config = {
+        "getImage": Mock(return_value=SERIAL_IMAGE),
+        "getProperty": Mock(return_value=str(LC_STATE)),
+    }
     return MagicMock(**mmcore_mock_config)
 
 
-def get_snap_manager_mock():
+def _get_snap_manager_mock():
     """Creates a mock for the pycromanager remote Snap Live Window Manager object.
 
     Returns
@@ -53,7 +67,7 @@ def get_snap_manager_mock():
     return sm
 
 
-def is_int(data):
+def _is_int(data: ndarray):
     """Check if the data type is integer.
 
     Parameters
@@ -68,19 +82,46 @@ def is_int(data):
     return np.issubdtype(data.dtype, np.integer)
 
 
+def _get_examples(low: float, high: float):
+    """Generate 4 valid and 4 invalid floating numbers for closed interval [low, high].
+
+    Parameters
+    ----------
+    low : float
+    high : float
+
+    Returns
+    -------
+    tuple(1d-array, 1d-array)
+        valid and invalid values
+    """
+    epsilon = np.finfo(float).eps
+    samples = np.random.rand(4)
+    valid_values = samples * (high - low) + low + epsilon
+    invalid_values = np.array(
+        [
+            low - samples[0],
+            low - samples[1],
+            high + samples[2],
+            high + samples[3],
+        ]
+    )
+    return valid_values, invalid_values
+
+
 def test_snap_image():
     """Test `recOrder.io.core_functions.snap_image`."""
-    mmc = get_mmcore_mock()
+    mmc = _get_mmcore_mock()
     image = snap_image(mmc)
     mmc.snapImage.assert_called_once()
     mmc.getImage.assert_called_once()
-    assert is_int(image), image.dtype
+    assert _is_int(image), image.dtype
     assert image.shape == (PIXEL_COUNT,), image.shape
 
 
 def test_suspend_live_mm():
     """Test `recOrder.io.core_functions.suspend_live_mm`."""
-    snap_manager = get_snap_manager_mock()
+    snap_manager = _get_snap_manager_mock()
     with suspend_live_sm(snap_manager) as sm:
         sm.setSuspended.assert_called_once_with(True)
     snap_manager.setSuspended.assert_called_with(False)
@@ -88,14 +129,84 @@ def test_suspend_live_mm():
 
 def test_snap_and_get_image():
     """Test `recOrder.io.core_functions.snap_and_get_image`."""
-    sm = get_snap_manager_mock()
+    sm = _get_snap_manager_mock()
     image = snap_and_get_image(sm)
-    assert is_int(image), image.dtype
+    assert _is_int(image), image.dtype
     assert image.shape == (IMAGE_HEIGHT, IMAGE_WIDTH), image.shape
 
 
 def test_snap_and_average():
     """Test `recOrder.io.core_functions.snap_and_average`."""
-    sm = get_snap_manager_mock()
+    sm = _get_snap_manager_mock()
     mean = snap_and_average(sm)
-    assert mean == SERIAL_IMAGE.mean(), mean
+    np.testing.assert_almost_equal(mean, SERIAL_IMAGE.mean())
+
+
+def _set_lc_test(
+    tested_func: Callable[[object, tuple[str, str], float], None],
+    value_range: tuple[float, float],
+):
+    mmc = _get_mmcore_mock()
+    valid_values, invalid_values = _get_examples(*value_range)
+    for value in valid_values:
+        tested_func(mmc, DEVICE_PROPERTY, value)
+        mmc.setProperty.assert_called_with(
+            DEVICE_PROPERTY[0], DEVICE_PROPERTY[1], str(value)
+        )
+    for value in invalid_values:
+        with pytest.raises(ValueError):
+            tested_func(mmc, DEVICE_PROPERTY, value)
+
+
+def test_set_lc_waves():
+    """Test `recOrder.io.core_functions.set_lc_waves`."""
+    _set_lc_test(set_lc_waves, (0.001, 1.6))
+
+
+def test_set_lc_voltage():
+    """Test `recOrder.io.core_functions.set_lc_voltage`."""
+    _set_lc_test(set_lc_voltage, (0.0, 20.0))
+
+
+def test_set_lc_daq():
+    """Test `recOrder.io.core_functions.set_lc_daq`."""
+    _set_lc_test(set_lc_daq, (0.0, 5.0))
+
+
+def test_get_lc():
+    """Test `recOrder.io.core_functions.get_lc`."""
+    mmc = _get_mmcore_mock()
+    state = get_lc(mmc, DEVICE_PROPERTY)
+    mmc.getProperty.assert_called_once_with(*DEVICE_PROPERTY)
+    np.testing.assert_almost_equal(state, LC_STATE)
+
+
+def test_define_meadowlark_state():
+    """Test `recOrder.io.core_functions.define_meadowlark_state`."""
+    mmc = _get_mmcore_mock()
+    define_meadowlark_state(mmc, DEVICE_PROPERTY)
+    mmc.setProperty.assert_called_once_with(*DEVICE_PROPERTY, 0)
+    mmc.waitForDevice.assert_called_once_with(DEVICE_PROPERTY[0])
+
+
+def test_define_config_state():
+    """Test `recOrder.io.core_functions.define_config_state`."""
+    mmc = _get_mmcore_mock()
+    device_properties = [DEVICE_PROPERTY] * 4
+    values = _get_examples(0, 10)[0].tolist()
+    define_config_state(
+        mmc, CONFIG_GROUP, CONFIG_NAME, device_properties, values
+    )
+    expected_calls = [
+        call(CONFIG_GROUP, CONFIG_NAME, *d, str(v))
+        for d, v in zip(device_properties, values)
+    ]
+    got_calls = mmc.defineConfig.call_args_list
+    assert got_calls == expected_calls, got_calls
+
+
+def test_set_lc_state():
+    """Test `recOrder.io.core_functions.set_lc_state`."""
+    mmc = _get_mmcore_mock()
+    set_lc_state(mmc, CONFIG_GROUP, CONFIG_NAME)
+    mmc.setConfig.assert_called_once_with(CONFIG_GROUP, CONFIG_NAME)
