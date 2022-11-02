@@ -696,7 +696,6 @@ class PolarizationAcquisitionWorker(WorkerBase):
                 "This will affect both visualization and the saved reconstruction."
             )
         )
-        print("doing it")
         birefringence[1] = np.fmod(birefringence[1] + np.pi / 2, np.pi)
         return birefringence
 
