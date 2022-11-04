@@ -97,7 +97,7 @@ Open `/recOrder/recOrder/plugin/qtdesigner/recOrder_ui.ui` in `QT Creator` and m
 Finally, convert the `.ui` to a `.py` file with:
 
 ```sh
-pyuic5 -x recOrder_ui.ui -o recOrder_ui.py
+pyuic5 -x gui.ui -o gui.py
 ```
 
 Note: although much of the GUI is specified in the generated `recOrder_ui.py` file, the `main_widget.py` file makes extensive modifications to the GUI.
