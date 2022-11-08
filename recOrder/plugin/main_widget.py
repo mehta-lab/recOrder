@@ -25,6 +25,7 @@ from napari.utils.notifications import show_warning
 from numpydoc.docscrape import NumpyDocString
 from packaging import version
 import numpy as np
+from numpy.typing import NDArray
 import os
 from os.path import dirname
 import json
@@ -52,7 +53,7 @@ class MainWidget(QWidget):
 
         # Override inital tab focus
         self.ui.tabWidget.setCurrentIndex(0)
-        
+
         # Disable buttons until connected to MM
         self._set_buttons_enabled(False)
 
@@ -169,7 +170,9 @@ class MainWidget(QWidget):
             self.browse_acq_bg_path
         )
         self.ui.qbutton_acq_ret_ori.clicked[bool].connect(self.acq_ret_ori)
-        self.ui.qbutton_acq_phase_from_bf.clicked[bool].connect(self.acq_phase_from_bf)
+        self.ui.qbutton_acq_phase_from_bf.clicked[bool].connect(
+            self.acq_phase_from_bf
+        )
         self.ui.qbutton_acq_ret_ori_phase.clicked[bool].connect(
             self.acq_ret_ori_phase
         )
@@ -1020,6 +1023,21 @@ class MainWidget(QWidget):
                     xytext=(10, 10),  # annotation offset
                     textcoords="offset points",
                 )
+
+    def _add_or_update_image_layer(
+        self,
+        image: NDArray,
+        name: str,
+        cmap: str = "gray",
+        move_to_top: bool = True,
+    ):
+        if name in self.viewer.layers:
+            self.viewer.layers[name].data = image
+            if move_to_top:
+                src_index = self.viewer.layers.index(name)
+                self.viewer.layers.move(src_index, dest_index=0)
+        else:
+            self.viewer.add_image(image, name=name, colormap=cmap)
 
     @Slot(object)
     def handle_bg_image_update(self, value):
