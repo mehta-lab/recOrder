@@ -1048,7 +1048,7 @@ class MainWidget(QWidget):
             self.viewer.layers[name].data = image
             if move_to_top:
                 src_index = self.viewer.layers.index(name)
-                self.viewer.layers.move(src_index, dest_index=0)
+                self.viewer.layers.move(src_index, dest_index=-1)
         else:
             if cmap == "rgb":
                 self.viewer.add_image(image, name=name, rgb=True)
