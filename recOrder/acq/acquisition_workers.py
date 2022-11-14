@@ -603,7 +603,7 @@ class PolarizationAcquisitionWorker(WorkerBase):
 
         # List the Channels to acquire, if 5-state then append 5th channel
         channels = ["State0", "State1", "State2", "State3"]
-        if self.calib_window.calib_scheme == "5-State":
+        if self.calib.calib_scheme == "5-State":
             channels.append("State4")
 
         self._check_abort()
@@ -778,8 +778,8 @@ class PolarizationAcquisitionWorker(WorkerBase):
                     "QLIPP",
                     image_dim=(stack.shape[-2], stack.shape[-1]),
                     wavelength_nm=self.calib_window.wavelength,
-                    swing=self.calib_window.swing,
-                    calibration_scheme=self.calib_window.calib_scheme,
+                    swing=self.calib.swing,
+                    calibration_scheme=self.calib.calib_scheme,
                     NA_obj=self.calib_window.obj_na,
                     NA_illu=self.calib_window.cond_na,
                     mag=self.calib_window.mag,
@@ -811,8 +811,8 @@ class PolarizationAcquisitionWorker(WorkerBase):
                         "QLIPP",
                         image_dim=(stack.shape[-2], stack.shape[-1]),
                         wavelength_nm=self.calib_window.wavelength,
-                        swing=self.calib_window.swing,
-                        calibration_scheme=self.calib_window.calib_scheme,
+                        swing=self.calib.swing,
+                        calibration_scheme=self.calib.calib_scheme,
                         NA_obj=self.calib_window.obj_na,
                         NA_illu=self.calib_window.cond_na,
                         mag=self.calib_window.mag,
@@ -842,9 +842,9 @@ class PolarizationAcquisitionWorker(WorkerBase):
             recon = initialize_reconstructor(
                 "birefringence",
                 image_dim=(stack.shape[-2], stack.shape[-1]),
-                calibration_scheme=self.calib_window.calib_scheme,
+                calibration_scheme=self.calib.calib_scheme,
                 wavelength_nm=self.calib_window.wavelength,
-                swing=self.calib_window.swing,
+                swing=self.calib.swing,
                 bg_correction=wo_background_correction,
                 n_slices=self.n_slices,
             )
@@ -1161,9 +1161,9 @@ class PolarizationAcquisitionWorker(WorkerBase):
             # modify attributes to be equivalent and check for divergence
             for key, value in attr_modified_list.items():
                 if key == "swing":
-                    if self.calib_window.calib_scheme == "5-State":
+                    if self.calib.calib_scheme == "5-State":
                         if (
-                            self.calib_window.swing * 2 * np.pi
+                            self.calib.swing * 2 * np.pi
                             != self.calib_window.phase_reconstructor.chi
                         ):
                             changed = True
@@ -1171,7 +1171,7 @@ class PolarizationAcquisitionWorker(WorkerBase):
                             changed = False
                     else:
                         if (
-                            self.calib_window.swing
+                            self.calib.swing
                             != self.calib_window.phase_reconstructor.chi
                         ):
                             changed = True
