@@ -134,7 +134,9 @@ class MainWidget(QWidget):
         )
 
         # This parameter seems to be wired differently than others...investigate later
+        self.ui.le_recon_wavelength.editingFinished.connect(self.enter_recon_wavelength)
         self.ui.le_recon_wavelength.setText("532")
+        self.enter_recon_wavelength()
 
         self.ui.le_obj_na.editingFinished.connect(self.enter_obj_na)
         self.ui.le_obj_na.setText("1.3")
@@ -1467,6 +1469,10 @@ class MainWidget(QWidget):
             self.orientation_offset = True
         elif state == 0:
             self.orientation_offset = False
+
+    @Slot()
+    def enter_recon_wavelength(self):
+        self.recon_wavelength = int(self.ui.le_recon_wavelength.text())
 
     @Slot()
     def enter_obj_na(self):
