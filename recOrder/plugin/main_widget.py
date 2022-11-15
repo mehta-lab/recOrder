@@ -737,6 +737,9 @@ class MainWidget(QWidget):
         -------
 
         """
+        # check if a QLIPP_Calibration object has been initialized
+        if not self.calib:
+            raise RuntimeError("Please run or load calibration first.")
 
         # initialize the variable to keep track of the success of the requirement check
         raise_error = False
