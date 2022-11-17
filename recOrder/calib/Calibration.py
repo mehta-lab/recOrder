@@ -260,38 +260,40 @@ class QLIPP_Calibration:
         -------
 
         """
-
-        if self.mode == "MM-Retardance":
-            self.set_lc(lca_retardance, "LCA")
-            self.set_lc(lcb_retardance, "LCB")
-            define_meadowlark_state(self.mmc, self.PROPERTIES[state])
-        elif self.mode == "DAC":
-            lca_volts = (
-                self.calib.get_voltage(lca_retardance) / self.LC_DAC_conversion
-            )
-            lcb_volts = (
-                self.calib.get_voltage(lcb_retardance) / self.LC_DAC_conversion
-            )
-            define_config_state(
-                self.mmc,
-                self.group,
-                state,
-                [self.PROPERTIES["LCA-DAC"], self.PROPERTIES["LCB-DAC"]],
-                [lca_volts, lcb_volts],
-            )
-        elif self.mode == "MM-Voltage":
-            lca_volts = self.calib.get_voltage(lca_retardance)
-            lcb_volts = self.calib.get_voltage(lcb_retardance)
-            define_config_state(
-                self.mmc,
-                self.group,
-                state,
-                [
-                    self.PROPERTIES["LCA-Voltage"],
-                    self.PROPERTIES["LCB-Voltage"],
-                ],
-                [lca_volts, lcb_volts],
-            )
+        with suspend_live_sm(self.snap_manager) as _:
+            if self.mode == "MM-Retardance":
+                self.set_lc(lca_retardance, "LCA")
+                self.set_lc(lcb_retardance, "LCB")
+                define_meadowlark_state(self.mmc, self.PROPERTIES[state])
+            elif self.mode == "DAC":
+                lca_volts = (
+                    self.calib.get_voltage(lca_retardance)
+                    / self.LC_DAC_conversion
+                )
+                lcb_volts = (
+                    self.calib.get_voltage(lcb_retardance)
+                    / self.LC_DAC_conversion
+                )
+                define_config_state(
+                    self.mmc,
+                    self.group,
+                    state,
+                    [self.PROPERTIES["LCA-DAC"], self.PROPERTIES["LCB-DAC"]],
+                    [lca_volts, lcb_volts],
+                )
+            elif self.mode == "MM-Voltage":
+                lca_volts = self.calib.get_voltage(lca_retardance)
+                lcb_volts = self.calib.get_voltage(lcb_retardance)
+                define_config_state(
+                    self.mmc,
+                    self.group,
+                    state,
+                    [
+                        self.PROPERTIES["LCA-Voltage"],
+                        self.PROPERTIES["LCB-Voltage"],
+                    ],
+                    [lca_volts, lcb_volts],
+                )
 
     def opt_lc(self, x, device_property, reference, normalize=False):
 
@@ -884,7 +886,7 @@ class QLIPP_Calibration:
                 "Retardance to voltage interpolation method": self.calib.interp_method,
                 "LC control mode": self.mode,
                 "Black level": np.round(self.I_Black, 2),
-                "Extinction ratio": self.extinction_ratio
+                "Extinction ratio": self.extinction_ratio,
             },
             "Notes": notes,
         }
