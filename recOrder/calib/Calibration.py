@@ -820,7 +820,7 @@ class QLIPP_Calibration:
         self, swing, black_level, intensity_extinction, intensity_elliptical
     ):
         return np.round(
-            (1 / np.sin(np.pi * swing) ** 2)
+            (1 / np.sin(2 * np.pi * swing))
             * (intensity_elliptical - black_level)
             / (intensity_extinction - black_level),
             2,
