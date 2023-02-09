@@ -889,10 +889,9 @@ class MainWidget(QWidget):
             self.mm = Studio(convert_camel_case=False)
             # Order is important: If the bridge is created before Core, Core will not work
             self.bridge = zmq_bridge._bridge._Bridge()
-            # Happy to use other logging, but we need something
-            print("Established ZMQ Bridge and found Core and Studio")
+            logging.debug("Established ZMQ Bridge and found Core and Studio")
         except:
-            print(
+            raise EnvironmentError(
                 (
                     "Could not establish pycromanager bridge.\n"
                     "Is micromanager open?\n"
@@ -900,7 +899,6 @@ class MainWidget(QWidget):
                     f"Are you using nightly build {RECOMMENDED_MM}?"
                 )
             )
-            raise EnvironmentError
 
         # Warn the user if there is a MicroManager/ZMQ version mismatch
         # NS: Not quite sure what this is good for, we already know the Core works
@@ -915,14 +913,14 @@ class MainWidget(QWidget):
                 < version.parse(ZMQ_TARGET_VERSION)
                 else "downgrade"
             )
-            print(
+            logging.warning(
                 (
-                    "WARNING: This version of Micromanager has not been tested with recOrder.\n"
+                    "This version of Micromanager has not been tested with recOrder.\n"
                     f"Please {upgrade_str} to MicroManager nightly build {RECOMMENDED_MM}."
                 )
             )
 
-        print("Confirmed correct ZMQ bridge----")
+        logging.debug("Confirmed correct ZMQ bridge----")
 
         # Find config group containing calibration channels
         # calib_channels is typically ['State0', 'State1', 'State2', ...]
@@ -934,7 +932,7 @@ class MainWidget(QWidget):
         # self.ui.cb_config_group.clear()    # This triggers the enter config we will clear when switching off
         groups = self.mmc.getAvailableConfigGroups()
         config_group_found = False
-        print("Now checking configs")
+        logging.debug("Checking MM config group")
         for i in range(groups.size()):
             group = groups.get(i)
             configs = self.mmc.getAvailableConfigs(group)
@@ -965,9 +963,8 @@ class MainWidget(QWidget):
                     self.ui.cb_acq_channel.addItem(ch)
                     self.bf_channel_found = True
 
-        print("Checked configs")
+        logging.debug("Checked configs.")
         if not config_group_found:
-            print("Config group not found")
             msg = (
                 f"No config group contains channels {self.calib_channels}. "
                 "Please refer to the recOrder wiki on how to set up the config properly."
@@ -986,7 +983,7 @@ class MainWidget(QWidget):
             self.ui.cb_acq_channel.setToolTip(self.no_bf_msg)
 
         # set startup LC control mode
-        print("Set startup LC control mode")
+        logging.debug("Setting startup LC control mode...")
         _devices = self.mmc.getLoadedDevices()
         loaded_devices = [_devices.get(i) for i in range(_devices.size())]
         if LC_DEVICE_NAME in loaded_devices:
@@ -1003,7 +1000,7 @@ class MainWidget(QWidget):
             self.calib_mode = "DAC"
             self.ui.cb_calib_mode.setCurrentIndex(2)
 
-        print("Finished connecting")
+        logging.debug("Finished connecting to MM.")
 
     @Slot(tuple)
     def handle_progress_update(self, value):
