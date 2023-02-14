@@ -1340,7 +1340,7 @@ class MainWidget(QWidget):
             memory = set()
             for i in range(cfg.size()):
                 prop = cfg.getSetting(i)
-                if "TS_DAC" in prop.getDeviceLabel():
+                if "TS" in prop.getDeviceLabel() and "DAC" in prop.getDeviceLabel():
                     dac = prop.getDeviceLabel()[-2:]
                     if dac not in memory:
                         self.ui.cb_lca.addItem("DAC" + dac)
