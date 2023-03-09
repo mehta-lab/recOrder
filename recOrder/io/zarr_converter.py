@@ -24,9 +24,9 @@ class ZarrConverter:
         data_type=None,
         replace_position_names=False,
         format_hcs=False,
+        states_only=False,
     ):
         """
-
         Parameters
         ----------
         input_dir: str
@@ -37,6 +37,9 @@ class ZarrConverter:
             input data type, optional
         replace_position_names: bool
         format_hcs: bool
+        states_only: bool
+            Only convert channels with names that contain "State"
+            Useful for 3D+2D MM datasets.
         """
 
         if not output_dir.endswith(".zarr"):
@@ -48,6 +51,7 @@ class ZarrConverter:
         self.save_directory = os.path.dirname(output_dir)
         # self.files = glob.glob(os.path.join(self.data_directory, '*.tif'))
         self.meta_file = None
+        self.states_only = states_only
 
         print("Initializing Data...")
         self.reader = WaveorderReader(
@@ -85,7 +89,12 @@ class ZarrConverter:
         self.dtype = self.reader.dtype
         self.p = self.reader.get_num_positions()
         self.t = self.reader.frames
-        self.c = self.reader.channels
+
+        if self.states_only:
+            state_indices = [self.reader.channel_names.index(x) for x in self.reader.channel_names if "State" in x]
+            self.c = len(state_indices)
+        else:
+            self.c = self.reader.channels
         self.z = self.reader.slices
         self.y = self.reader.height
         self.x = self.reader.width
@@ -120,11 +129,9 @@ class ZarrConverter:
         """
         generates a coordinate set in the dimensional order to which the data was acquired.
         This is important for keeping track of where we are in the tiff file during conversion
-
         Returns
         -------
         list(tuples) w/ length [N_images]
-
         """
 
         # if acquisition information is not present, make an arbitrary dimension order
@@ -240,18 +247,14 @@ class ZarrConverter:
     def _generate_plane_metadata(self, tiff_file, page):
         """
         generates the img plane metadata by saving the MicroManagerMetadata written in the tiff tags.
-
         This image-plane data houses information of the config when the image was acquired.
-
         Parameters
         ----------
         tiff_file:          (TiffFile Object) Opened TiffFile Object
         page:               (int) Page corresponding to the desired image plane
-
         Returns
         -------
         image_metadata:     (dict) Dictionary of the image-plane metadata
-
         """
 
         for tag in tiff_file.pages[page].tags.values():
@@ -264,16 +267,13 @@ class ZarrConverter:
         """
         checks to make sure the memory mapped image matches the saved zarr image to ensure
         a successful conversion.
-
         Parameters
         ----------
         tiff_image:     (nd-array) memory mapped array
         coord:          (tuple) coordinate of the image location
-
         Returns
         -------
         True/False:     (bool) True if arrays are equal, false otherwise
-
         """
 
         zarr_array = self.writer.sub_writer.current_pos_group["arr_0"]
@@ -288,23 +288,21 @@ class ZarrConverter:
     def _get_channel_names(self):
         """
         gets the chan names from the summary metadata (in order in which they were acquired)
-
         Returns
         -------
-
         """
-
         chan_names = self.reader.channel_names
+        if self.states_only:
+            state_indices = [self.reader.channel_names.index(x) for x in self.reader.channel_names if "State" in x]
+            chan_names = [chan_names[i] for i in state_indices]
 
         return chan_names
 
     def _get_position_names(self):
         """
         Append a list of pos_names in ascending order (order in which they were acquired)
-
         Returns
         -------
-
         """
 
         for p in range(self.p):
@@ -320,16 +318,13 @@ class ZarrConverter:
     def check_file_changed(self, last_file, current_file):
         """
         function to check whether or not the tiff file has changed.
-
         Parameters
         ----------
         last_file:          (str) filename of the last file looked at
         current_file:       (str) filename of the current file
-
         Returns
         -------
         True/False:       (bool) updated page number
-
         """
 
         if last_file != current_file or not last_file:
@@ -341,18 +336,15 @@ class ZarrConverter:
         """
         Grabs the image array through memory mapping.  We must first find the byte offset which is located in the
         tiff page tag.  We then use that to quickly grab the bytes corresponding to the desired image.
-
         Parameters
         ----------
         p:                  (int) position coordinate
         t:                  (int) time coordinate
         c:                  (int) channel coordinate
         z:                  (int) z coordinate
-
         Returns
         -------
         array:              (nd-array) image array of shape (Y, X)
-
         """
 
         # get image at given coordinate
@@ -362,11 +354,9 @@ class ZarrConverter:
         """
         generate contrast limits for each channel.  Grabs the middle image of the stack to compute contrast limits
         Default clim is to ignore 1% of pixels on either end
-
         Returns
         -------
         clims:      [list]: list of tuples corresponding to the (min, max) contrast limits
-
         """
 
         clims = []
@@ -385,12 +375,9 @@ class ZarrConverter:
         Initiates the zarr store.  Will create a zarr store with user-specified name or original name of data
         if not provided.  Store will contain a group called 'arr_0' with contains an array of original
         data dtype of dimensions (T, C, Z, Y, X).  Appends OME-zarr metadata with clims,chan_names
-
         Current compressor is Blosc zstd w/ bitshuffle (~1.5x compression, faster compared to best 1.6x compressor)
-
         Returns
         -------
-
         """
 
         chan_names = self._get_channel_names()
@@ -419,10 +406,8 @@ class ZarrConverter:
         """
         Runs the data conversion through memory mapping and performs an image check to make sure conversion did not
         alter any data values.
-
         Returns
         -------
-
         """
 
         # Run setup
