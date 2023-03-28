@@ -47,20 +47,15 @@ phase2D = reconstruct_phase2D(
 print(f"Shape of 2D phase data: {np.shape(phase2D)}")
 
 ## Save to zarr
-dataset = open_ome_zarr(
+with open_ome_zarr(
     "./output/reconstructions_" + timestamp,
     layout="fov",
     mode="w",
     channel_names=["Phase"],
-)
-img = dataset.create_zeros(
-    name="0",
-    shape=(1, 1, 1, Y, X),
-    dtype=phase2D.dtype,
-    chunks=(1, 1, 1, Y, X),  # chunk by XY planes
-)
-img[0, 0, 0] = phase2D
-dataset.close()
+) as dataset:
+    # Write to position "0", with length-one time, channel, and z dimensions
+    dataset["0"] = phase2D[np.newaxis, np.newaxis, np.newaxis, ...]
+
 # These lines open the reconstructed images
 # Alternatively, drag and drop the zarr store into napari and use the recOrder-napari reader.
 v = napari.Viewer()
