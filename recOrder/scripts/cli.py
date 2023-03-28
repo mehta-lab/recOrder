@@ -1,6 +1,8 @@
 import click
 import napari
 import numpy as np
+from iohub.reader import print_info
+from iohub import read_micromanager
 
 
 @click.group()
@@ -14,7 +16,7 @@ def cli():
 @click.help_option("-h", "--help")
 @click.argument("filename")
 @click.option(
-    "--position",
+    "--positions",
     "-p",
     default=None,
     multiple=True,
@@ -27,36 +29,31 @@ def cli():
     type=click.Choice(["position", "channel", "p", "c"]),
     help="Layers as 'position' ('p') or 'channel' ('c')",
 )
-def view(filename, position=None, layers=None):
+def view(filename, positions=None, layers=None):
     """View a dataset in napari"""
-    print(f"Reading file:\t {filename}")
+    click.echo(f"Reading file:\t {filename}")
+    print_info(filename)
 
-    # Workaround waveorder #97
-    # Create napari Viewer before other imports
-    v = napari.Viewer()
-    v.close()
-    from waveorder.io import WaveorderReader
+    reader = read_micromanager(filename)
 
-    reader = WaveorderReader(filename)
-    print_reader_info(reader)
-
-    if position == ():  # If empty, open all positions
-        position = range(reader.get_num_positions())
-    position = [int(x) for x in position]
+    if positions == ():  # If empty, open all positions
+        positions = range(reader.get_num_positions())
+    positions = [int(x) for x in positions]
 
     v = napari.Viewer()
     v.text_overlay.visible = True
     v.text_overlay.color = "green"
     if layers == "position" or layers == "p":
-        for i in position:
+        for position in positions:
             try:
-                name = reader.stage_positions[i]["Label"]
+                name = reader.stage_positions[position]["Label"]
             except:
-                name = "Pos" + str(i)
-            v.add_image(reader.get_zarr(i), name=name)
+                name = "Pos" + str(position)
+            v.add_image(reader.get_zarr(position), name=name)
             v.layers[-1].reset_contrast_limits()
         v.dims.axis_labels = ("T", "C", "Z", "Y", "X")
 
+        # Overlay the channel name
         def text_overlay():
             v.text_overlay.text = (
                 f"Channel: {reader.channel_names[v.dims.current_step[1]]}"
@@ -71,12 +68,12 @@ def view(filename, position=None, layers=None):
             "Try loading a small number of positions."
         )
 
-        ptzyx = (len(position),) + (reader.shape[0],) + reader.shape[2:]
-        for j in range(int(reader.channels)):
+        ptzyx = (len(positions),) + (reader.shape[0],) + reader.shape[2:]
+        for channel in range(int(reader.channels)):
             temp_data = np.zeros(ptzyx)
-            for k, pos in enumerate(position):
-                temp_data[k] = reader.get_array(pos)[:, j, ...]
-            v.add_image(temp_data, name=reader.channel_names[j])
+            for k, position in enumerate(positions):
+                temp_data[k] = reader.get_array(position)[:, channel, ...]
+            v.add_image(temp_data, name=reader.channel_names[channel])
             v.layers[-1].reset_contrast_limits()
         v.dims.axis_labels = ("P", "T", "Z", "Y", "X")
 
