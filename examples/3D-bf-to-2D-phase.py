@@ -1,5 +1,4 @@
-from waveorder.io.reader import WaveorderReader
-from iohub.ngff import open_ome_zarr
+from iohub import read_micromanager, open_ome_zarr
 from recOrder.compute.reconstructions import (
     initialize_reconstructor,
     reconstruct_phase2D,
@@ -17,7 +16,7 @@ timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 data = bf_3D_from_phantom()  # (Z, Y, X)
 
 # Option 2: load from file
-# reader = WaveorderReader('/path/to/ome-tiffs/or/zarr/store/')
+# reader = read_micromanager("/path/to/ome-tiffs/or/zarr/store/")
 # position, time, channel = 0, 0, 0
 # data = reader.get_array(position)[time, channel, ...]  # read 3D volume
 
