@@ -60,7 +60,7 @@ img = dataset.create_zeros(
     chunks=(1, 1, 1, Y, X),  # chunk by XY planes
 )
 img[0, 0, 0] = phase2D
-
+dataset.close()
 # These lines open the reconstructed images
 # Alternatively, drag and drop the zarr store into napari and use the recOrder-napari reader.
 v = napari.Viewer()
