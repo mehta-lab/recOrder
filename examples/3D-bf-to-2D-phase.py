@@ -1,5 +1,5 @@
 from waveorder.io.reader import WaveorderReader
-from waveorder.io.writer import WaveorderWriter
+from iohub.ngff import open_ome_zarr
 from recOrder.compute.reconstructions import (
     initialize_reconstructor,
     reconstruct_phase2D,
@@ -48,15 +48,19 @@ phase2D = reconstruct_phase2D(
 print(f"Shape of 2D phase data: {np.shape(phase2D)}")
 
 ## Save to zarr
-writer = WaveorderWriter("./output")
-writer.create_zarr_root("reconstructions_" + timestamp)
-writer.init_array(
-    position=0,
-    data_shape=(1, 1, 1, Y, X),
-    chunk_size=(1, 1, 1, Y, X),
-    chan_names=["Phase"],
+dataset = open_ome_zarr(
+    "./output/reconstructions_" + timestamp,
+    layout="fov",
+    mode="w",
+    channel_names=["Phase"],
 )
-writer.write(phase2D, p=0, t=0, c=0, z=0)
+img = dataset.create_zeros(
+    name="0",
+    shape=(1, 1, 1, Y, X),
+    dtype=phase2D.dtype,
+    chunks=(1, 1, 1, Y, X),  # chunk by XY planes
+)
+img[0, 0, 0] = phase2D
 
 # These lines open the reconstructed images
 # Alternatively, drag and drop the zarr store into napari and use the recOrder-napari reader.
