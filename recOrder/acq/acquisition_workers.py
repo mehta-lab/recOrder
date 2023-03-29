@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from qtpy.QtCore import Signal
+from iohub.convert import TIFFConverter
 from recOrder.compute.reconstructions import (
     initialize_reconstructor,
     reconstruct_qlipp_birefringence,
@@ -15,8 +16,6 @@ from recOrder.acq.acq_functions import (
 )
 from recOrder.io.utils import load_bg, extract_reconstruction_parameters
 from recOrder.compute.reconstructions import QLIPPBirefringenceCompute
-from recOrder.io.zarr_converter import ZarrConverter
-from recOrder.io.metadata_reader import MetadataReader, get_last_metadata_file
 from recOrder.io.utils import ram_message, rec_bkg_to_wo_bkg
 from napari.qt.threading import WorkerBaseSignals, WorkerBase
 from napari.utils.notifications import show_warning
@@ -484,14 +483,14 @@ class BFAcquisitionWorker(WorkerBase):
                         else f"{save_prefix}_RawBFDataSnap.zarr"
                     )
                     out_path = os.path.join(self.snap_dir, name)
-                    converter = ZarrConverter(
+                    converter = TIFFConverter(
                         os.path.join(dir_, prefix),
                         out_path,
-                        "ometiff",
-                        False,
-                        False,
+                        data_type="ometiff",
+                        grid_layout=False,
+                        label_positions=False,
                     )
-                    converter.run_conversion()
+                    converter.run()
                     shutil.rmtree(os.path.join(dir_, prefix))
                 except PermissionError as ex:
                     dp.close()
@@ -1236,14 +1235,14 @@ class PolarizationAcquisitionWorker(WorkerBase):
                         else f"{save_prefix}_RawPolDataSnap.zarr"
                     )
                     out_path = os.path.join(self.snap_dir, name)
-                    converter = ZarrConverter(
+                    converter = TIFFConverter(
                         os.path.join(dir_, prefix),
                         out_path,
-                        "ometiff",
-                        False,
-                        False,
+                        data_type="ometiff",
+                        grid_layout=False,
+                        label_positions=False,
                     )
-                    converter.run_conversion()
+                    converter.run()
                     shutil.rmtree(os.path.join(dir_, prefix))
                 except PermissionError as ex:
                     dp.close()
