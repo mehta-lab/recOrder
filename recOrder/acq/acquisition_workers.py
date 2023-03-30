@@ -17,6 +17,7 @@ from recOrder.acq.acq_functions import (
 )
 from recOrder.io.utils import load_bg, extract_reconstruction_parameters
 from recOrder.compute.reconstructions import QLIPPBirefringenceCompute
+from recOrder.io.metadata_reader import MetadataReader, get_last_metadata_file
 from recOrder.io.utils import ram_message, rec_bkg_to_wo_bkg
 from napari.qt.threading import WorkerBaseSignals, WorkerBase
 from napari.utils.notifications import show_warning
