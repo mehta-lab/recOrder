@@ -66,6 +66,7 @@ sending positions to layers. Try loading a small number of positions."""
 
         # Channels as layers
         elif layers == "channel" or layers == "c":
+            # TODO: Use dask API to lazy load
             if isinstance(reader, Plate):
                 T, C, Z, Y, X = reader[positions[0]].data.shape
             elif isinstance(reader, Position):
