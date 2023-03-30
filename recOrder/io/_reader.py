@@ -1,4 +1,4 @@
-from waveorder.io.reader import WaveorderReader
+from iohub import read_micromanager
 import zarr
 from typing import Tuple, List, Dict, Union
 
@@ -16,7 +16,7 @@ def napari_get_reader(path):
 def ome_zarr_reader(
     path: Union[str, List[str]]
 ) -> List[Tuple[zarr.Array, Dict]]:
-    reader = WaveorderReader(path)
+    reader = read_micromanager(path)
     results = list()
 
     zs = zarr.open(path, "r")
@@ -41,7 +41,7 @@ def ome_zarr_reader(
 def ome_tif_reader(
     path: Union[str, List[str]]
 ) -> List[Tuple[zarr.Array, Dict]]:
-    reader = WaveorderReader(path)
+    reader = read_micromanager(path)
     results = list()
 
     npos = reader.get_num_positions()
