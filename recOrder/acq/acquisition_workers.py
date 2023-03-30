@@ -959,20 +959,8 @@ class PolarizationAcquisitionWorker(WorkerBase):
                 channel_names=["Retardance", "Orientation", "BF", "Pol"],
             ) as dataset:
                 if birefringence.ndim == 3:
-                    img = dataset.create_zeros(
-                        name="0",
-                        shape=(
-                            1,
-                            4,
-                            1,
-                            birefringence.shape[-2],
-                            birefringence.shape[-1],
-                        ),
-                        dtype=birefringence.dtype,
-                    )
-                    img[0] = birefringence[:, np.newaxis, ...]
-                elif birefringence.ndim == 4:
-                    dataset["0"] = birefringence[np.newaxis, ...]
+                    birefringence = birefringence[:, np.newaxis, ...]
+                dataset["0"] = birefringence[np.newaxis, ...]
 
                 # TODO WRITE METADATA
                 # current_meta = writer.store.attrs.asdict()
