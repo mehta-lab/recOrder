@@ -409,9 +409,14 @@ class BackgroundCaptureWorker(
             bg_recon_path + "bg_reconstruction",
             layout="fov",
             mode="w",
-            channel_names=["Retardance, Orientation", "BF - computed", "DoP"],
+            channel_names=[
+                "Retardance",
+                "Orientation",
+                "BF - computed",
+                "DoP",
+            ],
         ) as dataset:
-            dataset["0"] = self.birefringence[np.newaxis, ...]
+            dataset["0"] = self.birefringence[np.newaxis, :, np.newaxis, ...]
 
         # save intensity trace visualization
         import matplotlib.pyplot as plt
