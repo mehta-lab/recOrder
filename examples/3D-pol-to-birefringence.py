@@ -84,12 +84,12 @@ with open_ome_zarr(
         "Orientation",
         "BF - computed",
         "DoP",
+        "Phase",
     ],
 ) as dataset:
-    # Write to position "0", with length-one time dimension
-    dataset["0"] = birefringence[np.newaxis, ...]
-    dataset.append_channel("Phase")
-    dataset["0"][0, -1] = phase3D
+    img = dataset.create_zeros("0", (1, 5, Z, Y, X), dtype=birefringence.dtype)
+    img[0, 0:4] = birefringence
+    img[0, 4] = phase3D
 
 # These lines open the reconstructed images
 # Alternatively, drag and drop the zarr store into napari and use the recOrder-napari reader.

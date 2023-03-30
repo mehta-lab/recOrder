@@ -56,20 +56,28 @@ sending positions to layers. Try loading a small number of positions."""
                 arrays.append(temp_data)
 
     elif isinstance(reader, NGFFNode):
-
         # Positions as layers
         if layers == "position" or layers == "p":
             for position in positions:
-                arrays.append(reader[position].data)
+                if isinstance(reader, Plate):
+                    arrays.append(reader[position].data)
+                elif isinstance(reader, Position):
+                    arrays.append(reader[position])
 
         # Channels as layers
         elif layers == "channel" or layers == "c":
-            T, C, Z, Y, X = reader[positions[0]].data.shape
+            if isinstance(reader, Plate):
+                T, C, Z, Y, X = reader[positions[0]].data.shape
+            elif isinstance(reader, Position):
+                T, C, Z, Y, X = reader["0"].shape
             ptzyx = (len(positions),) + (T, Z, Y, X)
             for c in range(C):
                 temp_data = np.zeros(ptzyx)
                 for k, position in enumerate(positions):
-                    temp_data[k] = reader[position].data[:, c, ...]
+                    if isinstance(reader, Plate):
+                        temp_data[k] = reader[position].data[:, c, ...]
+                    elif isinstance(reader, Position):
+                        temp_data[k] = reader[position][:, c, ...]
                 arrays.append(temp_data)
 
     return arrays
