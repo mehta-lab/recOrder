@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from qtpy.QtCore import Signal
+from iohub import open_ome_zarr
 from iohub.convert import TIFFConverter
 from recOrder.compute.reconstructions import (
     initialize_reconstructor,
@@ -20,7 +21,6 @@ from recOrder.io.utils import ram_message, rec_bkg_to_wo_bkg
 from napari.qt.threading import WorkerBaseSignals, WorkerBase
 from napari.utils.notifications import show_warning
 import logging
-from waveorder.io.writer import WaveorderWriter
 import tifffile as tiff
 import numpy as np
 import os
@@ -344,44 +344,22 @@ class BFAcquisitionWorker(WorkerBase):
         -------
 
         """
-
-        writer = WaveorderWriter(self.snap_dir)
-
-        # initialize
-        chunk_size = (1, 1, 1, phase.shape[-2], phase.shape[-1])
         prefix = self.calib_window.save_name
         name = f"PhaseSnap.zarr" if not prefix else f"{prefix}_PhaseSnap.zarr"
 
-        # create zarr root and position group
-        writer.create_zarr_root(name)
-
-        # Check if 2D
-        if len(phase.shape) == 2:
-            writer.init_array(
-                0,
-                (1, 1, 1, phase.shape[-2], phase.shape[-1]),
-                chunk_size,
-                ["Phase2D"],
-            )
-            z = 0
-
-        # Check if 3D
-        else:
-            writer.init_array(
-                0,
-                (1, 1, phase.shape[-3], phase.shape[-2], phase.shape[-1]),
-                chunk_size,
-                ["Phase3D"],
-            )
-
-            z = slice(0, phase.shape[-3])
-
-        # Write data to disk
-        writer.write(phase, p=0, t=0, c=0, z=z)
-
-        current_meta = writer.store.attrs.asdict()
-        current_meta["recOrder"] = meta
-        writer.store.attrs.put(current_meta)
+        with open_ome_zarr(
+            os.path.join(self.snap_dir, name),
+            layout="fov",
+            mode="w",
+            channel_names=["Phase" + str(phase.ndim) + "D"],
+        ) as dataset:
+            dataset["0"] = phase[
+                (5 - phase.ndim) * (np.newaxis,) + (Ellipsis,)
+            ]
+            # TODO WRITE METADATA
+            # current_meta = writer.store.attrs.asdict()
+            # current_meta["recOrder"] = meta
+            # writer.store.attrs.put(current_meta)
 
     def _reconstructor_changed(self, stack_shape: tuple):
         """Function to check if the reconstructor has changed from the previous one in memory.
@@ -964,109 +942,60 @@ class PolarizationAcquisitionWorker(WorkerBase):
         -------
 
         """
-        writer = WaveorderWriter(self.snap_dir)
+        prefix = self.calib_window.save_name
 
         if birefringence is not None:
 
-            # initialize
-            chunk_size = (
-                1,
-                1,
-                1,
-                birefringence.shape[-2],
-                birefringence.shape[-1],
-            )
-
-            # increment filename one more than last found saved snap
-            prefix = self.calib_window.save_name
             name = (
                 f"BirefringenceSnap.zarr"
                 if not prefix
                 else f"{prefix}_BirefringenceSnap.zarr"
             )
+            with open_ome_zarr(
+                os.path.join(self.snap_dir, name),
+                layout="fov",
+                mode="w",
+                channel_names=["Retardance", "Orientation", "BF", "Pol"],
+            ) as dataset:
+                if birefringence.ndim == 3:
+                    img = dataset.create_zeros(
+                        name="0",
+                        shape=(
+                            1,
+                            4,
+                            1,
+                            birefringence.shape[-2],
+                            birefringence.shape[-1],
+                        ),
+                        dtype=birefringence.dtype,
+                    )
+                    img[0] = birefringence[:, np.newaxis, ...]
+                elif birefringence.ndim == 4:
+                    dataset["0"] = birefringence[np.newaxis, ...]
 
-            # create zarr root and position group
-            writer.create_zarr_root(name)
-
-            # Check if 2D
-            if len(birefringence.shape) == 3:
-                writer.init_array(
-                    0,
-                    (
-                        1,
-                        4,
-                        1,
-                        birefringence.shape[-2],
-                        birefringence.shape[-1],
-                    ),
-                    chunk_size,
-                    ["Retardance", "Orientation", "BF", "Pol"],
-                )
-                z = 0
-
-            # Check if 3D
-            else:
-                writer.init_array(
-                    0,
-                    (
-                        1,
-                        4,
-                        birefringence.shape[-3],
-                        birefringence.shape[-2],
-                        birefringence.shape[-1],
-                    ),
-                    chunk_size,
-                    ["Retardance", "Orientation", "BF", "Pol"],
-                )
-                z = slice(0, birefringence.shape[-3])
-
-            # Write the data to disk
-            writer.write(birefringence, p=0, t=0, c=slice(0, 4), z=z)
-
-            current_meta = writer.store.attrs.asdict()
-            current_meta["recOrder"] = meta
-            writer.store.attrs.put(current_meta)
+                # TODO WRITE METADATA
+                # current_meta = writer.store.attrs.asdict()
+                # current_meta["recOrder"] = meta
+                # writer.store.attrs.put(current_meta)
 
         if phase is not None:
-
-            # initialize
-            chunk_size = (1, 1, 1, phase.shape[-2], phase.shape[-1])
-
-            # increment filename one more than last found saved snap
-            prefix = self.calib_window.save_name
             name = (
                 f"PhaseSnap.zarr" if not prefix else f"{prefix}_PhaseSnap.zarr"
             )
 
-            # create zarr root and position group
-            writer.create_zarr_root(name)
-
-            # Check if 2D
-            if len(phase.shape) == 2:
-                writer.init_array(
-                    0,
-                    (1, 1, 1, phase.shape[-2], phase.shape[-1]),
-                    chunk_size,
-                    ["Phase2D"],
-                )
-                z = 0
-
-            # Check if 3D
-            else:
-                writer.init_array(
-                    0,
-                    (1, 1, phase.shape[-3], phase.shape[-2], phase.shape[-1]),
-                    chunk_size,
-                    ["Phase3D"],
-                )
-                z = slice(0, phase.shape[-3])
-
-            # Write data to disk
-            writer.write(phase, p=0, t=0, c=0, z=z)
-
-            current_meta = writer.store.attrs.asdict()
-            current_meta["recOrder"] = meta
-            writer.store.attrs.put(current_meta)
+            with open_ome_zarr(
+                os.path.join(self.snap_dir, name),
+                layout="fov",
+                mode="w",
+                channel_names=["Phase" + str(phase.ndim) + "D"],
+            ) as dataset:
+                dataset["0"] = phase[
+                    (5 - phase.ndim) * (np.newaxis,) + (Ellipsis,)
+                ]
+                # TODO WRITE METADATA
+                # current_meta = writer.store.attrs.asdict()
+                # current_meta["recOrder"] = meta
+                # writer.store.attrs.put(current_meta)
 
     def _load_bg(self, path, height, width):
         """
