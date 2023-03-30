@@ -77,7 +77,7 @@ density = reconstruct_density_from_fluorescence(
 with open_ome_zarr(
     "./output/reconstructions_" + timestamp,
     layout="fov",
-    mode="w",
+    mode="w-",
     channel_names=["Phase"],
 ) as dataset:
     # Write to position "0", with length-one time dimension

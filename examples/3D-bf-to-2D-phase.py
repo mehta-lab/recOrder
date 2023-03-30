@@ -50,7 +50,7 @@ print(f"Shape of 2D phase data: {np.shape(phase2D)}")
 with open_ome_zarr(
     "./output/reconstructions_" + timestamp,
     layout="fov",
-    mode="w",
+    mode="w-",
     channel_names=["Phase"],
 ) as dataset:
     # Write to position "0", with length-one time, channel, and z dimensions

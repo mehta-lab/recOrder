@@ -78,7 +78,7 @@ print(f"Shape of 3D phase data: {np.shape(phase3D)}")
 with open_ome_zarr(
     "./output/reconstructions_" + timestamp,
     layout="fov",
-    mode="w",
+    mode="w-",
     channel_names=[
         "Retardance",
         "Orientation",

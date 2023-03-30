@@ -351,7 +351,7 @@ class BFAcquisitionWorker(WorkerBase):
         with open_ome_zarr(
             os.path.join(self.snap_dir, name),
             layout="fov",
-            mode="w",
+            mode="w-",
             channel_names=["Phase" + str(phase.ndim) + "D"],
         ) as dataset:
             dataset["0"] = phase[
@@ -952,7 +952,7 @@ class PolarizationAcquisitionWorker(WorkerBase):
             with open_ome_zarr(
                 os.path.join(self.snap_dir, name),
                 layout="fov",
-                mode="w",
+                mode="w-",
                 channel_names=["Retardance", "Orientation", "BF", "Pol"],
             ) as dataset:
                 if birefringence.ndim == 3:
@@ -972,7 +972,7 @@ class PolarizationAcquisitionWorker(WorkerBase):
             with open_ome_zarr(
                 os.path.join(self.snap_dir, name),
                 layout="fov",
-                mode="w",
+                mode="w-",
                 channel_names=["Phase" + str(phase.ndim) + "D"],
             ) as dataset:
                 dataset["0"] = phase[

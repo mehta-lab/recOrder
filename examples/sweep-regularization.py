@@ -47,7 +47,7 @@ reg_powers = 10.0 ** np.arange(-3, 3)
 dataset = open_ome_zarr(
     "./output/reconstructions_" + timestamp,
     layout="fov",
-    mode="w",
+    mode="w-",
     channel_names=[f"{reg:.1e}" for reg in reg_powers],
 )
 

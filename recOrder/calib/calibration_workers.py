@@ -408,7 +408,7 @@ class BackgroundCaptureWorker(
         with open_ome_zarr(
             bg_recon_path + "bg_reconstruction",
             layout="fov",
-            mode="w",
+            mode="w-",
             channel_names=[
                 "Retardance",
                 "Orientation",
