@@ -958,11 +958,7 @@ class PolarizationAcquisitionWorker(WorkerBase):
                 if birefringence.ndim == 3:
                     birefringence = birefringence[:, np.newaxis, ...]
                 dataset["0"] = birefringence[np.newaxis, ...]
-
-                # TODO WRITE METADATA
-                # current_meta = writer.store.attrs.asdict()
-                # current_meta["recOrder"] = meta
-                # writer.store.attrs.put(current_meta)
+                dataset.zattrs["recOrder"] = meta
 
         if phase is not None:
             name = (
@@ -978,10 +974,7 @@ class PolarizationAcquisitionWorker(WorkerBase):
                 dataset["0"] = phase[
                     (5 - phase.ndim) * (np.newaxis,) + (Ellipsis,)
                 ]
-                # TODO WRITE METADATA
-                # current_meta = writer.store.attrs.asdict()
-                # current_meta["recOrder"] = meta
-                # writer.store.attrs.put(current_meta)
+                dataset.zattrs["recOrder"] = meta
 
     def _load_bg(self, path, height, width):
         """
