@@ -357,10 +357,7 @@ class BFAcquisitionWorker(WorkerBase):
             dataset["0"] = phase[
                 (5 - phase.ndim) * (np.newaxis,) + (Ellipsis,)
             ]
-            # TODO WRITE METADATA
-            # current_meta = writer.store.attrs.asdict()
-            # current_meta["recOrder"] = meta
-            # writer.store.attrs.put(current_meta)
+            dataset.zattrs["recOrder"] = meta
 
     def _reconstructor_changed(self, stack_shape: tuple):
         """Function to check if the reconstructor has changed from the previous one in memory.
