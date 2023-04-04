@@ -406,7 +406,7 @@ class BackgroundCaptureWorker(
             os.mkdir(bg_recon_path)
         # save raw reconstruction to zarr store
         with open_ome_zarr(
-            bg_recon_path + "bg_reconstruction",
+            os.path.join(bg_recon_path, "reconstruction"),
             layout="fov",
             mode="w-",
             channel_names=[
