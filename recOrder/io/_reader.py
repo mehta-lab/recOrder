@@ -1,19 +1,25 @@
-from iohub import read_micromanager
+from typing import Dict, List, Tuple, Union
+
 import zarr
-from typing import Tuple, List, Dict, Union
+from iohub import read_micromanager
+from napari_ome_zarr._reader import napari_get_reader as fallback_reader
 
 
 def napari_get_reader(path):
     if isinstance(path, str):
         if ".zarr" in path:
-            return ome_zarr_reader
+            with zarr.open(path) as root:
+                if "plate" in root.attrs:
+                    return hcs_zarr_reader
+                else:
+                    return fallback_reader(path)
         else:
             return ome_tif_reader
     else:
         return None
 
 
-def ome_zarr_reader(
+def hcs_zarr_reader(
     path: Union[str, List[str]]
 ) -> List[Tuple[zarr.Array, Dict]]:
     reader = read_micromanager(path)
@@ -34,7 +40,6 @@ def ome_zarr_reader(
         name = names[pos]
         meta["name"] = name
         results.append((reader.get_zarr(pos), meta))
-
     return results
 
 
