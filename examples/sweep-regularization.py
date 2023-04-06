@@ -45,7 +45,7 @@ reconstructor = initialize_reconstructor(
 reg_powers = 10.0 ** np.arange(-3, 3)
 
 dataset = open_ome_zarr(
-    "./output/reconstructions_" + timestamp,
+    "./output/reconstructions_" + timestamp + ".zarr",
     layout="fov",
     mode="w-",
     channel_names=[f"{reg:.1e}" for reg in reg_powers],

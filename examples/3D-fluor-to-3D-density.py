@@ -45,7 +45,7 @@ print(f"Shape of 3D density data: {np.shape(density)}")
 
 ## Save to zarr
 with open_ome_zarr(
-    "./output/reconstructions_" + timestamp,
+    "./output/reconstructions_" + timestamp + ".zarr",
     layout="fov",
     mode="w-",
     channel_names=["Density"],

@@ -75,7 +75,7 @@ density = reconstruct_density_from_fluorescence(
 
 ## Save to zarr
 with open_ome_zarr(
-    "./output/reconstructions_" + timestamp,
+    "./output/reconstructions_" + timestamp + ".zarr",
     layout="fov",
     mode="w-",
     channel_names=["Phase"],
