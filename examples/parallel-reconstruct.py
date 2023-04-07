@@ -4,7 +4,7 @@ import numpy as np
 import multiprocessing as mp
 from wget import download
 from datetime import datetime
-from iohub import read_micromanager, open_ome_zarr
+from iohub import open_ome_zarr
 from iohub.convert import TIFFConverter
 from recOrder.io.utils import load_bg
 from recOrder.compute.reconstructions import (
