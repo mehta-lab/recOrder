@@ -90,7 +90,7 @@ def single_process(i, reader, bg_data, writer, vol_start, vol_end):
         t = int(vol % T)
         print(f"Reconstructing vol={vol}, pos={p}, time={t}")
 
-        data = reader["0/" + str(p) + "/0"]["0"][t, ...]
+        data = reader["0/" + str(p) + "/0"]["0"][t]
 
         # Set up a reconstructor.
         reconstructor_args = {
