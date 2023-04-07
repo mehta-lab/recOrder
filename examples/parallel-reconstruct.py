@@ -2,7 +2,6 @@ import shutil
 import os
 import numpy as np
 import multiprocessing as mp
-from tqdm import tqdm
 from wget import download
 from datetime import datetime
 from iohub import read_micromanager, open_ome_zarr
