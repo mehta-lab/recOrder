@@ -66,6 +66,32 @@ def precomputation():
         width=X,
     )
 
+    # setup reconstructor.
+    reconstructor_args = {
+        "image_dim": (Y, X),
+        "mag": 20,  # magnification
+        "pixel_size_um": 6.5,  # pixel size in um
+        "n_slices": Z,  # number of slices in z-stack
+        "z_step_um": 2,  # z-step size in um
+        "wavelength_nm": 532,
+        "swing": 0.1,
+        "calibration_scheme": "4-State",  # "4-State" or "5-State"
+        "NA_obj": 0.4,  # numerical aperture of objective
+        "NA_illu": 0.2,  # numerical aperture of condenser
+        "n_obj_media": 1.0,  # refractive index of objective immersion media
+        "pad_z": 5,  # slices to pad for phase reconstruction boundary artifacts
+        "bg_correction": "global",  # BG correction method: "None", "local_fit", "global"
+        "mode": "3D",  # phase reconstruction mode, "2D" or "3D"
+        "use_gpu": False,
+        "gpu_id": 0,
+    }
+    reconstructor = initialize_reconstructor(
+        pipeline="QLIPP", **reconstructor_args
+    )
+
+    # reconstruct background Stokes
+    bg_stokes = reconstruct_qlipp_stokes(bg_data, reconstructor)
+
     # setup output zarr
     writer = open_ome_zarr(
         "./output/reconstructions_" + timestamp + ".zarr",
@@ -83,68 +109,41 @@ def precomputation():
         position = writer.create_position("0", str(p), "0")
         position.create_zeros(name="0", shape=(T, 5, Z, Y, X), dtype=dtype)
 
-    return (reader, bg_data, writer)
+    return reader, writer, reconstructor, bg_stokes
 
 
 # define the work to be done on a single process
 # in this example a single process will loop through a set of CZYX volumes, and
 # for each volume it will read the data, apply a reconstruction, then save the
 # result to a hcs-format zarr
-def single_process(i, reader, bg_data, writer, vol_start, vol_end):
+def single_process(
+    reader, writer, reconstructor, bg_stokes, vol_start, vol_end
+):
     T, C, Z, Y, X = reader["0/0/0"].data.shape
     for vol in range(vol_start, vol_end + 1):
-        print("DEBUG:", i, vol)
         p = int(np.floor(vol / T))
         t = int(vol % T)
         print(f"Reconstructing vol={vol}, pos={p}, time={t}")
 
+        # read from input zarr
         data = reader["0/" + str(p) + "/0"]["0"][t]
 
-        # Set up a reconstructor.
-        reconstructor_args = {
-            "image_dim": (Y, X),
-            "mag": 20,  # magnification
-            "pixel_size_um": 6.5,  # pixel size in um
-            "n_slices": Z,  # number of slices in z-stack
-            "z_step_um": 2,  # z-step size in um
-            "wavelength_nm": 532,
-            "swing": 0.1,
-            "calibration_scheme": "4-State",  # "4-State" or "5-State"
-            "NA_obj": 0.4,  # numerical aperture of objective
-            "NA_illu": 0.2,  # numerical aperture of condenser
-            "n_obj_media": 1.0,  # refractive index of objective immersion media
-            "pad_z": 5,  # slices to pad for phase reconstruction boundary artifacts
-            "bg_correction": "local_fit",  # BG correction method: "None", "local_fit", "global"
-            "mode": "3D",  # phase reconstruction mode, "2D" or "3D"
-            "use_gpu": False,
-            "gpu_id": 0,
-        }
-        reconstructor = initialize_reconstructor(
-            pipeline="QLIPP", **reconstructor_args
-        )
-
-        # Reconstruct background Stokes
-        bg_stokes = reconstruct_qlipp_stokes(bg_data, reconstructor)
-
-        # Reconstruct data Stokes w/ background correction
+        # reconstruct data Stokes w/ background correction
         stokes = reconstruct_qlipp_stokes(data, reconstructor, bg_stokes)
 
-        # Reconstruct Birefringence from Stokes
-        # Shape of the output birefringence will be (C, Z, Y, X) where
-        # Channel order = Retardance [nm], Orientation [rad], Brightfield (S0), Degree of Polarization
+        # reconstruct birefringence from Stokes
         birefringence = reconstruct_qlipp_birefringence(stokes, reconstructor)
         birefringence[0] = (
-            birefringence[0]
-            / (2 * np.pi)
-            * reconstructor_args["wavelength_nm"]
+            birefringence[0] / (2 * np.pi) * (reconstructor.lambda_illu / 1000)
         )
 
-        # Reconstruct Phase3D from S0
+        # reconstruct phase3D from S0
         S0 = birefringence[2]
         phase3D = reconstruct_phase3D(
             S0, reconstructor, method="Tikhonov", reg_re=1e-2
         )
 
+        # write output
         writer["0/" + str(p) + "/0"]["0"][t, 0:4] = birefringence
         writer["0/" + str(p) + "/0"]["0"][t, 4] = phase3D
 
@@ -153,7 +152,7 @@ def single_process(i, reader, bg_data, writer, vol_start, vol_end):
 # we will apply the same reconstruction to each position and time point, so we
 # need to split the CZYX volumes among the processes
 if __name__ == "__main__":
-    reader, bg_data, writer = precomputation()
+    reader, writer, reconstructor, bg_stokes = precomputation()
     processes = []
     V = len(list(reader.positions())) * reader["0/0/0"].data.shape[0]
     vol_per_process = int(np.ceil(V / N_processes))
@@ -165,10 +164,17 @@ if __name__ == "__main__":
         processes.append(
             mp.Process(
                 target=single_process,
-                args=(i, reader, bg_data, writer, vol_start, vol_end),
+                args=(
+                    reader,
+                    writer,
+                    reconstructor,
+                    bg_stokes,
+                    vol_start,
+                    vol_end,
+                ),
             )
         )
-    print("STARTING PROCESSES")
+    print("Starting processes...")
     # run the processes
     for process in processes:
         process.start()
