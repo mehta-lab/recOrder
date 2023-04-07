@@ -14,18 +14,24 @@ from recOrder.compute.reconstructions import (
     reconstruct_phase3D,
 )
 
+timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+
 # This example demonstrates a 3D-pol-to-birfringence reconstruction applied
 # to each position and time point of a micromanager dataset. The example
 # uses multiprocessing to apply the reconstructions in parallel.
 
-# This example will download a ~50 MB test dataset to your working directory.
+# This example will download a ~50 MB micro-manager test dataset to your
+# working directory, convert it to a zarr store, then reconstruct physical
+# paramaters from each position and time point.
 
 N_processes = 6  # (should have at least this many cores available)
 
 
 def precomputation():
 
-    # download test data
+    # download test data and convert to zarr
+    # use this section for a test run, then delete it and load directly from
+    # a zarr store for a real reconstruction run
     data_folder = os.path.join(os.getcwd(), "data_temp")
     os.makedirs(data_folder, exist_ok=True)
     url = "https://zenodo.org/record/6983916/files/recOrder_test_data.zip?download=1"
@@ -36,7 +42,7 @@ def precomputation():
         download(url, out=output)
         shutil.unpack_archive(output, extract_dir=data_folder)
 
-    temp_path = os.path.join(data_folder, "temp.zarr")
+    temp_path = os.path.join(data_folder, timestamp + "_temp.zarr")
     converter = TIFFConverter(
         os.path.join(
             data_folder,
@@ -58,7 +64,6 @@ def precomputation():
     )
 
     # setup output zarr
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     writer = open_ome_zarr(
         "./output/reconstructions_" + timestamp + ".zarr",
         layout="hcs",
