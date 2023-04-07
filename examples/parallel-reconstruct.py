@@ -21,7 +21,7 @@ from recOrder.compute.reconstructions import (
 
 # This example will download a ~50 MB test dataset to your working directory.
 
-N_processes = 1  # (should have at least this many cores available)
+N_processes = 6  # (should have at least this many cores available)
 
 
 def precomputation():
