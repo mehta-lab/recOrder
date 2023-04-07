@@ -24,7 +24,10 @@ timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 # working directory, convert it to a zarr store, then reconstruct physical
 # paramaters from each position and time point.
 
-N_processes = 6  # (should have at least this many cores available)
+# Choose the number of processes to parallel over.
+# You should have at least this many cores available with enough RAM
+# available to each process to complete the reconstruction.
+N_processes = 6
 
 
 def precomputation():
