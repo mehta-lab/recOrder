@@ -1845,6 +1845,10 @@ class MainWidget(QWidget):
         def update_extinction(extinction):
             self.calib.extinction_ratio = float(extinction)
 
+        # Make sure Live Mode is off
+        if self.calib.snap_manager.getIsLiveModeOn():
+            self.calib.snap_manager.setLiveModeOn(False)
+
         # initialize worker properties for multi-threading
         self.ui.qbutton_stop_calib.clicked.connect(self.worker.quit)
         self.worker.yielded.connect(self.ui.le_extinction.setText)
