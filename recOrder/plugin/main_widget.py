@@ -1,5 +1,8 @@
+# TODO: remove in Python 3.11
+from __future__ import annotations
+
 from recOrder.calib.Calibration import QLIPP_Calibration, LC_DEVICE_NAME
-from pycromanager import Bridge
+from pycromanager import Core, Studio, zmq_bridge
 from qtpy.QtCore import Slot, Signal, Qt
 from qtpy.QtWidgets import QWidget, QFileDialog, QSizePolicy, QSlider
 from qtpy.QtGui import QPixmap, QColor
@@ -18,7 +21,6 @@ from recOrder.plugin import gui
 from recOrder.io.core_functions import set_lc_state, snap_and_average
 from recOrder.io.metadata_reader import MetadataReader
 from recOrder.io.utils import ret_ori_overlay
-from waveorder.io.reader import WaveorderReader
 from waveorder.waveorder_reconstructor import waveorder_microscopy
 from pathlib import Path, PurePath
 from napari import Viewer
@@ -33,6 +35,14 @@ from os.path import dirname
 import json
 import logging
 import textwrap
+import yaml
+
+# type hint/check
+from typing import TYPE_CHECKING
+
+# avoid runtime import error
+if TYPE_CHECKING:
+    from _typeshed import StrOrBytesPath
 
 
 class MainWidget(QWidget):
@@ -45,6 +55,28 @@ class MainWidget(QWidget):
     # Initialize Custom Signals
     log_changed = Signal(str)
 
+    # Initialize class attributes
+    disabled_button_style = "border: 1px solid rgb(65,72,81);"
+    bf_keywords = [
+        "bf",
+        "brightfield",
+        "bright",
+        "labelfree",
+        "label-free",
+        "lf",
+        "label",
+        "phase",
+        "ph",
+    ]
+    no_bf_msg = "\n".join(
+        textwrap.wrap(
+            f"No brightfield channel found. If you would like to acquire phase from brightfield,"
+            " please restart recOrder after adding a new channel to MicroManager with one of the"
+            " following case-insensitive keywords: " + ", ".join(bf_keywords),
+            width=70,
+        )
+    )
+
     def __init__(self, napari_viewer: Viewer):
         super().__init__()
         self.viewer = napari_viewer
@@ -53,8 +85,11 @@ class MainWidget(QWidget):
         self.ui = gui.Ui_Form()
         self.ui.setupUi(self)
 
-        # Override inital tab focus
+        # Override initial tab focus
         self.ui.tabWidget.setCurrentIndex(0)
+
+        # Set attributes need for enabling/disabling buttons
+        self.bf_channel_found = False
 
         # Disable buttons until connected to MM
         self._set_buttons_enabled(False)
@@ -136,7 +171,9 @@ class MainWidget(QWidget):
         )
 
         # This parameter seems to be wired differently than others...investigate later
-        self.ui.le_recon_wavelength.editingFinished.connect(self.enter_recon_wavelength)
+        self.ui.le_recon_wavelength.editingFinished.connect(
+            self.enter_recon_wavelength
+        )
         self.ui.le_recon_wavelength.setText("532")
         self.enter_recon_wavelength()
 
@@ -177,6 +214,7 @@ class MainWidget(QWidget):
         self.ui.qbutton_acq_phase_from_bf.clicked[bool].connect(
             self.acq_phase_from_bf
         )
+
         self.ui.qbutton_acq_ret_ori_phase.clicked[bool].connect(
             self.acq_ret_ori_phase
         )
@@ -222,6 +260,7 @@ class MainWidget(QWidget):
         self.ui.cb_phase_denoiser.currentIndexChanged[int].connect(
             self.enter_phase_denoiser
         )
+        self.enter_phase_denoiser()
 
         ## Initialize logging
         log_box = QtLogger(self.ui.te_log)
@@ -335,6 +374,7 @@ class MainWidget(QWidget):
         self.ui.DisplayOptions.setHidden(True)
 
         # Set initial UI Properties
+        self.ui.label_extinction.setText("Extinction Ratio")
         self.ui.le_mm_status.setStyleSheet(
             "border: 1px solid rgb(200,0,0); color: rgb(200,0,0);"
         )
@@ -577,12 +617,19 @@ class MainWidget(QWidget):
             action_button.setEnabled(val)
             if val:
                 action_button.setToolTip("")
-                action_button.setStyleSheet("border: 1px solid rgb(32,34,40);")
+                action_button.setStyleSheet(self.disabled_button_style)
             else:
                 action_button.setToolTip(
                     "Action temporarily disabled. Connect to MM or wait for acquisition to finish."
                 )
-                action_button.setStyleSheet("border: 1px solid rgb(65,72,81);")
+                action_button.setStyleSheet(self.disabled_button_style)
+
+        if not self.bf_channel_found:
+            self.ui.qbutton_acq_phase_from_bf.setEnabled(False)
+            self.ui.qbutton_acq_phase_from_bf.setStyleSheet(
+                self.disabled_button_style
+            )
+            self.ui.qbutton_acq_phase_from_bf.setToolTip(self.no_bf_msg)
 
     def _enable_buttons(self):
         self._set_buttons_enabled(True)
@@ -836,11 +883,15 @@ class MainWidget(QWidget):
         RECOMMENDED_MM = "20220920"
         ZMQ_TARGET_VERSION = "4.2.0"
         try:
-            self.bridge = Bridge(convert_camel_case=False)
-            self.mmc = self.bridge.get_core()
-            self.mm = self.bridge.get_studio()
+            self.mmc = Core(convert_camel_case=False)
+            # Check it works
+            self.mmc.getAvailableConfigGroups()
+            self.mm = Studio(convert_camel_case=False)
+            # Order is important: If the bridge is created before Core, Core will not work
+            self.bridge = zmq_bridge._bridge._Bridge()
+            logging.debug("Established ZMQ Bridge and found Core and Studio")
         except:
-            print(
+            raise EnvironmentError(
                 (
                     "Could not establish pycromanager bridge.\n"
                     "Is micromanager open?\n"
@@ -848,9 +899,10 @@ class MainWidget(QWidget):
                     f"Are you using nightly build {RECOMMENDED_MM}?"
                 )
             )
-            raise EnvironmentError
 
         # Warn the user if there is a MicroManager/ZMQ version mismatch
+        # NS: Not quite sure what this is good for, we already know the Core works
+        # This code uses undocumented PycroManager features, so may well break in the future
         self.bridge._main_socket.send({"command": "connect", "debug": False})
         reply_json = self.bridge._main_socket.receive(timeout=500)
         zmq_mm_version = reply_json["version"]
@@ -861,12 +913,14 @@ class MainWidget(QWidget):
                 < version.parse(ZMQ_TARGET_VERSION)
                 else "downgrade"
             )
-            print(
+            logging.warning(
                 (
-                    "WARNING: This version of Micromanager has not been tested with recOrder.\n"
+                    "This version of Micromanager has not been tested with recOrder.\n"
                     f"Please {upgrade_str} to MicroManager nightly build {RECOMMENDED_MM}."
                 )
             )
+
+        logging.debug("Confirmed correct ZMQ bridge----")
 
         # Find config group containing calibration channels
         # calib_channels is typically ['State0', 'State1', 'State2', ...]
@@ -878,6 +932,7 @@ class MainWidget(QWidget):
         # self.ui.cb_config_group.clear()    # This triggers the enter config we will clear when switching off
         groups = self.mmc.getAvailableConfigGroups()
         config_group_found = False
+        logging.debug("Checking MM config group")
         for i in range(groups.size()):
             group = groups.get(i)
             configs = self.mmc.getAvailableConfigs(group)
@@ -896,11 +951,19 @@ class MainWidget(QWidget):
                     )
                     config_group_found = True
                 self.ui.cb_config_group.addItem(group)
-            # not entirely sure what this part does, but I left it in
-            # I think it tried to find a channel such as 'BF'
+
+            # Populate the acquisition "BF channel" list with presets that contain any of these keywords
             for ch in config_list:
-                if ch not in self.calib_channels:
+                if any(
+                    [
+                        keyword.lower() in ch.lower()
+                        for keyword in self.bf_keywords
+                    ]
+                ):
                     self.ui.cb_acq_channel.addItem(ch)
+                    self.bf_channel_found = True
+
+        logging.debug("Checked configs.")
         if not config_group_found:
             msg = (
                 f"No config group contains channels {self.calib_channels}. "
@@ -911,7 +974,16 @@ class MainWidget(QWidget):
             )
             raise KeyError(msg)
 
+        if not self.bf_channel_found:
+            self.ui.qbutton_acq_phase_from_bf.disconnect()
+            self.ui.qbutton_acq_phase_from_bf.setStyleSheet(
+                self.disabled_button_style
+            )
+            self.ui.qbutton_acq_phase_from_bf.setToolTip(self.no_bf_msg)
+            self.ui.cb_acq_channel.setToolTip(self.no_bf_msg)
+
         # set startup LC control mode
+        logging.debug("Setting startup LC control mode...")
         _devices = self.mmc.getLoadedDevices()
         loaded_devices = [_devices.get(i) for i in range(_devices.size())]
         if LC_DEVICE_NAME in loaded_devices:
@@ -927,6 +999,8 @@ class MainWidget(QWidget):
         else:
             self.calib_mode = "DAC"
             self.ui.cb_calib_mode.setCurrentIndex(2)
+
+        logging.debug("Finished connecting to MM.")
 
     @Slot(tuple)
     def handle_progress_update(self, value):
@@ -1145,40 +1219,41 @@ class MainWidget(QWidget):
     def handle_reconstruction_store_update(self, value):
         self.reconstruction_data_path = value
 
-    @Slot(tuple)
-    def handle_reconstruction_dim_update(self, value):
-        p, t, c = value
-        layer_name = self.worker.manager.config.data_save_name
+    # This seems to be unused
+    # @Slot(tuple)
+    # def handle_reconstruction_dim_update(self, value):
+    #     p, t, c = value
+    #     layer_name = self.worker.manager.config.data_save_name
 
-        if p == 0 and t == 0 and c == 0:
-            self.reconstruction_data = WaveorderReader(
-                self.reconstruction_data_path, "zarr"
-            )
-            self.viewer.add_image(
-                self.reconstruction_data.get_zarr(p),
-                name=layer_name + f"_Pos_{p:03d}",
-            )
+    #     if p == 0 and t == 0 and c == 0:
+    #         self.reconstruction_data = WaveorderReader(
+    #             self.reconstruction_data_path, "zarr"
+    #         )
+    #         self.viewer.add_image(
+    #             self.reconstruction_data.get_zarr(p),
+    #             name=layer_name + f"_Pos_{p:03d}",
+    #         )
 
-            self.viewer.dims.set_axis_label(0, "T")
-            self.viewer.dims.set_axis_label(1, "C")
-            self.viewer.dims.set_axis_label(2, "Z")
+    #         self.viewer.dims.set_axis_label(0, "T")
+    #         self.viewer.dims.set_axis_label(1, "C")
+    #         self.viewer.dims.set_axis_label(2, "Z")
 
-        # Add each new position as a new layer in napari
-        name = layer_name + f"_Pos_{p:03d}"
-        if name not in self.viewer.layers:
-            self.reconstruction_data = WaveorderReader(
-                self.reconstruction_data_path, "zarr"
-            )
-            self.viewer.add_image(
-                self.reconstruction_data.get_zarr(p), name=name
-            )
+    #     # Add each new position as a new layer in napari
+    #     name = layer_name + f"_Pos_{p:03d}"
+    #     if name not in self.viewer.layers:
+    #         self.reconstruction_data = WaveorderReader(
+    #             self.reconstruction_data_path, "zarr"
+    #         )
+    #         self.viewer.add_image(
+    #             self.reconstruction_data.get_zarr(p), name=name
+    #         )
 
-        # update the napari dimension slider position if the user hasn't specified to pause updates
-        if not self.pause_updates:
-            self.viewer.dims.set_current_step(0, t)
-            self.viewer.dims.set_current_step(1, c)
+    #     # update the napari dimension slider position if the user hasn't specified to pause updates
+    #     if not self.pause_updates:
+    #         self.viewer.dims.set_current_step(0, t)
+    #         self.viewer.dims.set_current_step(1, c)
 
-        self.last_p = p
+    #     self.last_p = p
 
     @Slot(bool)
     def browse_dir_path(self):
@@ -1299,8 +1374,8 @@ class MainWidget(QWidget):
         """
         # if/else takes care of the clearing of config
         if self.ui.cb_config_group.count() != 0:
-            self.mmc = self.bridge.get_core()
-            self.mm = self.bridge.get_studio()
+            self.mmc = Core(convert_camel_case=False)
+            self.mm = Studio(convert_camel_case=False)
 
             # Gather config groups and their children
             self.config_group = self.ui.cb_config_group.currentText()
@@ -1385,12 +1460,14 @@ class MainWidget(QWidget):
     def enter_phase_denoiser(self):
         state = self.ui.cb_phase_denoiser.currentIndex()
         if state == 0:
+            self.phase_regularizer = "Tikhonov"
             self.ui.label_itr.setHidden(True)
             self.ui.label_phase_rho.setHidden(True)
             self.ui.le_rho.setHidden(True)
             self.ui.le_itr.setHidden(True)
 
         elif state == 1:
+            self.phase_regularizer = "TV"
             self.ui.label_itr.setHidden(False)
             self.ui.label_phase_rho.setHidden(False)
             self.ui.le_rho.setHidden(False)
@@ -2014,6 +2091,65 @@ class MainWidget(QWidget):
 
         # Start Thread
         self.worker.start()
+
+    def _dump_gui_state(self, save_dir: StrOrBytesPath):
+        """Collect and save the current GUI settings to a YAML file.
+
+        Parameters
+        ----------
+        save_dir : str | bytes | PathLike[str] | PathLike[bytes]
+            directory to save
+        """
+        gui_state = {
+            "Run Calibration": {
+                "Swing": self.swing,
+                "Wavelength": self.wavelength,
+                "Illumination Scheme": self.calib_scheme,
+                "Calibration Mode": self.calib_mode,
+                "Config Group": self.config_group,
+            },
+            "Capture Background": {
+                "Background Folder Name": self.bg_folder_name,
+                "Number of Images to Average": self.n_avg,
+            },
+            "Acquisition Settings": {
+                "Z Start": self.z_start,
+                "Z End": self.z_end,
+                "Z Step": self.z_step,
+                "Acquisition Mode": self.acq_mode,
+                "BF Channel": self.ui.cb_acq_channel.itemText(
+                    self.ui.cb_acq_channel.currentIndex()
+                ),
+            },
+            "General Reconstruction Settings": {
+                "Background Correction": self.bg_option,
+                "Background Path": self.current_bg_path,
+                "Wavelength": self.recon_wavelength,
+                "Objective NA": self.obj_na,
+                "Condenser NA": self.cond_na,
+                "Camera Pixel Size": self.ps,
+                "RI of Objective Media": self.n_media,
+                "Magnification": self.mag,
+                "Orientation Offset": self.orientation_offset,
+            },
+            "Phase Reconstruction Settings": {
+                "Z Padding": self.pad_z,
+                "Regularizer": self.phase_regularizer,
+                "Strength": float(self.ui.le_phase_strength.text()),
+            },
+        }
+        # TV-specific parameters
+        if self.phase_regularizer == "TV":
+            gui_state["Phase Reconstruction Settings"]["Rho"] = float(
+                self.ui.le_rho.text()
+            )
+            gui_state["Phase Reconstruction Settings"]["Iterations"] = int(
+                self.ui.le_itr.text()
+            )
+        # save in YAML
+        save_path = os.path.join(save_dir, "gui_state.yml")
+        with open(save_path, "w") as f:
+            yaml.dump(gui_state, f, default_flow_style=False, sort_keys=False)
 
     @Slot(bool)
     def save_config(self):

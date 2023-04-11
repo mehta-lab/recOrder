@@ -1,12 +1,12 @@
-from waveorder.io.reader import WaveorderReader
-from waveorder.io.writer import WaveorderWriter
+from iohub import read_micromanager, open_ome_zarr
 from recOrder.io.utils import load_bg
-from recOrder.compute.qlipp_compute import (
+from recOrder.compute.reconstructions import (
     initialize_reconstructor,
     reconstruct_qlipp_stokes,
     reconstruct_qlipp_birefringence,
     reconstruct_phase3D,
 )
+from recOrder.compute.phantoms import pol_3D_from_phantom
 from datetime import datetime
 import numpy as np
 import napari
@@ -16,23 +16,15 @@ timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 ## Load a dataset
 
 # Option 1: use random data and run this script as is.
-data = np.random.random((4, 16, 256, 256))  # (C, Z, Y, X)
+data, bg_data = pol_3D_from_phantom()  # (C, Z, Y, X) and (C, Y, X)
 C, Z, Y, X = data.shape
-bg_data = np.random.random((4, 256, 256))  # (C, Y, X)
 
-# Option 2: use test data or previously acquired data.
-# For test data, use this link to download from Zenodo,
-# https://zenodo.org/record/6983916/files/recOrder_test_data.zip?download=1
-# unzip the folder, and modify test_data_root to point to the unzipped folder.
-# Uncomment the next 8 lines then run this script.
-# test_data_root = "/Users/talon.chandler/Downloads/recOrder_test_data/"
-# dataset = "2022_08_04_recOrder_pytest_20x_04NA/"
-# reader = WaveorderReader(
-#    test_data_root + dataset + "2T_3P_16Z_128Y_256X_Kazansky_1"
-# )
-# data = reader.get_array(0)[0, ...]
+# Option 2: load from file
+# reader = read_micromanager('/path/to/ome-tiffs/or/zarr/store/')
+# position, time = 0, 0
+# data = reader.get_array(position)[time, ...]
 # C, Z, Y, X = data.shape
-# bg_data = load_bg(test_data_root + dataset + "BG/", height=Y, width=X)
+# bg_data = load_bg("/path/to/recorder/BG", height=Y, width=X)
 
 ## Set up a reconstructor.
 reconstructor_args = {
@@ -43,11 +35,11 @@ reconstructor_args = {
     "z_step_um": 2,  # z-step size in um
     "wavelength_nm": 532,
     "swing": 0.1,
-    "calibration_scheme": "4-State",  # "4-State" or "5-State"
+    "calibration_scheme": "5-State",  # "4-State" or "5-State"
     "NA_obj": 0.4,  # numerical aperture of objective
     "NA_illu": 0.2,  # numerical aperture of condenser
     "n_obj_media": 1.0,  # refractive index of objective immersion media
-    "pad_z": 0,  # slices to pad for phase reconstruction boundary artifacts
+    "pad_z": 5,  # slices to pad for phase reconstruction boundary artifacts
     "bg_correction": "local_fit",  # BG correction method: "None", "local_fit", "global"
     "mode": "3D",  # phase reconstruction mode, "2D" or "3D"
     "use_gpu": False,
@@ -75,7 +67,7 @@ birefringence[0] = (
 print(f"Shape of birefringence data: {np.shape(birefringence)}")
 
 # Reconstruct Phase3D from S0
-S0 = birefringence[3]
+S0 = birefringence[2]
 
 phase3D = reconstruct_phase3D(
     S0, reconstructor, method="Tikhonov", reg_re=1e-2
@@ -83,30 +75,27 @@ phase3D = reconstruct_phase3D(
 print(f"Shape of 3D phase data: {np.shape(phase3D)}")
 
 ## Save to zarr
-# Save birefringence
-writer = WaveorderWriter("./output")
-writer.create_zarr_root("birefringence_" + timestamp)
-writer.init_array(
-    position=0,
-    data_shape=(1, 4, Z, Y, X),
-    chunk_size=(1, 1, 1, Y, X),
-    chan_names=["Retardance", "Orientation", "BF", "Pol"],
-)
-writer.write(birefringence, p=0, t=0, c=slice(0, 4), z=slice(0, Z))
+with open_ome_zarr(
+    "./output/reconstructions_" + timestamp + ".zarr",
+    layout="fov",
+    mode="w-",
+    channel_names=[
+        "Retardance",
+        "Orientation",
+        "BF - computed",
+        "DoP",
+        "Phase",
+    ],
+) as dataset:
+    img = dataset.create_zeros("0", (1, 5, Z, Y, X), dtype=birefringence.dtype)
+    img[0, 0:4] = birefringence
+    img[0, 4] = phase3D
 
-## Save phase
-writer.create_zarr_root("phase_" + timestamp)
-writer.init_array(
-    position=0,
-    data_shape=(1, 1, Z, Y, X),
-    chunk_size=(1, 1, 1, Y, X),
-    chan_names=["Phase"],
-)
-writer.write(phase3D, p=0, t=0, c=0, z=slice(0, Z))
-
-# These lines opens the reconstructed images
+# These lines open the reconstructed images
 # Alternatively, drag and drop the zarr store into napari and use the recOrder-napari reader.
 v = napari.Viewer()
-v.add_image(birefringence)
+v.add_image(data)
 v.add_image(phase3D)
+v.add_image(birefringence, contrast_limits=(0, 25))
+v.dims.current_step = (0, 5, 256, 256)
 napari.run()
