@@ -25,6 +25,8 @@ def mp_recon(args):
         store_path,
         stack_info,
         states_chan,
+        fluor_chan,
+        Tmatrix_path,
     ) = args
     P, T, C_tot, Z, Y, X = stack_info
     stack = reader.get_zarr(P)[T, min(states_chan) : max(states_chan) + 1, Z]
@@ -40,6 +42,22 @@ def mp_recon(args):
         stack = dataset["0/0/" + str(P) + "/0"]
         # [Retardance, Orientation, BF, DoP]
         stack[T, : len(states_chan), Z] = birefringence[:, 0]
+
+    # If the dataset has additional channels (fluorescence)
+    if len(fluor_chan) > 0:
+        if os.path.exists(Tmatrix_path):
+            print("Found transformation matrix")
+            M_inv = np.load(Tmatrix_path)
+            for c_idx in range(len(fluor_chan)):
+                fluor_chan = reader.get_zarr(P)[T, c_idx, Z]
+                fluor_chan = np.flipud(fluor_chan)
+                fluor_chan = cv2.warpPerspective(fluor_chan, M_inv, (Y, X))
+                stack[T, len(states_chan) + c_idx, Z] = fluor_chan
+        else:
+            print(f"No transformation matrixfound {Tmatrix_path}")
+            for c_idx in range(len(fluor_chan)):
+                fluor_chan = reader.get_zarr(P)[T, c_idx, Z]
+                stack[T, len(states_chan) + c_idx, Z] = fluor_chan
 
 
 @click.group()
@@ -77,6 +95,13 @@ def bire_mp(input, output, bg, p):
     print(input)
     print(output)
 
+    # Assuming the file is zarr format find the T-matrix in the folder
+    dataset_name = os.path.basename(input)[:-5]
+    Tmatrix_path = os.path.join(
+        os.path.abspath(os.path.join(input, os.pardir)),
+        dataset_name + "_Tmatrix_noRotation.npy",
+    )
+
     #  Setup Readers 0
     reader = read_micromanager(input)
     T, C, Z, Y, X = reader.shape
@@ -85,7 +110,12 @@ def bire_mp(input, output, bg, p):
     state_indices = [
         i for i, elem in enumerate(channel_names) if elem.find("State") != -1
     ]
-    bire_channels = 4     #[Ret, Ori, BF, DoP]
+    non_state_indices = [
+        i for i, elem in enumerate(channel_names) if elem.find("State") == -1
+    ]
+    bire_channels = 4  # [Ret, Ori, BF, DoP]
+    C_total = bire_channels + len(non_state_indices)
+
     # Reconstruction Parameters
     reconstructor_args = {
         "image_dim": (Y, X),
@@ -113,7 +143,7 @@ def bire_mp(input, output, bg, p):
     mp_args = []
     for t in range(T):
         for z in range(Z):
-            stack_info = (p, t, bire_channels, z, Y, X)
+            stack_info = (p, t, C_total, z, Y, X)
             mp_args.append(
                 (
                     reader,
@@ -123,6 +153,8 @@ def bire_mp(input, output, bg, p):
                     output,
                     stack_info,
                     state_indices,
+                    non_state_indices,
+                    Tmatrix_path,
                 )
             )
     nProc = mp.cpu_count()

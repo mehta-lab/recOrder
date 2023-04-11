@@ -33,6 +33,8 @@ def make_empty_array(input, output):
     T, C, Z, Y, X = reader.shape
     num_positions = reader.get_num_positions()
     channel_names = reader.channel_names
+    
+    #Check if the dataset contains other channels (i.e fluorescence)
     non_state_indices = [
         i for i, elem in enumerate(channel_names) if elem.find("State") == -1
     ]
