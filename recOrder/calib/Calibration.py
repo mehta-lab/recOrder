@@ -36,12 +36,12 @@ LC_DEVICE_NAME = "MeadowlarkLcOpenSource"
 
 
 def _calib_suspend_live(method: Callable):
-    @wraps
-    def method_(self: QLIPP_Calibration, *args, **kwargs):
-        with suspend_live_sm(self.snap_manager) as _:
-            return method(self, *args, **kwargs)
+    @wraps(method)
+    def wrapper(*args, **kwargs):
+        with suspend_live_sm(args[0].snap_manager) as _:
+            return method(*args, **kwargs)
 
-    return method_
+    return wrapper
 
 
 class QLIPP_Calibration:
@@ -783,12 +783,14 @@ class QLIPP_Calibration:
         logging.info("--------done--------")
         logging.debug("--------done--------")
 
+    @_calib_suspend_live
     def open_shutter(self):
         if self.shutter_device == "":  # no shutter
             input("Please manually open the shutter and press <Enter>")
         else:
             self.mmc.setShutterOpen(True)
 
+    @_calib_suspend_live
     def reset_shutter(self):
         """
         Return autoshutter to its original state before closing
@@ -808,6 +810,7 @@ class QLIPP_Calibration:
             self.mmc.setAutoShutter(self._auto_shutter_state)
             self.mmc.setShutterOpen(self._shutter_state)
 
+    @_calib_suspend_live
     def close_shutter_and_calc_blacklevel(self):
         self._auto_shutter_state = self.mmc.getAutoShutter()
         self._shutter_state = self.mmc.getShutterOpen()

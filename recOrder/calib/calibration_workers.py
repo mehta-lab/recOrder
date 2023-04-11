@@ -431,7 +431,7 @@ class BackgroundCaptureWorker(
 
 
 @thread_worker
-def load_calibration(calib, metadata: MetadataReader):
+def load_calibration(calib: QLIPP_Calibration, metadata: MetadataReader):
     """
     Sets MM properties based upon calibration metadata file
 
@@ -483,10 +483,8 @@ def load_calibration(calib, metadata: MetadataReader):
     calib.intensity_emitter = MockEmitter()
     calib.close_shutter_and_calc_blacklevel()
     calib.open_shutter()
-    set_lc_state(calib.mmc, calib.group, "State0")
-    calib.I_Ext = snap_and_average(calib.snap_manager)
-    set_lc_state(calib.mmc, calib.group, "State1")
-    calib.I_Elliptical = snap_and_average(calib.snap_manager)
+    calib.I_Ext = calib._capture_state("State0", n_avg=1)
+    calib.I_Elliptical = calib._capture_state("State1", n_avg=1)
     calib.reset_shutter()
 
     yield str(
