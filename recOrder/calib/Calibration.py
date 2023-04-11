@@ -1,3 +1,7 @@
+from __future__ import annotations
+
+from typing import Callable
+from functools import wraps
 import numpy as np
 import matplotlib.pyplot as plt
 import tifffile as tiff
@@ -29,6 +33,15 @@ from datetime import datetime
 from importlib_metadata import version
 
 LC_DEVICE_NAME = "MeadowlarkLcOpenSource"
+
+
+def _calib_suspend_live(method: Callable):
+    @wraps
+    def method_(self: QLIPP_Calibration, *args, **kwargs):
+        with suspend_live_sm(self.snap_manager) as _:
+            return method(self, *args, **kwargs)
+
+    return method_
 
 
 class QLIPP_Calibration:
@@ -253,6 +266,7 @@ class QLIPP_Calibration:
 
         return retardance
 
+    @_calib_suspend_live
     def define_lc_state(self, state, lca_retardance, lcb_retardance):
         """
         Define of the two LCs after calibration
@@ -894,7 +908,7 @@ class QLIPP_Calibration:
                 "Retardance to voltage interpolation method": self.calib.interp_method,
                 "LC control mode": self.mode,
                 "Black level": np.round(self.I_Black, 2),
-                "Extinction ratio": self.extinction_ratio
+                "Extinction ratio": self.extinction_ratio,
             },
             "Notes": notes,
         }
