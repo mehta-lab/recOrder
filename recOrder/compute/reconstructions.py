@@ -1,4 +1,7 @@
-from waveorder.waveorder_reconstructor import waveorder_microscopy
+from waveorder.waveorder_reconstructor import (
+    waveorder_microscopy,
+    fluorescence_microscopy,
+)
 import numpy as np
 import time
 
@@ -9,15 +12,16 @@ def initialize_reconstructor(
     wavelength_nm=None,
     swing=None,
     calibration_scheme=None,
-    NA_obj=None,
-    NA_illu=None,
+    NA_obj=1.3,
+    NA_illu=0.5,
     mag=None,
     n_slices=None,
     z_step_um=None,
+    in_focus_slice=None,
     pad_z=0,
     pixel_size_um=None,
     bg_correction="None",
-    n_obj_media=1.0,
+    n_obj_media=1.3,
     mode="3D",
     use_gpu=False,
     gpu_id=0,
@@ -30,7 +34,7 @@ def initialize_reconstructor(
     ----------
 
         pipeline          : string
-                            'birefringence', 'QLIPP', 'PhaseFromBF'
+                            'birefringence', 'QLIPP', 'PhaseFromBF', 'fluorescence'
 
         image_dim         : tuple
                             (height, width) of images in pixels
@@ -58,6 +62,10 @@ def initialize_reconstructor(
 
         z_step_um          : float
                             z step size of the image space
+
+        in_focus_slice     : int or None
+                            index of the in-focus z slice used for 2D-from-3D reconstructions
+                            if None, the middle z slice is used as the in focus slice
 
         pad_z             : float
                             how many padding slices to add for phase computation
@@ -92,6 +100,11 @@ def initialize_reconstructor(
     """
 
     anisotropy_only = False
+
+    if NA_obj > n_obj_media:
+        raise ValueError("Parameters are non-physical: NA_obj > n_obj_media")
+    if NA_illu > n_obj_media:
+        raise ValueError("Parameters are non-physical: NA_illu > n_obj_media")
 
     if pipeline == "QLIPP" or pipeline == "PhaseFromBF":
 
@@ -140,7 +153,11 @@ def initialize_reconstructor(
             )
         if not swing:
             raise ValueError("Please specify swing in function parameters")
-
+    elif pipeline == "fluorescence":
+        if not NA_obj:
+            raise ValueError(
+                "Please specify NA_obj for fluorescence reconstruction."
+            )
     else:
         raise ValueError(f"Pipeline {pipeline} not understood")
 
@@ -148,8 +165,12 @@ def initialize_reconstructor(
     lambda_illu = wavelength_nm / 1000 if wavelength_nm else None
     n_defocus = n_slices if n_slices else 0
     z_step_um = 0 if not z_step_um else z_step_um
+
+    if in_focus_slice is None:
+        in_focus_slice = n_defocus // 2
+
     z_defocus = (
-        -(np.r_[:n_defocus] - n_defocus // 2) * z_step_um
+        -(np.r_[:n_defocus] - in_focus_slice) * z_step_um
     )  # assumes stack starts from the bottom
     ps = pixel_size_um / mag if pixel_size_um else None
     cali = True
@@ -193,27 +214,41 @@ def initialize_reconstructor(
 
     print("Initializing Reconstructor...")
     start_time = time.time()
-    recon = waveorder_microscopy(
-        img_dim=image_dim,
-        lambda_illu=lambda_illu,
-        ps=ps,
-        NA_obj=NA_obj,
-        NA_illu=NA_illu,
-        z_defocus=z_defocus,
-        chi=swing,
-        n_media=n_obj_media,
-        cali=cali,
-        bg_option=bg_correction,
-        A_matrix=inst_mat,
-        QLIPP_birefringence_only=anisotropy_only,
-        pad_z=pad_z,
-        phase_deconv=mode,
-        illu_mode="BF",
-        use_gpu=use_gpu,
-        gpu_id=gpu_id,
-    )
+    if pipeline != "fluorescence":
+        recon = waveorder_microscopy(
+            img_dim=image_dim,
+            lambda_illu=lambda_illu,
+            ps=ps,
+            NA_obj=NA_obj,
+            NA_illu=NA_illu,
+            z_defocus=z_defocus,
+            chi=swing,
+            n_media=n_obj_media,
+            cali=cali,
+            bg_option=bg_correction,
+            A_matrix=inst_mat,
+            QLIPP_birefringence_only=anisotropy_only,
+            pad_z=pad_z,
+            phase_deconv=mode,
+            illu_mode="BF",
+            use_gpu=use_gpu,
+            gpu_id=gpu_id,
+        )
+        recon.N_channel = n_channel
+    else:
 
-    recon.N_channel = n_channel
+        recon = fluorescence_microscopy(
+            img_dim=image_dim + (n_slices,),
+            lambda_emiss=[lambda_illu],
+            ps=ps,
+            psz=z_step_um,
+            NA_obj=NA_obj,
+            n_media=n_obj_media,
+            deconv_mode="3D-WF",
+            pad_z=pad_z,
+            use_gpu=use_gpu,
+            gpu_id=gpu_id,
+        )
 
     elapsed_time = (time.time() - start_time) / 60
     print(f"Finished Initializing Reconstructor ({elapsed_time:0.2f} min)")
@@ -286,21 +321,10 @@ def reconstruct_qlipp_birefringence(stokes, recon):
                               volume of shape (C, Z, Y, X) or (C, Y, X) containing reconstructed birefringence data.
     """
 
-    if stokes.ndim == 4:
-        stokes = np.transpose(stokes, (0, 2, 3, 1))
-    elif stokes.ndim == 3:
-        pass
-    else:
+    if stokes.ndim != 4 and stokes.ndim != 3:
         raise ValueError(f"Incompatible stokes dimension: {stokes.shape}")
 
-    birefringence = recon.Polarization_recon(np.copy(stokes))
-
-    # Return the transposed birefringence array with channel first
-    return (
-        np.transpose(birefringence, (-4, -1, -3, -2))
-        if len(birefringence.shape) == 4
-        else birefringence
-    )
+    return recon.Polarization_recon(stokes)
 
 
 def reconstruct_phase2D(
@@ -375,6 +399,32 @@ def reconstruct_phase3D(
     phase3D = np.transpose(phase3D, (-1, -3, -2))
 
     return phase3D
+
+
+def reconstruct_density_from_fluorescence(data3D, recon, bg_level=0, reg=1e-2):
+    """
+    Reconstruct 3D density from fluorescence intensity
+
+    Parameters
+    ----------
+    data3D:         (nd-array) Stack of dimensions (Z, Y, X)
+    recon:          (fluorescence_microscopy Object): initialized reconstructor object
+    reg:            (float) Tikhonov regularization parameters
+
+    Returns
+    -------
+    density:        (nd-array) density image of size (Z, Y, X)
+
+    """
+
+    data3D = np.transpose(data3D, (1, 2, 0))
+    density = recon.deconvolve_fluor_3D(
+        np.copy(data3D).astype("float"),
+        bg_level=[bg_level],
+        reg=[reg],
+    )
+
+    return np.transpose(density, (-1, -3, -2))
 
 
 class QLIPPBirefringenceCompute:

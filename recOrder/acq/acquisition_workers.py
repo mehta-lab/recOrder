@@ -2,7 +2,9 @@
 from __future__ import annotations
 
 from qtpy.QtCore import Signal
-from recOrder.compute.qlipp_compute import (
+from iohub import open_ome_zarr
+from iohub.convert import TIFFConverter
+from recOrder.compute.reconstructions import (
     initialize_reconstructor,
     reconstruct_qlipp_birefringence,
     reconstruct_qlipp_stokes,
@@ -14,14 +16,12 @@ from recOrder.acq.acq_functions import (
     acquire_from_settings,
 )
 from recOrder.io.utils import load_bg, extract_reconstruction_parameters
-from recOrder.compute.qlipp_compute import QLIPPBirefringenceCompute
-from recOrder.io.zarr_converter import ZarrConverter
+from recOrder.compute.reconstructions import QLIPPBirefringenceCompute
 from recOrder.io.metadata_reader import MetadataReader, get_last_metadata_file
 from recOrder.io.utils import ram_message, rec_bkg_to_wo_bkg
 from napari.qt.threading import WorkerBaseSignals, WorkerBase
 from napari.utils.notifications import show_warning
 import logging
-from waveorder.io.writer import WaveorderWriter
 import tifffile as tiff
 import numpy as np
 import os
@@ -144,6 +144,7 @@ class BFAcquisitionWorker(WorkerBase):
         self._check_ram()
         logging.info("Running Acquisition...")
         self._check_abort()
+        self.calib_window._dump_gui_state(self.snap_dir)
 
         channel_idx = self.calib_window.ui.cb_acq_channel.currentIndex()
         channel = self.calib_window.ui.cb_acq_channel.itemText(channel_idx)
@@ -174,6 +175,7 @@ class BFAcquisitionWorker(WorkerBase):
             zstep=self.calib_window.z_step,
             save_dir=self.snap_dir,
             prefix=self.prefix,
+            keep_shutter_open_slices=True,
         )
 
         self._check_abort()
@@ -181,7 +183,10 @@ class BFAcquisitionWorker(WorkerBase):
         # Acquire from MDA settings uses MM MDA GUI
         # Returns (1, 4/5, Z, Y, X) array
         stack = acquire_from_settings(
-            self.calib_window.mm, settings, grab_images=True
+            self.calib_window.mm,
+            settings,
+            grab_images=True,
+            restore_settings=True,
         )
         self._check_abort()
 
@@ -288,11 +293,7 @@ class BFAcquisitionWorker(WorkerBase):
         logging.debug("Reconstructing...")
         self._check_abort()
 
-        regularizer = (
-            "Tikhonov"
-            if self.calib_window.ui.cb_phase_denoiser.currentIndex() == 0
-            else "TV"
-        )
+        regularizer = self.calib_window.phase_regularizer
         reg = float(self.calib_window.ui.le_phase_strength.text())
 
         # Perform deconvolution
@@ -344,44 +345,19 @@ class BFAcquisitionWorker(WorkerBase):
         -------
 
         """
-
-        writer = WaveorderWriter(self.snap_dir)
-
-        # initialize
-        chunk_size = (1, 1, 1, phase.shape[-2], phase.shape[-1])
         prefix = self.calib_window.save_name
         name = f"PhaseSnap.zarr" if not prefix else f"{prefix}_PhaseSnap.zarr"
 
-        # create zarr root and position group
-        writer.create_zarr_root(name)
-
-        # Check if 2D
-        if len(phase.shape) == 2:
-            writer.init_array(
-                0,
-                (1, 1, 1, phase.shape[-2], phase.shape[-1]),
-                chunk_size,
-                ["Phase2D"],
-            )
-            z = 0
-
-        # Check if 3D
-        else:
-            writer.init_array(
-                0,
-                (1, 1, phase.shape[-3], phase.shape[-2], phase.shape[-1]),
-                chunk_size,
-                ["Phase3D"],
-            )
-
-            z = slice(0, phase.shape[-3])
-
-        # Write data to disk
-        writer.write(phase, p=0, t=0, c=0, z=z)
-
-        current_meta = writer.store.attrs.asdict()
-        current_meta["recOrder"] = meta
-        writer.store.attrs.put(current_meta)
+        with open_ome_zarr(
+            os.path.join(self.snap_dir, name),
+            layout="fov",
+            mode="w-",
+            channel_names=["Phase" + str(phase.ndim) + "D"],
+        ) as dataset:
+            dataset["0"] = phase[
+                (5 - phase.ndim) * (np.newaxis,) + (Ellipsis,)
+            ]
+            dataset.zattrs["recOrder"] = meta
 
     def _reconstructor_changed(self, stack_shape: tuple):
         """Function to check if the reconstructor has changed from the previous one in memory.
@@ -483,14 +459,14 @@ class BFAcquisitionWorker(WorkerBase):
                         else f"{save_prefix}_RawBFDataSnap.zarr"
                     )
                     out_path = os.path.join(self.snap_dir, name)
-                    converter = ZarrConverter(
+                    converter = TIFFConverter(
                         os.path.join(dir_, prefix),
                         out_path,
-                        "ometiff",
-                        False,
-                        False,
+                        data_type="ometiff",
+                        grid_layout=False,
+                        label_positions=False,
                     )
-                    converter.run_conversion()
+                    converter.run()
                     shutil.rmtree(os.path.join(dir_, prefix))
                 except PermissionError as ex:
                     dp.close()
@@ -579,6 +555,7 @@ class PolarizationAcquisitionWorker(WorkerBase):
         """
         self._check_ram()
         logging.info("Running Acquisition...")
+        self.calib_window._dump_gui_state(self.snap_dir)
 
         # List the Channels to acquire, if 5-state then append 5th channel
         channels = ["State0", "State1", "State2", "State3"]
@@ -682,12 +659,11 @@ class PolarizationAcquisitionWorker(WorkerBase):
         """
         Check that all LF channels have the same exposure settings. If not, abort Acquisition.
         """
-        logging.debug("Verifying exposure times...")
         # parse exposure times
         channel_exposures = []
         for channel in self.settings["channels"]:
             channel_exposures.append(channel["exposure"])
-
+        logging.debug(f"Verifying exposure times: {channel_exposures}")
         channel_exposures = np.array(channel_exposures)
         # check if exposure times are equal
         if not np.all(channel_exposures == channel_exposures[0]):
@@ -714,7 +690,10 @@ class PolarizationAcquisitionWorker(WorkerBase):
         # Acquire from MDA settings uses MM MDA GUI
         # Returns (1, 4/5, Z, Y, X) array
         stack = acquire_from_settings(
-            self.calib_window.mm, self.settings, grab_images=True
+            self.calib_window.mm,
+            self.settings,
+            grab_images=True,
+            restore_settings=True,
         )
         self._check_abort()
 
@@ -862,11 +841,8 @@ class PolarizationAcquisitionWorker(WorkerBase):
         birefringence = None
         phase = None
 
-        regularizer = (
-            "Tikhonov"
-            if self.calib_window.ui.cb_phase_denoiser.currentIndex() == 0
-            else "TV"
-        )
+        regularizer = self.calib_window.phase_regularizer
+
         reg = float(self.calib_window.ui.le_phase_strength.text())
 
         # reconstruct both phase and birefringence
@@ -964,109 +940,41 @@ class PolarizationAcquisitionWorker(WorkerBase):
         -------
 
         """
-        writer = WaveorderWriter(self.snap_dir)
+        prefix = self.calib_window.save_name
 
         if birefringence is not None:
 
-            # initialize
-            chunk_size = (
-                1,
-                1,
-                1,
-                birefringence.shape[-2],
-                birefringence.shape[-1],
-            )
-
-            # increment filename one more than last found saved snap
-            prefix = self.calib_window.save_name
             name = (
                 f"BirefringenceSnap.zarr"
                 if not prefix
                 else f"{prefix}_BirefringenceSnap.zarr"
             )
-
-            # create zarr root and position group
-            writer.create_zarr_root(name)
-
-            # Check if 2D
-            if len(birefringence.shape) == 3:
-                writer.init_array(
-                    0,
-                    (
-                        1,
-                        4,
-                        1,
-                        birefringence.shape[-2],
-                        birefringence.shape[-1],
-                    ),
-                    chunk_size,
-                    ["Retardance", "Orientation", "BF", "Pol"],
-                )
-                z = 0
-
-            # Check if 3D
-            else:
-                writer.init_array(
-                    0,
-                    (
-                        1,
-                        4,
-                        birefringence.shape[-3],
-                        birefringence.shape[-2],
-                        birefringence.shape[-1],
-                    ),
-                    chunk_size,
-                    ["Retardance", "Orientation", "BF", "Pol"],
-                )
-                z = slice(0, birefringence.shape[-3])
-
-            # Write the data to disk
-            writer.write(birefringence, p=0, t=0, c=slice(0, 4), z=z)
-
-            current_meta = writer.store.attrs.asdict()
-            current_meta["recOrder"] = meta
-            writer.store.attrs.put(current_meta)
+            with open_ome_zarr(
+                os.path.join(self.snap_dir, name),
+                layout="fov",
+                mode="w-",
+                channel_names=["Retardance", "Orientation", "BF", "Pol"],
+            ) as dataset:
+                if birefringence.ndim == 3:
+                    birefringence = birefringence[:, np.newaxis, ...]
+                dataset["0"] = birefringence[np.newaxis, ...]
+                dataset.zattrs["recOrder"] = meta
 
         if phase is not None:
-
-            # initialize
-            chunk_size = (1, 1, 1, phase.shape[-2], phase.shape[-1])
-
-            # increment filename one more than last found saved snap
-            prefix = self.calib_window.save_name
             name = (
                 f"PhaseSnap.zarr" if not prefix else f"{prefix}_PhaseSnap.zarr"
             )
 
-            # create zarr root and position group
-            writer.create_zarr_root(name)
-
-            # Check if 2D
-            if len(phase.shape) == 2:
-                writer.init_array(
-                    0,
-                    (1, 1, 1, phase.shape[-2], phase.shape[-1]),
-                    chunk_size,
-                    ["Phase2D"],
-                )
-                z = 0
-
-            # Check if 3D
-            else:
-                writer.init_array(
-                    0,
-                    (1, 1, phase.shape[-3], phase.shape[-2], phase.shape[-1]),
-                    chunk_size,
-                    ["Phase3D"],
-                )
-                z = slice(0, phase.shape[-3])
-
-            # Write data to disk
-            writer.write(phase, p=0, t=0, c=0, z=z)
-
-            current_meta = writer.store.attrs.asdict()
-            current_meta["recOrder"] = meta
-            writer.store.attrs.put(current_meta)
+            with open_ome_zarr(
+                os.path.join(self.snap_dir, name),
+                layout="fov",
+                mode="w-",
+                channel_names=["Phase" + str(phase.ndim) + "D"],
+            ) as dataset:
+                dataset["0"] = phase[
+                    (5 - phase.ndim) * (np.newaxis,) + (Ellipsis,)
+                ]
+                dataset.zattrs["recOrder"] = meta
 
     def _load_bg(self, path, height, width):
         """
@@ -1235,14 +1143,14 @@ class PolarizationAcquisitionWorker(WorkerBase):
                         else f"{save_prefix}_RawPolDataSnap.zarr"
                     )
                     out_path = os.path.join(self.snap_dir, name)
-                    converter = ZarrConverter(
+                    converter = TIFFConverter(
                         os.path.join(dir_, prefix),
                         out_path,
-                        "ometiff",
-                        False,
-                        False,
+                        data_type="ometiff",
+                        grid_layout=False,
+                        label_positions=False,
                     )
-                    converter.run_conversion()
+                    converter.run()
                     shutil.rmtree(os.path.join(dir_, prefix))
                 except PermissionError as ex:
                     dp.close()
