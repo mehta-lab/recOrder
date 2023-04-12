@@ -208,7 +208,7 @@ e.g. \"-p 0\" for the 0th position. Accepts multiple positions e.g. \"-p 0/0/0
     position`
     """,
 )
-def view(filename, positions=None, layers=None, overlay=False):
+def view(filename, positions, layers, overlay):
     """View a dataset in napari"""
     click.echo(f"Reading file:\t {filename}")
     print_info(filename)
