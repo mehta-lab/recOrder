@@ -488,8 +488,8 @@ def load_calibration(calib: QLIPP_Calibration, metadata: MetadataReader):
     calib.intensity_emitter = MockEmitter()
     calib.close_shutter_and_calc_blacklevel()
     calib.open_shutter()
-    calib.I_Ext = calib._capture_state("State0", n_avg=1)
-    calib.I_Elliptical = calib._capture_state("State1", n_avg=1)
+    calib.I_Ext = calib._capture_state("State0", n_avg=1).mean()
+    calib.I_Elliptical = calib._capture_state("State1", n_avg=1).mean()
     calib.reset_shutter()
 
     yield str(
