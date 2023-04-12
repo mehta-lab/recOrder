@@ -140,7 +140,7 @@ def _create_napari_viewer(arrays, layers, layer_names, slice_names, overlay):
             )
             v.add_image(
                 np.squeeze(overlay),
-                name=layer_names[i] + "ro-overlay",
+                name=layer_names[i] + "-BirefringenceOverlay",
                 rgb=True,
             )
 
