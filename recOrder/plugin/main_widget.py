@@ -529,7 +529,6 @@ class MainWidget(QWidget):
         ui_slider.setRange(range_[0], range_[1])
 
     def _promote_slider_init(self):
-
         """
         Used to promote the Display Tab sliders from QSlider to QDoubeRangeSlider with superqt
         Returns
@@ -1174,7 +1173,6 @@ class MainWidget(QWidget):
 
     @Slot(object)
     def handle_phase_image_update(self, value):
-
         name = "Phase2D" if self.acq_mode == "2D" else "Phase3D"
 
         # Add new layer if none exists, otherwise update layer data
@@ -1845,6 +1843,7 @@ class MainWidget(QWidget):
         def update_extinction(extinction):
             self.calib.extinction_ratio = float(extinction)
 
+        # FIXME: for 1.0.0 we'd like to avoid MM call in the main thread
         # Make sure Live Mode is off
         if self.calib.snap_manager.getIsLiveModeOn():
             self.calib.snap_manager.setLiveModeOn(False)
@@ -1900,6 +1899,7 @@ class MainWidget(QWidget):
             self.directory, "calibration_metadata.txt"
         )
 
+        # FIXME: for 1.0.0 we'd like to avoid MM call in the main thread
         # Make sure Live Mode is off
         if self.calib.snap_manager.getIsLiveModeOn():
             self.calib.snap_manager.setLiveModeOn(False)
@@ -2294,7 +2294,6 @@ class MainWidget(QWidget):
 
     @Slot(tuple)
     def update_dims(self, dims):
-
         if not self.pause_updates:
             self.viewer.dims.set_current_step(0, dims[0])
             self.viewer.dims.set_current_step(1, dims[1])
@@ -2303,7 +2302,6 @@ class MainWidget(QWidget):
             pass
 
     def _open_file_dialog(self, default_path, type):
-
         return self._open_dialog("select a directory", str(default_path), type)
 
     def _open_dialog(self, title, ref, type):
