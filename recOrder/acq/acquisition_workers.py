@@ -952,7 +952,7 @@ class PolarizationAcquisitionWorker(WorkerBase):
         )
         if birefringence.ndim == 3:
             birefringence = birefringence[:, np.newaxis, ...]  # CYX -> CZYX
-        birefringence = birefringence[np.newaxis, ...]  # CZYX -> TCZYX
+        birefringence = birefringence[np.newaxis]  # CZYX -> TCZYX
         dataset["0"] = birefringence
 
         if phase is not None:
@@ -960,7 +960,7 @@ class PolarizationAcquisitionWorker(WorkerBase):
                 "Phase" + str(phase.ndim) + "D", resize_arrays=True
             )
             if phase.ndim == 2:
-                phase = phase[np.newaxis, ...]  # YX -> ZYX
+                phase = phase[np.newaxis]  # YX -> ZYX
             dataset["0"][0, 4] = phase
 
         dataset.zattrs["recOrder"] = meta
