@@ -956,7 +956,9 @@ class PolarizationAcquisitionWorker(WorkerBase):
         dataset["0"] = birefringence
 
         if phase is not None:
-            dataset.append_channel("Phase", resize_arrays=True)
+            dataset.append_channel(
+                "Phase" + str(phase.ndim) + "D", resize_arrays=True
+            )
             if phase.ndim == 2:
                 phase = phase[np.newaxis, ...]  # YX -> ZYX
             dataset["0"][0, 4] = phase
