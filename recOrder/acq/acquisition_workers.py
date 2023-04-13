@@ -944,26 +944,26 @@ class PolarizationAcquisitionWorker(WorkerBase):
             else f"{prefix}_ReconstructionSnap.zarr"
         )
 
-        dataset = open_ome_zarr(
+        with open_ome_zarr(
             os.path.join(self.snap_dir, name),
             layout="fov",
             mode="w-",
             channel_names=["Retardance", "Orientation", "BF", "Pol"],
-        )
-        if birefringence.ndim == 3:
-            birefringence = birefringence[:, np.newaxis, ...]  # CYX -> CZYX
-        birefringence = birefringence[np.newaxis]  # CZYX -> TCZYX
-        dataset["0"] = birefringence
+        ) as dataset:
+            if birefringence.ndim == 3:
+                birefringence = birefringence[:, np.newaxis]  # CYX -> CZYX
+            birefringence = birefringence[np.newaxis]  # CZYX -> TCZYX
+            dataset["0"] = birefringence
 
-        if phase is not None:
-            dataset.append_channel(
-                "Phase" + str(phase.ndim) + "D", resize_arrays=True
-            )
-            if phase.ndim == 2:
-                phase = phase[np.newaxis]  # YX -> ZYX
-            dataset["0"][0, 4] = phase
+            if phase is not None:
+                dataset.append_channel(
+                    "Phase" + str(phase.ndim) + "D", resize_arrays=True
+                )
+                if phase.ndim == 2:
+                    phase = phase[np.newaxis]  # YX -> ZYX
+                dataset["0"][0, 4] = phase
 
-        dataset.zattrs["recOrder"] = meta
+            dataset.zattrs["recOrder"] = meta
 
     def _load_bg(self, path, height, width):
         """
