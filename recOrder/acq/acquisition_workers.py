@@ -344,7 +344,11 @@ class BFAcquisitionWorker(WorkerBase):
 
         """
         prefix = self.calib_window.save_name
-        name = f"PhaseSnap.zarr" if not prefix else f"{prefix}_PhaseSnap.zarr"
+        name = (
+            f"ReconstructionSnap.zarr"
+            if not prefix
+            else f"{prefix}_ReconstructionSnap.zarr"
+        )
 
         with open_ome_zarr(
             os.path.join(self.snap_dir, name),
