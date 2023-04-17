@@ -33,8 +33,8 @@ def make_empty_array(input, output):
     T, C, Z, Y, X = reader.shape
     num_positions = reader.get_num_positions()
     channel_names = reader.channel_names
-    
-    #Check if the dataset contains other channels (i.e fluorescence)
+
+    # Check if the dataset contains other channels (i.e fluorescence)
     non_state_indices = [
         i for i, elem in enumerate(channel_names) if elem.find("State") == -1
     ]
@@ -55,17 +55,15 @@ def make_empty_array(input, output):
         # Make the positions
         for i in tqdm(range(num_positions)):
             pos = dataset.create_position("0", "0", str(i))
-            # this is a 'hack' to create placeholder metadata
-            # future iohub should expose a public API for emtpy images
-            pos._create_image_meta("0")
-            arr = pos.zgroup.zeros(
-                "0",
+            arr = pos.create_zeros(
+                name="0",
                 shape=dchunks,
                 chunks=zchunks,
                 dtype=np.float32,
-                **pos._storage_options
             )
         dataset.print_tree()
+        dataset.print_tree()
+
 
 if __name__ == "__main__":
     make_empty_array()

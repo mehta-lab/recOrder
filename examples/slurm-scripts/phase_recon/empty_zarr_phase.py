@@ -49,15 +49,11 @@ def make_empty_array(input, output):
         # Make the positions
         for i in tqdm(range(num_positions)):
             pos = dataset.create_position("position", str(i), "0")
-            # this is a 'hack' to create placeholder metadata
-            # future iohub should expose a public API for emtpy images
-            pos._create_image_meta("0")
-            arr = pos.zgroup.zeros(
-                "0",
+            arr = pos.create_zeros(
+                name="0",
                 shape=dchunks,
                 chunks=zchunks,
                 dtype=np.float32,
-                **pos._storage_options
             )
         dataset.print_tree()
 
