@@ -46,4 +46,5 @@ Open `napari` with `recOrder-napari`:
 napari -w recOrder-napari
 ```
 
-For more help, see [`recOrder`'s documentation](./docs).
+For more help, see [`recOrder`'s documentation](./docs). To install `recOrder` 
+on a microscope, see the [microscope installation guide](./docs/microscope-installation-guide.md).
