@@ -34,13 +34,6 @@ conda create -y -n recOrder python=3.9
 conda activate recOrder
 ```
 
-> *Apple Silicon users please use*:
->
-> ```sh
-> CONDA_SUBDIR=osx-64 conda create -y -n recOrder python=3.9
-> conda activate recOrder
-> ```
-
 Install `recOrder-napari`:
 
 ```sh
