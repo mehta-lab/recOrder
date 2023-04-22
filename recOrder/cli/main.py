@@ -9,9 +9,7 @@ from recOrder.cli.apply_inverse_transfer_function import (
 
 @click.group()
 def cli():
-    print(
-        "\033[92mrecOrder: Computational Toolkit for Label-Free Imaging\033[0m\n"
-    )
+    """\033[92mrecOrder: Computational Toolkit for Label-Free Imaging\033[0m\n"""
 
 
 cli.add_command(view)

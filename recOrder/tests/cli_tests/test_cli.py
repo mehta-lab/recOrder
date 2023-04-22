@@ -7,4 +7,4 @@ def test_main():
     result = runner.invoke(cli)
 
     assert result.exit_code == 0
-    assert "Usage" in result.output
+    assert "Toolkit" in result.output

@@ -3,5 +3,5 @@ import click
 
 @click.command()
 def reconstruct():
-    """Reconstruct a dataset"""
+    """Reconstruct from config"""
     return NotImplementedError
