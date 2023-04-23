@@ -4,14 +4,10 @@ from pydantic import ValidationError
 
 
 def test_reconstruction_mode_settings():
-    test_settings = settings._ReconstructionModeSettings(
-        reconstruction_dimension="2"
-    )
+    test_settings = settings._UniversalSettings(reconstruction_dimension=2)
 
     with pytest.raises(ValidationError):
-        test_settings = settings._ReconstructionModeSettings(
-            reconstruction_dimension="1"
-        )
+        test_settings = settings._UniversalSettings(reconstruction_dimension=1)
 
 
 def test_common_tf_settings():

@@ -1,11 +1,16 @@
-from pydantic import BaseModel, validator
+from pydantic import BaseModel, DirectoryPath, validator
 from typing import Literal, List
 
 
-class _ReconstructionModeSettings(BaseModel):
+class _UniversalSettings(BaseModel):
+    # these parameters are needed for every step:
+    #  - compute-transfer-function,
+    #  - apply-inverse-transfer-function
+    #  - reconstruct
     reconstruct_birefringence: bool = True
     reconstruct_phase: bool = True
-    reconstruction_dimension: Literal["2", "3"] = "2"
+    reconstruction_dimension: Literal[2, 3] = 2
+    wavelength_illumination: float = 0.532
 
     @validator("reconstruct_phase")
     def either_birefringence_or_phase(cls, v, values):
@@ -15,21 +20,16 @@ class _ReconstructionModeSettings(BaseModel):
             )
         return v
 
+    @validator("wavelength_illumination")
+    def wavelength(cls, v):
+        if v < 0:
+            raise ValueError(
+                f"wavelength_illumination = {v} cannot be negative"
+            )
+        return v
+
 
 ########## transfer function settings ##########
-
-
-class _CommonTransferFunctionSettings(BaseModel):
-    # common among all transfer functions
-    zyx_shape: List[float] = (10, 256, 256)
-    wavelength_illumination: float = 0.532
-
-    @validator("zyx_shape")
-    def zyx_shape_has_three_elements(cls, v):
-        if len(v) != 3:
-            raise ValueError(
-                f"zyx_shape must has three elements instead of {len(v)}"
-            )
 
 
 class _BirefringenceTransferFunctionSettings(BaseModel):
@@ -40,9 +40,11 @@ class _BirefringenceTransferFunctionSettings(BaseModel):
     def swing_range(cls, v):
         if v <= 0 or v >= 1.0:
             raise ValueError(f"swing = {v} should be between 0 and 1.")
+        return v
 
 
 class _PhaseTransferFunctionSettings(BaseModel):
+    zyx_shape: List[int] = [10, 256, 256]
     yx_pixel_size: float = 6.5 / 20
     z_pixel_size: float = 2.0
     z_padding: int = 0
@@ -50,10 +52,19 @@ class _PhaseTransferFunctionSettings(BaseModel):
     numerical_aperture_illumination: float = 0.5
     numerical_aperture_detection: float = 1.2
 
+    @validator("zyx_shape")
+    def zyx_shape_has_three_elements(cls, v):
+        if len(v) != 3:
+            raise ValueError(
+                f"zyx_shape must has three elements instead of {len(v)}"
+            )
+        return v
+
     @validator("z_padding")
     def z_pad(cls, v):
         if v < 0:
             raise ValueError(f"z_padding = {v} cannot be negative")
+        return v
 
     @validator("numerical_aperture_illumination")
     def na_ill(cls, v, values):
@@ -62,6 +73,7 @@ class _PhaseTransferFunctionSettings(BaseModel):
             raise ValueError(
                 f"numerical_aperture_illumination = {v} must be less than index_of_refraction_media = {n}"
             )
+        return v
 
     @validator("numerical_aperture_detection")
     def na_det(cls, v, values):
@@ -70,14 +82,12 @@ class _PhaseTransferFunctionSettings(BaseModel):
             raise ValueError(
                 f"numerical_aperture_detection = {v} must be less than index_of_refraction_media = {n}"
             )
+        return v
 
 
 class TransferFunctionSettings(
-    _ReconstructionModeSettings,
+    _UniversalSettings,
 ):
-    common_transfer_function_settings: _CommonTransferFunctionSettings = (
-        _CommonTransferFunctionSettings()
-    )
     birefringence_transfer_function_settings: _BirefringenceTransferFunctionSettings = (
         _BirefringenceTransferFunctionSettings()
     )
@@ -85,7 +95,7 @@ class TransferFunctionSettings(
         _PhaseTransferFunctionSettings()
     )
 
-    # FIXME - how can I validate across settings classes? 
+    # FIXME - how can I validate across settings classes?
     # See also: test_settings.py
     # @validator("yx_pixel_size")
     # def warn_unit_consistency(cls, v, values):
@@ -101,6 +111,8 @@ class TransferFunctionSettings(
 
 
 class _BirefringenceApplyInverseSettings(BaseModel):
+    background_path: DirectoryPath = None
+    remove_estimated_background: bool = False
     orientation_flip: bool = False
     orientation_rotate: bool = False
 
@@ -110,7 +122,7 @@ class _PhaseApplyInverseSettings(BaseModel):
     reconstruction_parameters: list = [0.0, 0.0]
 
 
-class ApplyInverseSettings(_ReconstructionModeSettings):
+class ApplyInverseSettings(_UniversalSettings):
     birefringence_apply_inverse_settings: _BirefringenceApplyInverseSettings = (
         _BirefringenceApplyInverseSettings()
     )
