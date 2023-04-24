@@ -3,8 +3,8 @@ from typing import Literal, List
 
 
 class _UniversalSettings(BaseModel):
-    # these parameters are needed for every step:
-    #  - compute-transfer-function,
+    # these parameters for needed for each step:
+    #  - compute-transfer-function
     #  - apply-inverse-transfer-function
     #  - reconstruct
     reconstruct_birefringence: bool = True
@@ -34,7 +34,7 @@ class _UniversalSettings(BaseModel):
 
 class _BirefringenceTransferFunctionSettings(BaseModel):
     swing: float = 0.1
-    scheme: Literal["4-State", "5-State"] = "5-State"
+    scheme: Literal["4-State", "5-State"] = "4-State"
 
     @validator("swing")
     def swing_range(cls, v):
@@ -44,7 +44,7 @@ class _BirefringenceTransferFunctionSettings(BaseModel):
 
 
 class _PhaseTransferFunctionSettings(BaseModel):
-    zyx_shape: List[int] = [10, 256, 256]
+    zyx_shape: List[int] = [16, 128, 256]
     yx_pixel_size: float = 6.5 / 20
     z_pixel_size: float = 2.0
     z_padding: int = 0
@@ -85,9 +85,8 @@ class _PhaseTransferFunctionSettings(BaseModel):
         return v
 
 
-class TransferFunctionSettings(
-    _UniversalSettings,
-):
+class TransferFunctionSettings(BaseModel):
+    universal_settings: _UniversalSettings = _UniversalSettings()
     birefringence_transfer_function_settings: _BirefringenceTransferFunctionSettings = (
         _BirefringenceTransferFunctionSettings()
     )
@@ -111,18 +110,20 @@ class TransferFunctionSettings(
 
 
 class _BirefringenceApplyInverseSettings(BaseModel):
-    background_path: DirectoryPath = None
+    background_path: str = (
+        None  # I'd DirectoryPath but it's not JSON serializable?
+    )
     remove_estimated_background: bool = False
     orientation_flip: bool = False
     orientation_rotate: bool = False
 
 
 class _PhaseApplyInverseSettings(BaseModel):
-    reconstruction_algorithm: str = "Tikhonov"
+    reconstruction_algorithm: Literal["Tikhonov", "TV"] = "Tikhonov"
     reconstruction_parameters: list = [0.0, 0.0]
 
 
-class ApplyInverseSettings(_UniversalSettings):
+class ApplyInverseSettings(BaseModel):
     birefringence_apply_inverse_settings: _BirefringenceApplyInverseSettings = (
         _BirefringenceApplyInverseSettings()
     )

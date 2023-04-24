@@ -1,7 +1,8 @@
 import click
-import yaml
 import numpy as np
+import yaml
 from iohub import open_ome_zarr
+from recOrder.cli.printing import echo_settings, echo_headline
 from recOrder.cli.settings import TransferFunctionSettings
 from recOrder.cli.parsing import config_path_option, output_dataset_options
 from waveorder.models import (
@@ -13,9 +14,9 @@ from waveorder.models import (
 
 @click.command()
 @config_path_option()
-@output_dataset_options()
+@output_dataset_options(default="./transfer-function.zarr")
 def compute_transfer_function(config_path, output_path):
-    "Compute a transfer function from configuration"
+    "Compute a transfer function from a configuration file"
 
     # Load config file
     if config_path is None:
@@ -25,17 +26,39 @@ def compute_transfer_function(config_path, output_path):
             raw_settings = yaml.safe_load(file)
         settings = TransferFunctionSettings(**raw_settings)
 
-    click.echo("Generating transfer functions with settings:\n")
-    click.echo(yaml.dump(settings.dict()))
-    click.echo(f"Generating transfer functions and storing in {output_path}\n")
+    echo_headline(
+        f"Generating transfer functions and storing in {output_path}\n"
+    )
 
     dataset = open_ome_zarr(
         output_path, layout="fov", mode="w", channel_names=["None"]
     )
 
+    echo_headline("Generating transfer functions with universal settings:")
+    echo_settings(settings.universal_settings)
+
     # Pass settings to appropriate calculate_transfer_function and save
-    if settings.reconstruct_phase:
-        if settings.reconstruction_dimension == 2:
+    if settings.universal_settings.reconstruct_birefringence:
+        echo_headline(
+            "Generating birefringence transfer function with settings:"
+        )
+        echo_settings(settings.birefringence_transfer_function_settings)
+        # Calculate transfer functions
+        intensity_to_stokes_matrix = (
+            inplane_anisotropic_thin_pol3d.calculate_transfer_function(
+                **settings.birefringence_transfer_function_settings.dict()
+            )
+        )
+        # Save
+        dataset[
+            "intensity_to_stokes_matrix"
+        ] = intensity_to_stokes_matrix.cpu().numpy()[None, None, None, ...]
+
+    if settings.universal_settings.reconstruct_phase:
+        echo_headline("Generating phase transfer function with settings:")
+        echo_settings(settings.phase_transfer_function_settings)
+
+        if settings.universal_settings.reconstruction_dimension == 2:
             # Convert zyx_shape and z_pixel_size into yx_shape and z_position_list
             settings_dict = settings.phase_transfer_function_settings.dict()
             z_shape, y_shape, x_shape = settings_dict["zyx_shape"]
@@ -56,38 +79,38 @@ def compute_transfer_function(config_path, output_path):
                 phase_transfer_function,
             ) = isotropic_thin_3d.calculate_transfer_function(
                 **settings_dict,
-                wavelength_illumination=settings.wavelength_illumination,
+                wavelength_illumination=settings.universal_settings.wavelength_illumination,
             )
 
             # Save
-            dataset["absorption"] = absorption_transfer_function.cpu().numpy()[
-                None, None, ...
-            ]
-            dataset["phase"] = phase_transfer_function.cpu().numpy()[
-                None, None, ...
-            ]
+            dataset[
+                "absorption_transfer_function"
+            ] = absorption_transfer_function.cpu().numpy()[None, None, ...]
+            dataset[
+                "phase_transfer_function"
+            ] = phase_transfer_function.cpu().numpy()[None, None, ...]
 
-        elif settings.reconstruction_dimension == 3:
+        elif settings.universal_settings.reconstruction_dimension == 3:
+            # Calculate transfer functions
             (
-                real_transfer_function,
-                imaginary_transfer_function,
+                real_potential_transfer_function,
+                imaginary_potential_transfer_function,
             ) = phase_thick_3d.calculate_transfer_function(
                 **settings.phase_transfer_function_settings.dict(),
-                wavelength_illumination=settings.wavelength_illumination,
+                wavelength_illumination=settings.universal_settings.wavelength_illumination,
             )
-            dataset["real"] = real_transfer_function.cpu().numpy()[
-                None, None, ...
-            ]
-            dataset["imaginary"] = imaginary_transfer_function.cpu().numpy()[
+            # Save
+            dataset[
+                "real_potential_transfer_function"
+            ] = real_potential_transfer_function.cpu().numpy()[None, None, ...]
+            dataset[
+                "imaginary_potential_transfer_function"
+            ] = imaginary_potential_transfer_function.cpu().numpy()[
                 None, None, ...
             ]
 
-    if settings.reconstruct_birefringence:
-        i2s_matrix = (
-            inplane_anisotropic_thin_pol3d.calculate_transfer_function(
-                **settings.birefringence_transfer_function_settings.dict()
-            )
-        )
-        dataset["i2s matrix"] = i2s_matrix.cpu().numpy()[None, None, None, ...]
+    # Write settings to metadata
+    dataset.zattrs["transfer_function_settings"] = settings.dict()
 
+    echo_headline(f"Closing {output_path}\n")
     dataset.close()
