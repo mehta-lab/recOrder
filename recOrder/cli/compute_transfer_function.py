@@ -12,12 +12,7 @@ from waveorder.models import (
 )
 
 
-@click.command()
-@config_path_option()
-@output_dataset_options(default="./transfer-function.zarr")
-def compute_transfer_function(config_path, output_path):
-    "Compute a transfer function from a configuration file"
-
+def compute_transfer_function_cli(config_path, output_path):
     # Load config file
     if config_path is None:
         settings = TransferFunctionSettings()
@@ -43,6 +38,7 @@ def compute_transfer_function(config_path, output_path):
             "Generating birefringence transfer function with settings:"
         )
         echo_settings(settings.birefringence_transfer_function_settings)
+
         # Calculate transfer functions
         intensity_to_stokes_matrix = (
             inplane_anisotropic_thin_pol3d.calculate_transfer_function(
@@ -114,3 +110,15 @@ def compute_transfer_function(config_path, output_path):
 
     echo_headline(f"Closing {output_path}\n")
     dataset.close()
+
+    echo_headline(
+        f"Recreate this transfer function with:\n>> recorder compute-transfer-function {config_path} -o {output_path}"
+    )
+
+
+@click.command()
+@config_path_option()
+@output_dataset_options(default="./transfer-function.zarr")
+def compute_transfer_function(config_path, output_path):
+    "Compute a transfer function from a configuration file"
+    compute_transfer_function_cli(config_path, output_path)

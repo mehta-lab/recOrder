@@ -69,18 +69,18 @@ class _PhaseTransferFunctionSettings(BaseModel):
     @validator("numerical_aperture_illumination")
     def na_ill(cls, v, values):
         n = values["index_of_refraction_media"]
-        if v >= n:
+        if v > n:
             raise ValueError(
-                f"numerical_aperture_illumination = {v} must be less than index_of_refraction_media = {n}"
+                f"numerical_aperture_illumination = {v} must be less than or equal to index_of_refraction_media = {n}"
             )
         return v
 
     @validator("numerical_aperture_detection")
     def na_det(cls, v, values):
         n = values["index_of_refraction_media"]
-        if v >= n:
+        if v > n:
             raise ValueError(
-                f"numerical_aperture_detection = {v} must be less than index_of_refraction_media = {n}"
+                f"numerical_aperture_detection = {v} must be less than or equal to index_of_refraction_media = {n}"
             )
         return v
 

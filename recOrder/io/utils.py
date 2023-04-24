@@ -11,6 +11,7 @@ from matplotlib.colors import hsv_to_rgb
 from waveorder.waveorder_reconstructor import waveorder_microscopy
 
 
+# TO BE DEPRECATED
 def extract_reconstruction_parameters(reconstructor, magnification=None):
     """
     Function that extracts the reconstruction parameters from a waveorder reconstructor.  Works for waveorder_microscopy class.

@@ -57,18 +57,9 @@ def _check_background_consistency(background_shape, data_shape):
         )
 
 
-@click.command()
-@input_data_path_argument()
-@click.argument(
-    "transfer_function_path",
-    type=click.Path(exists=True),
-)
-@config_path_option()
-@output_dataset_options(default="./reconstruction.zarr")
-def apply_inverse_transfer_function(
+def apply_inverse_transfer_function_cli(
     input_data_path, transfer_function_path, config_path, output_path
 ):
-    "Invert and apply a transfer function"
     echo_headline("Starting reconstruction...")
 
     # Load datasets
@@ -369,3 +360,24 @@ def apply_inverse_transfer_function(
     output_dataset.close()
     transfer_function_dataset.close()
     input_dataset.close()
+
+    echo_headline(
+        f"Recreate this reconstruction with:\n>> recorder apply-inverse-transfer-function {input_data_path} {transfer_function_path} -c {config_path} -o {output_path}"
+    )
+
+
+@click.command()
+@input_data_path_argument()
+@click.argument(
+    "transfer_function_path",
+    type=click.Path(exists=True),
+)
+@config_path_option()
+@output_dataset_options(default="./reconstruction.zarr")
+def apply_inverse_transfer_function(
+    input_data_path, transfer_function_path, config_path, output_path
+):
+    "Invert and apply a transfer function"
+    apply_inverse_transfer_function_cli(
+        input_data_path, transfer_function_path, config_path, output_path
+    )
