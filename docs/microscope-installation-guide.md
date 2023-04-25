@@ -7,6 +7,17 @@ This guide will walk through a complete recOrder installation consisting of:
 
 Before you start you will need a machine with Windows 10, a Meadowlark DS5020 connected to a liquid crystal device, and a microscope system compatible with `Micromanager`. 
 
+## Install Meadowlark DS5020 and liquid crystals
+
+**New installations:** start by installing the Meadowlark DS5020 and liquid crystals using the software on the USB stick provided by Meadowlark. You will need to install USB drivers and CellDrive5000 for compatibility with `recOrder-napari==0.4.0`.
+
+**All installations, including upgrades:** open CellDrive5000 and double click the Meadowlark Optics logo. **If "PC software version" != 1.08, you will need to upgrade your USB drivers and CellDrive5000.** We have successfully upgraded existing installations by following these steps:
+
+- From "Add and remove programs", remove CellDrive5000 and "National Instruments Software".
+- From "Device manager", open the "Meadowlark Optics" group, right click `mlousb`, click "Uninstall device", check "Delete the driver software for this device", and click "Uninstall". Uninstall `Meadowlark Optics D5020 LC Driver` following the same steps.
+- Using the USB stick provided by Meadowlark, reinstall the USB drivers and CellDrive5000. 
+- Confirm that "PC software version" == 1.08
+
 ## Install recOrder software
 
 (Optional but recommended) install [anaconda](https://www.anaconda.com/products/distribution) and create a virtual environment  
