@@ -2,6 +2,7 @@ import glob
 import logging
 import os
 import psutil
+import torch
 import textwrap
 import tifffile as tiff
 import numpy as np
@@ -10,6 +11,7 @@ from matplotlib.colors import hsv_to_rgb
 from waveorder.waveorder_reconstructor import waveorder_microscopy
 
 
+# TO BE DEPRECATED
 def extract_reconstruction_parameters(reconstructor, magnification=None):
     """
     Function that extracts the reconstruction parameters from a waveorder reconstructor.  Works for waveorder_microscopy class.
@@ -53,6 +55,7 @@ def extract_reconstruction_parameters(reconstructor, magnification=None):
     return attr_dict
 
 
+# TO BE DEPRECATED
 def load_bg(bg_path, height, width, ROI=None):
     """
     Parameters
@@ -99,6 +102,16 @@ def load_bg(bg_path, height, width, ROI=None):
     return bg_img_arr  # CYX
 
 
+# NEW VERSION TO BE DOCUMENTED AND/OR MOVED TO IOHUB
+def new_load_background(background_path):
+    tiff_path_list = glob.glob(os.path.join(background_path, "*.tif"))
+    tiff_path_list.sort()
+    background_image_list = []
+    for tiff_path in tiff_path_list:
+        background_image_list.append(tiff.imread(tiff_path))
+    return torch.tensor(background_image_list, dtype=torch.float32)  # CYX
+
+
 def create_grid_from_coordinates(xy_coords, rows, columns):
     """
     Function to create a grid from XY-position coordinates.  Useful for generating HCS Zarr metadata.
@@ -133,7 +146,6 @@ def create_grid_from_coordinates(xy_coords, rows, columns):
 
     for row in range(rows):
         for col in range(columns):
-
             # append position index (key) into a final grid by indexed into the coordinate map (values)
             pos_index_grid[row, col] = keys[vals.index(list(grid[row, col]))]
 
