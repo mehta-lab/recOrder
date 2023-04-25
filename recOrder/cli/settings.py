@@ -1,3 +1,4 @@
+import os
 from pydantic import BaseModel, DirectoryPath, validator
 from typing import Literal, List
 
@@ -110,12 +111,20 @@ class TransferFunctionSettings(BaseModel):
 
 
 class _BirefringenceApplyInverseSettings(BaseModel):
-    background_path: str = (
-        None  # I'd DirectoryPath but it's not JSON serializable?
-    )
+    background_path: str = ""
     remove_estimated_background: bool = False
     orientation_flip: bool = False
     orientation_rotate: bool = False
+
+    @validator("background_path")
+    def check_background_path(cls, v):
+        if v == "":
+            return v
+
+        raw_dir = r"{}".format(v)
+        if not os.path.isdir(raw_dir):
+            raise ValueError(f"{v} is not a existing directory")
+        return raw_dir
 
 
 class _PhaseApplyInverseSettings(BaseModel):
