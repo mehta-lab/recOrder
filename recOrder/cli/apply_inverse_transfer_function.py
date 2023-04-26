@@ -143,7 +143,7 @@ def apply_inverse_transfer_function_cli(
         # Resolve background path into array
         background_path = biref_inverse_dict["background_path"]
         biref_inverse_dict.pop("background_path")
-        if background_path is not None:
+        if background_path != "":
             cyx_no_sample_data = utils.new_load_background(background_path)
             _check_background_consistency(
                 cyx_no_sample_data.shape, input_dataset.data.shape
@@ -338,8 +338,10 @@ def apply_inverse_transfer_function_cli(
                     **biref_inverse_dict,
                 )
 
+                brightfield_3d = reconstructed_parameters_3d[2]
+
                 zyx_phase = phase_thick_3d.apply_inverse_transfer_function(
-                    tczyx_data[time_index, 0],
+                    brightfield_3d,
                     real_potential_transfer_function,
                     imaginary_potential_transfer_function,
                     z_padding=settings.phase_transfer_function_settings.z_padding,

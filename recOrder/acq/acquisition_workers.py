@@ -96,7 +96,9 @@ def _generate_transfer_function_config(
 
 def _generate_apply_inverse_config(apply_inverse_settings_path, calib_window):
     birefringence_apply_inverse_settings = (
-        settings._BirefringenceApplyInverseSettings()
+        settings._BirefringenceApplyInverseSettings(
+            background_path=calib_window.acq_bg_directory
+        )
     )
 
     phase_apply_inverse_settings = settings._PhaseApplyInverseSettings()

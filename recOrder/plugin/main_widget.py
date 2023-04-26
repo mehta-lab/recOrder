@@ -303,7 +303,7 @@ class MainWidget(QWidget):
         self.orientation_offset = False
         self.pad_z = 0
         self.phase_reconstructor = None
-        self.acq_bg_directory = None
+        self.acq_bg_directory = ""
         self.auto_shutter = True
         self.lca_dac = None
         self.lcb_dac = None
