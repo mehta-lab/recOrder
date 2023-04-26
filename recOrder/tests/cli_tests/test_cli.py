@@ -8,6 +8,3 @@ def test_main():
 
     assert result.exit_code == 0
     assert "Toolkit" in result.output
-
-def test_compute_transfer_function():
-    
