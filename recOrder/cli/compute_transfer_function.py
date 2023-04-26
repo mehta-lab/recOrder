@@ -60,7 +60,7 @@ def compute_transfer_function_cli(config_path, output_path):
             z_shape, y_shape, x_shape = settings_dict["zyx_shape"]
             settings_dict["yx_shape"] = [y_shape, x_shape]
             settings_dict["z_position_list"] = list(
-                (np.arange(z_shape) - z_shape // 2)
+                -(np.arange(z_shape) - z_shape // 2)
                 * settings_dict["z_pixel_size"]
             )
 
