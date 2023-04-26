@@ -1,3 +1,4 @@
+from typing import Literal
 import glob
 import logging
 import os
@@ -254,7 +255,9 @@ def generic_hsv_overlay(
     return overlay_final[0] if mode == "2D" else overlay_final
 
 
-def ret_ori_overlay(retardance, orientation, ret_max=10, cmap="JCh"):
+def ret_ori_overlay(
+    retardance, orientation, ret_max=10, cmap: Literal["JCh", "HSV"] = "JCh"
+):
     """
     This function will create an overlay of retardance and orientation with two different colormap options.
     HSV is the standard Hue, Saturation, Value colormap while JCh is a similar colormap but is perceptually uniform.
@@ -273,7 +276,8 @@ def ret_ori_overlay(retardance, orientation, ret_max=10, cmap="JCh"):
     """
     if retardance.shape != orientation.shape:
         raise ValueError(
-            f"Retardance and Orientation shapes do not match: {retardance.shape} vs. {orientation.shape}"
+            "Retardance and Orientation shapes do not match: "
+            f"{retardance.shape} vs. {orientation.shape}"
         )
 
     # Prepare input and output arrays
