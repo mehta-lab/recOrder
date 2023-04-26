@@ -129,7 +129,27 @@ class _BirefringenceApplyInverseSettings(BaseModel):
 
 class _PhaseApplyInverseSettings(BaseModel):
     reconstruction_algorithm: Literal["Tikhonov", "TV"] = "Tikhonov"
-    reconstruction_parameters: list = [0.0, 0.0]
+    strength: float = 1e-3
+    TV_rho_strength: float = 1e-3 
+    TV_iterations: int = 1
+
+    @validator("strength")
+    def check_strength(cls, v):
+        if v < 0:
+            raise ValueError(f"strength = {v} cannot be negative")
+        return v
+
+    @validator("TV_rho_strength")
+    def check_TV_rho_strength(cls, v, values):
+        if v < 0 and values["reconstruction_algorithm"] == "TV":
+            raise ValueError(f"TV_rho_strength = {v} cannot be negative")
+        return v
+    
+    @validator("TV_iterations")
+    def check_TV_iterations(cls, v, values):
+        if v < 1 and values["reconstruction_algorithm"] == "TV":
+            raise ValueError(f"TV_iteration = {v} cannot be less than 1.")
+        return v
 
 
 class ApplyInverseSettings(BaseModel):
