@@ -100,9 +100,23 @@ def _generate_transfer_function_config(
 
 
 def _generate_apply_inverse_config(apply_inverse_settings_path, calib_window):
+    if calib_window.bg_option == "None":
+        background_path = ""
+        remove_estimated_background = False
+    elif calib_window.bg_option == "Measured":
+        background_path = calib_window.acq_bg_directory
+        remove_estimated_background = False
+    elif calib_window.bg_option == "Estimated":
+        background_path = ""
+        remove_estimated_background = True
+    elif calib_window.bg_option == "Measured + Estimated":
+        background_path = calib_window.acq_bg_directory
+        remove_estimated_background = True
+
     birefringence_apply_inverse_settings = (
         settings._BirefringenceApplyInverseSettings(
-            background_path=calib_window.acq_bg_directory
+            background_path=background_path,
+            remove_estimated_background=remove_estimated_background,
         )
     )
 
