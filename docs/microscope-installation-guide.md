@@ -9,15 +9,19 @@ Before you start you will need a machine with Windows 10, a Meadowlark DS5020 co
 
 ## Install Meadowlark DS5020 and liquid crystals
 
-**New installations:** start by installing the Meadowlark DS5020 and liquid crystals using the software on the USB stick provided by Meadowlark. You will need to install USB drivers and CellDrive5000 for compatibility with `recOrder-napari==0.4.0`.
+Start by installing the Meadowlark DS5020 and liquid crystals using the software on the USB stick provided by Meadowlark. You will need to install the USB drivers and CellDrive5000.
 
-**All installations, including upgrades:** open CellDrive5000 and double click the Meadowlark Optics logo. **If "PC software version" != 1.08, you will need to upgrade your USB drivers and CellDrive5000.** We have successfully upgraded existing installations by following these steps:
+**Check your installation versions** by opening CellDrive5000 and double clicking the Meadowlark Optics logo. **We have tested `recOrder == 0.4.0` with "PC software version 1.08" and "Controller firmware version 1.04",** and you will need to upgrade if your software and firmware versions are older. 
+
+To upgrade your "PC software version" use these steps:
 
 - From "Add and remove programs", remove CellDrive5000 and "National Instruments Software".
 - From "Device manager", open the "Meadowlark Optics" group, right click `mlousb`, click "Uninstall device", check "Delete the driver software for this device", and click "Uninstall". Uninstall `Meadowlark Optics D5020 LC Driver` following the same steps.
 - Using the USB stick provided by Meadowlark, reinstall the USB drivers and CellDrive5000. 
 - Confirm that "PC software version" == 1.08
 - **Upgrading users:** you will need to reinstall the Meadowlark device to your micromanager configuration file, because the device driver's name has changed to `MeadowlarkLC`. 
+
+To upgrade your DS5020's firmware, use Meadowlark's "Firmware Updater".
 
 ## Install recOrder software
 
