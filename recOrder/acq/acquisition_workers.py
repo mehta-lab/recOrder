@@ -91,7 +91,12 @@ def _generate_transfer_function_config(
     )
 
     with open(transfer_function_settings_path, "w") as f:
-        yaml.dump(transfer_function_settings.dict(), f)
+        yaml.dump(
+            transfer_function_settings.dict(),
+            f,
+            default_flow_style=False,
+            sort_keys=False,
+        )
 
 
 def _generate_apply_inverse_config(apply_inverse_settings_path, calib_window):
@@ -101,7 +106,12 @@ def _generate_apply_inverse_config(apply_inverse_settings_path, calib_window):
         )
     )
 
-    phase_apply_inverse_settings = settings._PhaseApplyInverseSettings()
+    phase_apply_inverse_settings = settings._PhaseApplyInverseSettings(
+        reconstruction_algorithm=calib_window.phase_regularizaer,
+        strength=calib_window.le_phase_strength.text(),
+        TV_rho_strength=calib_window.le_rho.text(),
+        TV_iterations=calib_window.le_itr.text(),
+    )
 
     apply_inverse_settings = settings.ApplyInverseSettings(
         birefringence_apply_inverse_settings=birefringence_apply_inverse_settings,
@@ -109,7 +119,12 @@ def _generate_apply_inverse_config(apply_inverse_settings_path, calib_window):
     )
 
     with open(apply_inverse_settings_path, "w") as f:
-        yaml.dump(apply_inverse_settings.dict(), f)
+        yaml.dump(
+            apply_inverse_settings.dict(),
+            f,
+            default_flow_style=False,
+            sort_keys=False,
+        )
 
 
 class PolarizationAcquisitionSignals(WorkerBaseSignals):
