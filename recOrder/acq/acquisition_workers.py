@@ -107,10 +107,10 @@ def _generate_apply_inverse_config(apply_inverse_settings_path, calib_window):
     )
 
     phase_apply_inverse_settings = settings._PhaseApplyInverseSettings(
-        reconstruction_algorithm=calib_window.phase_regularizaer,
-        strength=calib_window.le_phase_strength.text(),
-        TV_rho_strength=calib_window.le_rho.text(),
-        TV_iterations=calib_window.le_itr.text(),
+        reconstruction_algorithm=calib_window.phase_regularizer,
+        strength=calib_window.ui.le_phase_strength.text(),
+        TV_rho_strength=calib_window.ui.le_rho.text(),
+        TV_iterations=calib_window.ui.le_itr.text(),
     )
 
     apply_inverse_settings = settings.ApplyInverseSettings(
