@@ -1,46 +1,49 @@
 # TODO: remove in Python 3.11
 from __future__ import annotations
 
-from recOrder.calib.Calibration import QLIPP_Calibration, LC_DEVICE_NAME
-from pycromanager import Core, Studio, zmq_bridge
-from qtpy.QtCore import Slot, Signal, Qt
-from qtpy.QtWidgets import QWidget, QFileDialog, QSizePolicy, QSlider
-from qtpy.QtGui import QPixmap, QColor
-from superqt import QDoubleRangeSlider, QRangeSlider
-from recOrder.calib import Calibration
-from recOrder.calib.calibration_workers import (
-    CalibrationWorker,
-    BackgroundCaptureWorker,
-    load_calibration,
-)
-from recOrder.acq.acquisition_workers import (
-    PolarizationAcquisitionWorker,
-    BFAcquisitionWorker,
-)
-from recOrder.plugin import gui
-from recOrder.io.core_functions import set_lc_state, snap_and_average
-from recOrder.io.metadata_reader import MetadataReader
-from recOrder.io.utils import ret_ori_overlay
-from waveorder.waveorder_reconstructor import waveorder_microscopy
-from pathlib import Path, PurePath
-from napari import Viewer
-from napari.utils.notifications import show_warning, show_info
-from napari.qt.threading import create_worker
-from numpydoc.docscrape import NumpyDocString
-from packaging import version
-import numpy as np
-from numpy.typing import NDArray
-import dask.array as da
-from dask import delayed
-import os
-from os.path import dirname
 import json
 import logging
+import os
 import textwrap
-import yaml
+import time
+from os.path import dirname
+from pathlib import Path, PurePath
 
 # type hint/check
 from typing import TYPE_CHECKING
+
+import dask.array as da
+import numpy as np
+import yaml
+from dask import delayed
+from napari import Viewer
+from napari.qt.threading import create_worker
+from napari.utils.notifications import show_info, show_warning
+from numpy.typing import NDArray
+from numpydoc.docscrape import NumpyDocString
+from packaging import version
+from pycromanager import Core, Studio, zmq_bridge
+from qtpy.QtCore import Qt, Signal, Slot
+from qtpy.QtGui import QColor, QPixmap
+from qtpy.QtWidgets import QFileDialog, QSizePolicy, QSlider, QWidget
+from superqt import QDoubleRangeSlider, QRangeSlider
+from waveorder.waveorder_reconstructor import waveorder_microscopy
+
+from recOrder.acq.acquisition_workers import (
+    BFAcquisitionWorker,
+    PolarizationAcquisitionWorker,
+)
+from recOrder.calib import Calibration
+from recOrder.calib.Calibration import LC_DEVICE_NAME, QLIPP_Calibration
+from recOrder.calib.calibration_workers import (
+    BackgroundCaptureWorker,
+    CalibrationWorker,
+    load_calibration,
+)
+from recOrder.io.core_functions import set_lc_state, snap_and_average
+from recOrder.io.metadata_reader import MetadataReader
+from recOrder.io.utils import ret_ori_overlay
+from recOrder.plugin import gui
 
 # avoid runtime import error
 if TYPE_CHECKING:
@@ -1137,6 +1140,8 @@ class MainWidget(QWidget):
         if name in self.viewer.layers:
             self.viewer.layers[name].data = image
             if move_to_top:
+                logging.debug(f"Moving layer {name} to the top.")
+                time.sleep(0.5)
                 src_index = self.viewer.layers.index(name)
                 self.viewer.layers.move(src_index, dest_index=-1)
         else:
