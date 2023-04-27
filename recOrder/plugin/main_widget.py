@@ -1193,7 +1193,7 @@ class MainWidget(QWidget):
             cmap=self.colormap,
         )
         worker.start()
-        logging.debug(f"Updating the birefringence overlay layer.")
+        logging.info(f"Updating the birefringence overlay layer.")
         if retardance.size >= 2 * 2048 * 2048:
             show_info("Generating large overlay. This might take a moment...")
         worker.returned.connect(_draw)
