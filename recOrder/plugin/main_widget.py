@@ -882,7 +882,7 @@ class MainWidget(QWidget):
         -------
 
         """
-        RECOMMENDED_MM = "20230418"
+        RECOMMENDED_MM = "20230426"
         ZMQ_TARGET_VERSION = "4.2.0"
         try:
             self.mmc = Core(convert_camel_case=False)
