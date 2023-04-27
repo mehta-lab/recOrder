@@ -1160,6 +1160,7 @@ class MainWidget(QWidget):
         if (
             "Retardance" in self.viewer.layers
             and "Orientation" in self.viewer.layers
+            and ("Retardance" in event.source or "Orientation" in event.source)
         ):
             logging.debug(
                 "Detected birefringence layers in changed layer list."
