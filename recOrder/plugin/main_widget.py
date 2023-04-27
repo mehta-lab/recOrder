@@ -1167,6 +1167,8 @@ class MainWidget(QWidget):
                 "Detected birefringence layers in updated layer list."
             )
             self._draw_bire_overlay()
+        if event.source[-1].name == channels[1]:
+            self.viewer.layers[channels[1]].colormap = "hsv"
 
     def _draw_bire_overlay(self):
         def _layer_data(name: str):
