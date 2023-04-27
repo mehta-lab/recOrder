@@ -1157,13 +1157,14 @@ class MainWidget(QWidget):
         )
 
     def handle_layers_updated(self, event):
+        channels = ["Retardance", "Orientation"]
         if (
-            "Retardance" in self.viewer.layers
-            and "Orientation" in self.viewer.layers
-            and ("Retardance" in event.source or "Orientation" in event.source)
+            channels[0] in event.source
+            and channels[1] in event.source
+            and event.source[-1].name in channels
         ):
-            logging.debug(
-                "Detected birefringence layers in changed layer list."
+            logging.info(
+                "Detected birefringence layers in updated layer list."
             )
             self._draw_bire_overlay()
 
