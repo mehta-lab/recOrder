@@ -817,7 +817,10 @@ class MainWidget(QWidget):
                 raise_error = True
 
             # check background path if 'Measured' or 'Measured + Estimated' is selected
-            if self.bg_option == "local_fit+" or self.bg_option == "global":
+            if (
+                self.bg_option == "Measured"
+                or self.bg_option == "Measured + Estimated"
+            ):
                 success = self._check_line_edit("bg_path")
                 if not success:
                     raise_error = True
@@ -1521,17 +1524,17 @@ class MainWidget(QWidget):
             self.ui.label_bg_path.setHidden(False)
             self.ui.le_bg_path.setHidden(False)
             self.ui.qbutton_browse_bg_path.setHidden(False)
-            self.bg_option = "global"
+            self.bg_option = "Measured"
         elif state == 2:
             self.ui.label_bg_path.setHidden(True)
             self.ui.le_bg_path.setHidden(True)
             self.ui.qbutton_browse_bg_path.setHidden(True)
-            self.bg_option = "local_fit"
+            self.bg_option = "Estimated"
         elif state == 3:
             self.ui.label_bg_path.setHidden(False)
             self.ui.le_bg_path.setHidden(False)
             self.ui.qbutton_browse_bg_path.setHidden(False)
-            self.bg_option = "local_fit+"
+            self.bg_option = "Measured + Estimated"
 
     @Slot()
     def enter_gpu_id(self):

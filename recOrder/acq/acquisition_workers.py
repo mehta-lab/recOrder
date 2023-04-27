@@ -91,17 +91,41 @@ def _generate_transfer_function_config(
     )
 
     with open(transfer_function_settings_path, "w") as f:
-        yaml.dump(transfer_function_settings.dict(), f)
+        yaml.dump(
+            transfer_function_settings.dict(),
+            f,
+            default_flow_style=False,
+            sort_keys=False,
+        )
 
 
 def _generate_apply_inverse_config(apply_inverse_settings_path, calib_window):
+    if calib_window.bg_option == "None":
+        background_path = ""
+        remove_estimated_background = False
+    elif calib_window.bg_option == "Measured":
+        background_path = calib_window.acq_bg_directory
+        remove_estimated_background = False
+    elif calib_window.bg_option == "Estimated":
+        background_path = ""
+        remove_estimated_background = True
+    elif calib_window.bg_option == "Measured + Estimated":
+        background_path = calib_window.acq_bg_directory
+        remove_estimated_background = True
+
     birefringence_apply_inverse_settings = (
         settings._BirefringenceApplyInverseSettings(
-            background_path=calib_window.acq_bg_directory
+            background_path=background_path,
+            remove_estimated_background=remove_estimated_background,
         )
     )
 
-    phase_apply_inverse_settings = settings._PhaseApplyInverseSettings()
+    phase_apply_inverse_settings = settings._PhaseApplyInverseSettings(
+        reconstruction_algorithm=calib_window.phase_regularizer,
+        strength=calib_window.ui.le_phase_strength.text(),
+        TV_rho_strength=calib_window.ui.le_rho.text(),
+        TV_iterations=calib_window.ui.le_itr.text(),
+    )
 
     apply_inverse_settings = settings.ApplyInverseSettings(
         birefringence_apply_inverse_settings=birefringence_apply_inverse_settings,
@@ -109,7 +133,12 @@ def _generate_apply_inverse_config(apply_inverse_settings_path, calib_window):
     )
 
     with open(apply_inverse_settings_path, "w") as f:
-        yaml.dump(apply_inverse_settings.dict(), f)
+        yaml.dump(
+            apply_inverse_settings.dict(),
+            f,
+            default_flow_style=False,
+            sort_keys=False,
+        )
 
 
 class PolarizationAcquisitionSignals(WorkerBaseSignals):

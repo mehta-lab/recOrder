@@ -213,6 +213,9 @@ def apply_inverse_transfer_function_cli(
                     absorption_transfer_function,
                     phase_transfer_function,
                     method=inverse_settings.phase_apply_inverse_settings.reconstruction_algorithm,
+                    reg_p=inverse_settings.phase_apply_inverse_settings.strength,
+                    rho=inverse_settings.phase_apply_inverse_settings.TV_rho_strength,
+                    itr=inverse_settings.phase_apply_inverse_settings.TV_iterations,
                 )
 
                 # Save
@@ -241,6 +244,10 @@ def apply_inverse_transfer_function_cli(
                     z_padding=settings.phase_transfer_function_settings.z_padding,
                     z_pixel_size=settings.phase_transfer_function_settings.z_pixel_size,
                     illumination_wavelength=wavelength,
+                    method=inverse_settings.phase_apply_inverse_settings.reconstruction_algorithm,
+                    reg_re=inverse_settings.phase_apply_inverse_settings.strength,
+                    rho=inverse_settings.phase_apply_inverse_settings.TV_rho_strength,
+                    itr=inverse_settings.phase_apply_inverse_settings.TV_iterations,
                 )
                 # Save
                 output_array[time_index, -1] = zyx_phase
@@ -298,6 +305,9 @@ def apply_inverse_transfer_function_cli(
                     absorption_transfer_function,
                     phase_transfer_function,
                     method=inverse_settings.phase_apply_inverse_settings.reconstruction_algorithm,
+                    reg_p=inverse_settings.phase_apply_inverse_settings.strength,
+                    rho=inverse_settings.phase_apply_inverse_settings.TV_rho_strength,
+                    itr=inverse_settings.phase_apply_inverse_settings.TV_iterations,
                 )
 
                 # Save
@@ -347,6 +357,10 @@ def apply_inverse_transfer_function_cli(
                     z_padding=settings.phase_transfer_function_settings.z_padding,
                     z_pixel_size=settings.phase_transfer_function_settings.z_pixel_size,
                     illumination_wavelength=wavelength,
+                    method=inverse_settings.phase_apply_inverse_settings.reconstruction_algorithm,
+                    reg_re=inverse_settings.phase_apply_inverse_settings.strength,
+                    rho=inverse_settings.phase_apply_inverse_settings.TV_rho_strength,
+                    itr=inverse_settings.phase_apply_inverse_settings.TV_iterations,
                 )
                 # Save
                 for param_index, parameter in enumerate(

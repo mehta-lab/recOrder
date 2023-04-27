@@ -10,20 +10,6 @@ def test_reconstruction_mode_settings():
         test_settings = settings._UniversalSettings(reconstruction_dimension=1)
 
 
-def test_common_tf_settings():
-    test_settings = settings._CommonTransferFunctionSettings(
-        zyx_shape=(2, 3, 4)
-    )
-
-    with pytest.raises(ValidationError):
-        test_settings = settings._CommonTransferFunctionSettings(zyx_shape=2)
-
-    with pytest.raises(ValidationError):
-        test_settings = settings._CommonTransferFunctionSettings(
-            zyx_shape=(2, 3)
-        )
-
-
 def test_biref_tf_settings():
     test_settings = settings._BirefringenceTransferFunctionSettings(
         scheme="4-State", swing=0.1
@@ -54,7 +40,7 @@ def test_transfer_function_settings():
     )
 
     with pytest.raises(ValidationError):
-        settings.TransferFunctionSettings(reconstruct_birefringence=10)
+        settings._UniversalSettings(reconstruct_birefringence=10)
 
     test_settings = {
         "reconstruct_birefringence": False,
@@ -62,26 +48,11 @@ def test_transfer_function_settings():
     }
 
     with pytest.raises(ValidationError):
-        tf_settings = settings.TransferFunctionSettings(**test_settings)
-
-    # FIXME
-    # See also: settings.py
-    # with pytest.raises(Warning):
-    #     ss = settings.TransferFunctionSettings(
-    #         common_transfer_function_settings=settings._CommonTransferFunctionSettings(
-    #             wavelength_illumination=532
-    #         ),
-    #         phase_transfer_function_settings=settings._PhaseTransferFunctionSettings(
-    #             yx_pixel_size=0.25
-    #         ),
-    #     )
+        tf_settings = settings._UniversalSettings(**test_settings)
 
 
 def test_inverse_settings():
-    inverse_settings = settings.ApplyInverseSettings()
-    assert inverse_settings.reconstruct_phase == True
-
-
-def test_recon_settings():
-    recon_settings = settings.ReconstructionSettings()
-    assert recon_settings.reconstruct_phase == True
+    phase_inverse_settings = settings._PhaseApplyInverseSettings(
+        reconstruction_algorithm="TV"
+    )
+    assert phase_inverse_settings.TV_iterations == 1
