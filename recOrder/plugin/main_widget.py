@@ -1186,7 +1186,7 @@ class MainWidget(QWidget):
         )
         worker.start()
         logging.debug(f"Updating the birefringence overlay layer.")
-        worker.returne.connect(_draw)
+        worker.returned.connect(_draw)
 
     @Slot(object)
     def handle_bire_image_update(self, value: NDArray):
