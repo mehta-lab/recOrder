@@ -1186,6 +1186,8 @@ class MainWidget(QWidget):
         )
         worker.start()
         logging.debug(f"Updating the birefringence overlay layer.")
+        if retardance.size >= 16 * 2048 * 2048:
+            show_info("Generating large overlay. This might take a moment...")
         worker.returned.connect(_draw)
 
     @Slot(object)
@@ -1195,8 +1197,6 @@ class MainWidget(QWidget):
             name = channel + self.acq_mode
             cmap = "gray" if channel != "Orientation" else "hsv"
             self._add_or_update_image_layer(value[i], name, cmap=cmap)
-        if self.acq_mode == "3D":
-            show_info("Generating 3D overlay. This might take a moment...")
 
     @Slot(object)
     def handle_phase_image_update(self, value):
