@@ -30,6 +30,8 @@ from numpydoc.docscrape import NumpyDocString
 from packaging import version
 import numpy as np
 from numpy.typing import NDArray
+import dask.array as da
+from dask import delayed
 import os
 from os.path import dirname
 import json
@@ -218,6 +220,11 @@ class MainWidget(QWidget):
         self.ui.qbutton_acq_ret_ori_phase.clicked[bool].connect(
             self.acq_ret_ori_phase
         )
+
+        # hook to render overlay
+        self.viewer.layers.events.changed.connect(self.handle_layers_updated)
+        self.viewer.layers.events.inserted.connect(self.handle_layers_updated)
+
         # Commenting for 0.3.0. Consider debugging or deleting for 1.0.0.
         # self.ui.cb_colormap.currentIndexChanged[int].connect(
         #     self.enter_colormap
@@ -1149,23 +1156,38 @@ class MainWidget(QWidget):
             value[1], "Background Orientation", cmap="hsv"
         )
 
-    def _draw_bire_overlay(self, overlay):
+    def handle_layers_updated(self, event):
+        if (
+            "Retardance" in self.viewer.layers
+            and "Orientation" in self.viewer.layers
+        ):
+            logging.debug(
+                "Detected birefringence layers in changed layer list."
+            )
+            self._draw_bire_overlay()
+
+    def _draw_bire_overlay(self):
+        def _layer_data(name: str):
+            return da.array(self.viewer.layers[name].data)
+
+        retardance = _layer_data("Retardance")
+        orientation = _layer_data("Orientation")
+        overlay = ret_ori_overlay(
+            retardance,
+            orientation,
+            ret_max=da.percentile(da.ravel(retardance), 99.99),
+            cmap=self.colormap,
+        )
+        logging.debug(
+            f"Updating the birefringence overlay layer with {overlay}."
+        )
         self._add_or_update_image_layer(
-            overlay, "BirefringenceOverlay" + self.acq_mode, cmap="rgb"
+            overlay, "BirefringenceOverlay", cmap="rgb"
         )
 
     @Slot(object)
     def handle_bire_image_update(self, value: NDArray):
         # generate overlay in a separate thread
-        overlay_worker = create_worker(
-            ret_ori_overlay,
-            retardance=value[0],
-            orientation=value[1],
-            ret_max=np.percentile(value[0], 99.99),
-            cmap=self.colormap,
-        )
-        overlay_worker.returned.connect(self._draw_bire_overlay)
-        overlay_worker.start()
         for i, channel in enumerate(("Retardance", "Orientation")):
             name = channel + self.acq_mode
             cmap = "gray" if channel != "Orientation" else "hsv"
