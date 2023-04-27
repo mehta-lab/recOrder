@@ -225,7 +225,8 @@ class MainWidget(QWidget):
         )
 
         # hook to render overlay
-        self.viewer.layers.events.changed.connect(self.handle_layers_updated)
+        # acquistion updates existing layers and moves them to the top which triggers this event
+        self.viewer.layers.events.moved.connect(self.handle_layers_updated)
         self.viewer.layers.events.inserted.connect(self.handle_layers_updated)
 
         # Commenting for 0.3.0. Consider debugging or deleting for 1.0.0.
@@ -1141,7 +1142,6 @@ class MainWidget(QWidget):
             self.viewer.layers[name].data = image
             if move_to_top:
                 logging.debug(f"Moving layer {name} to the top.")
-                time.sleep(0.5)
                 src_index = self.viewer.layers.index(name)
                 self.viewer.layers.move(src_index, dest_index=-1)
         else:
