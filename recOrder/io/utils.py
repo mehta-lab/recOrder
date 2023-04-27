@@ -282,9 +282,8 @@ def ret_ori_overlay(
 
     # Prepare input and output arrays
     ret_ = np.clip(retardance, 0, ret_max)  # clip and copy
-    ori_ = (
-        np.copy(orientation) * 360 / np.pi
-    )  # convert 180 degree range into 360 to match periodicity of hue.
+    # Convert 180 degree range into 360 to match periodicity of hue.
+    ori_ = orientation * 360 / np.pi
     overlay_final = np.zeros_like(retardance)
 
     # FIX ME: this binning code leads to artifacts.
