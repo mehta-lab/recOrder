@@ -1196,7 +1196,7 @@ class MainWidget(QWidget):
     def handle_bire_image_update(self, value: NDArray):
         # generate overlay in a separate thread
         for i, channel in enumerate(("Retardance", "Orientation")):
-            name = channel + self.acq_mode
+            name = channel
             cmap = "gray" if channel != "Orientation" else "hsv"
             self._add_or_update_image_layer(value[i], name, cmap=cmap)
 
