@@ -1168,22 +1168,25 @@ class MainWidget(QWidget):
 
     def _draw_bire_overlay(self):
         def _layer_data(name: str):
-            return da.array(self.viewer.layers[name].data)
+            return self.viewer.layers[name].data
+
+        def _draw(overlay):
+            self._add_or_update_image_layer(
+                overlay, "BirefringenceOverlay", cmap="rgb"
+            )
 
         retardance = _layer_data("Retardance")
         orientation = _layer_data("Orientation")
-        overlay = ret_ori_overlay(
-            retardance,
-            orientation,
-            ret_max=da.percentile(da.ravel(retardance), 99.99),
+        worker = create_worker(
+            ret_ori_overlay,
+            retardance=retardance,
+            orientation=orientation,
+            ret_max=np.percentile(np.ravel(retardance), 99.99),
             cmap=self.colormap,
         )
-        logging.debug(
-            f"Updating the birefringence overlay layer with {overlay}."
-        )
-        self._add_or_update_image_layer(
-            overlay, "BirefringenceOverlay", cmap="rgb"
-        )
+        worker.start()
+        logging.debug(f"Updating the birefringence overlay layer.")
+        worker.returne.connect(_draw)
 
     @Slot(object)
     def handle_bire_image_update(self, value: NDArray):
