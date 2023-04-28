@@ -17,7 +17,9 @@ import numpy as np
 import yaml
 from dask import delayed
 from napari import Viewer
+from napari.components import LayerList
 from napari.qt.threading import create_worker
+from napari.utils.events import Event
 from napari.utils.notifications import show_info, show_warning
 from numpy.typing import NDArray
 from numpydoc.docscrape import NumpyDocString
@@ -1161,32 +1163,38 @@ class MainWidget(QWidget):
             value[1], "Background Orientation", cmap="hsv"
         )
 
-    def handle_layers_updated(self, event):
+    @staticmethod
+    def _match_layer_list(source: LayerList, pattern: str):
+        return [layer.name for layer in source if layer.name == pattern]
+
+    def handle_layers_updated(self, event: Event):
+        layers: LayerList = event.source
+        latest_layer_name = layers[-1].name
         channels = ["Retardance", "Orientation"]
-        if (
-            channels[0] in event.source
-            and channels[1] in event.source
-            and event.source[-1].name in channels
-        ):
-            logging.info(
-                "Detected birefringence layers in updated layer list."
-            )
-            self._draw_bire_overlay()
-        if event.source[-1].name == channels[1]:
+        for ch in channels:
+            if latest_layer_name.startswith(ch):
+                suffix = latest_layer_name.replace(ch, "")
+                other_name = channels[1 - channels.index(ch)] + suffix
+                overlay_name = "BirefringenceOverlay" + suffix
+                if other_name in layers and overlay_name not in layers:
+                    logging.info(
+                        "Detected updated birefringence layers: "
+                        f"'{latest_layer_name}', '{other_name}'"
+                    )
+                    self._draw_bire_overlay()
+        if latest_layer_name == channels[1]:
             logging.info(
                 "Detected orientation layer in updated layer list."
-                "Setting its colormap to HSV"
+                "Setting its colormap to HSV."
             )
             self.viewer.layers[channels[1]].colormap = "hsv"
 
-    def _draw_bire_overlay(self):
+    def _draw_bire_overlay(self, name: str):
         def _layer_data(name: str):
             return self.viewer.layers[name].data
 
         def _draw(overlay):
-            self._add_or_update_image_layer(
-                overlay, "BirefringenceOverlay", cmap="rgb"
-            )
+            self._add_or_update_image_layer(overlay, name, cmap="rgb")
 
         retardance = _layer_data("Retardance")
         orientation = _layer_data("Orientation")
