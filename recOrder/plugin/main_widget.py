@@ -1181,7 +1181,7 @@ class MainWidget(QWidget):
                         "Detected updated birefringence layers: "
                         f"'{latest_layer_name}', '{other_name}'"
                     )
-                    self._draw_bire_overlay()
+                    self._draw_bire_overlay(overlay_name)
         if latest_layer_name == channels[1]:
             logging.info(
                 "Detected orientation layer in updated layer list."
