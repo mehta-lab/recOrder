@@ -1189,7 +1189,7 @@ class MainWidget(QWidget):
                 "Detected orientation layer in updated layer list."
                 "Setting its colormap to HSV."
             )
-            self.viewer.layers[channels[1]].colormap = "hsv"
+            self.viewer.layers[latest_layer_name].colormap = "hsv"
 
     def _draw_bire_overlay(
         self, source_names: list[str, str], overlay_name: str
