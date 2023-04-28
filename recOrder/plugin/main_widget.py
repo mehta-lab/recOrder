@@ -1163,10 +1163,6 @@ class MainWidget(QWidget):
             value[1], "Background Orientation", cmap="hsv"
         )
 
-    @staticmethod
-    def _match_layer_list(source: LayerList, pattern: str):
-        return [layer.name for layer in source if layer.name == pattern]
-
     def handle_layers_updated(self, event: Event):
         layers: LayerList = event.source
         latest_layer_name = layers[-1].name
