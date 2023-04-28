@@ -14,6 +14,7 @@ def _birefringence(draw):
         draw(st.lists(st.integers(1, 16), min_size=2, max_size=4))
     )
     dtype = draw(npst.floating_dtypes(sizes=(32, 64)))
+    bit_width = dtype.itemsize * 8
     retardance = draw(
         npst.arrays(
             dtype,
@@ -22,7 +23,7 @@ def _birefringence(draw):
                 min_value=0,
                 max_value=50,
                 exclude_min=True,
-                width=dtype.itemsize * 8,
+                width=bit_width,
             ),
         )
     )
@@ -35,7 +36,7 @@ def _birefringence(draw):
                 max_value=dtype.type(np.pi),
                 exclude_min=True,
                 exclude_max=True,
-                width=dtype.itemsize * 8,
+                width=bit_width,
             ),
         )
     )
