@@ -789,7 +789,16 @@ class PolarizationAcquisitionWorker(WorkerBase):
                 "This will affect both visualization and the saved reconstruction."
             )
         )
+
+        # TODO: Move these to waveorder, connect to the `orientation_flip`
+        # and `orientation_rotate` parameters, and connect to recOrder buttons.
+
+        # 90 degree flip
         birefringence[1] = np.fmod(birefringence[1] + np.pi / 2, np.pi)
+
+        # Reflection
+        birefringence[1] = np.fmod(-birefringence[1], np.pi) + np.pi
+
         return birefringence
 
     def _check_exposure(self) -> None:
