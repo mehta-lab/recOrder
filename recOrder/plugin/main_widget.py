@@ -1195,9 +1195,9 @@ class MainWidget(QWidget):
 
         def _draw(overlay):
             self._add_or_update_image_layer(overlay, overlay_name, cmap="rgb")
-
-        retardance = _layer_data(sorted(source_names)[1])
-        orientation = _layer_data(sorted(source_names)[0])
+        orientation_name, retardance_name = sorted(source_names)
+        retardance = _layer_data(retardance_name)
+        orientation = _layer_data(orientation_name)
         worker = create_worker(
             ret_ori_overlay,
             retardance=retardance,
