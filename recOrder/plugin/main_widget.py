@@ -1181,7 +1181,9 @@ class MainWidget(QWidget):
                         "Detected updated birefringence layers: "
                         f"'{latest_layer_name}', '{other_name}'"
                     )
-                    self._draw_bire_overlay(overlay_name)
+                    self._draw_bire_overlay(
+                        [ch + suffix, other_name], overlay_name
+                    )
         if latest_layer_name == channels[1]:
             logging.info(
                 "Detected orientation layer in updated layer list."
@@ -1189,15 +1191,17 @@ class MainWidget(QWidget):
             )
             self.viewer.layers[channels[1]].colormap = "hsv"
 
-    def _draw_bire_overlay(self, name: str):
+    def _draw_bire_overlay(
+        self, source_names: list[str, str], overlay_name: str
+    ):
         def _layer_data(name: str):
             return self.viewer.layers[name].data
 
         def _draw(overlay):
-            self._add_or_update_image_layer(overlay, name, cmap="rgb")
+            self._add_or_update_image_layer(overlay, overlay_name, cmap="rgb")
 
-        retardance = _layer_data("Retardance")
-        orientation = _layer_data("Orientation")
+        retardance = _layer_data(sorted(source_names)[1])
+        orientation = _layer_data(sorted(source_names)[0])
         worker = create_worker(
             ret_ori_overlay,
             retardance=retardance,
