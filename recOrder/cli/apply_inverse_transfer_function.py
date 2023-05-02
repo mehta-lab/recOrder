@@ -78,9 +78,9 @@ def multiprocess_position(args):
     tczyx_data = torch.tensor(
         input_dataset.data[time_index].astype(np.float32), dtype=torch.float32
     )
-    print(f'TCZYX shape {tczyx_data.shape}')
+    print(f"TCZYX shape {tczyx_data.shape}")
 
-    if mp_flag == 1:        # Unpack the reconstructor specific parameters
+    if mp_flag == 1:  # Unpack the reconstructor specific parameters
         (
             wavelength,
             cyx_no_sample_data,
@@ -134,21 +134,34 @@ def multiprocess_position(args):
         with open_ome_zarr(output_path, mode="r+") as output_array:
             output_array[position][time_index, 0, 0] = output.numpy()
 
-    # elif mp_flag == 3:
-    #     # Phase reconstruction parameters
-    #     # Load the tensors
-    #     absorption_transfer_function = torch.tensor(
-    #         transfer_function_dataset["absorption_transfer_function"][0, 0]
-    #     )
-    #     phase_transfer_function = torch.tensor(
-    #         transfer_function_dataset["phase_transfer_function"][0, 0]
-    #     )
-    #     isotropic_thin_3d.apply_inverse_transfer_function(
-    #         tczyx_data[time_index, 0],
-    #         absorption_transfer_function,
-    #         phase_transfer_function,
-    #         method=inverse_settings.phase_apply_inverse_settings.reconstruction_algorithm,
-    #     )
+    elif mp_flag == 3:
+        # Phase reconstruction parameters
+        wavelength, settings, inverse_settings = reconstructor_params
+        # Load the tensors
+        real_potential_transfer_function = torch.tensor(
+            transfer_function_dataset["real_potential_transfer_function"][
+                0, 0
+            ]
+        )
+        imaginary_potential_transfer_function = torch.tensor(
+            transfer_function_dataset[
+                "imaginary_potential_transfer_function"
+            ][0, 0]
+        )
+        output = phase_thick_3d.apply_inverse_transfer_function(
+            tczyx_data[0],
+            real_potential_transfer_function,
+            imaginary_potential_transfer_function,
+            z_padding=settings.phase_transfer_function_settings.z_padding,
+            z_pixel_size=settings.phase_transfer_function_settings.z_pixel_size,
+            illumination_wavelength=wavelength,
+            method=inverse_settings.phase_apply_inverse_settings.reconstruction_algorithm,
+            reg_re=inverse_settings.phase_apply_inverse_settings.strength,
+            rho=inverse_settings.phase_apply_inverse_settings.TV_rho_strength,
+            itr=inverse_settings.phase_apply_inverse_settings.TV_iterations,
+        )
+        with open_ome_zarr(output_path, mode="r+") as output_array:
+            output_array[position][time_index, 0] = output.numpy()
 
 
 def apply_inverse_transfer_function_cli(
@@ -285,7 +298,6 @@ def apply_inverse_transfer_function_cli(
 
     # [phase only]
     if recon_phase and (not recon_biref):
-        _mp_flag = 2
         _phase_MP_params = []
         echo_headline("Reconstructing phase with settings:")
         echo_settings(inverse_settings.phase_apply_inverse_settings)
@@ -299,6 +311,7 @@ def apply_inverse_transfer_function_cli(
 
         # [phase only, 2]
         if recon_dim == 2:
+            _mp_flag = 2
             for time_index in range(t_shape):
                 _phase_MP_params = [
                     _mp_flag,
@@ -312,36 +325,22 @@ def apply_inverse_transfer_function_cli(
                 # Add to the the multiprocessing queue list
                 multiprocessing_queue.append(_phase_MP_params)
 
-        # # [phase only, 3]
-        # elif recon_dim == 3:
-        #     # Load transfer functions
-        #     real_potential_transfer_function = torch.tensor(
-        #         transfer_function_dataset["real_potential_transfer_function"][
-        #             0, 0
-        #         ]
-        #     )
-        #     imaginary_potential_transfer_function = torch.tensor(
-        #         transfer_function_dataset[
-        #             "imaginary_potential_transfer_function"
-        #         ][0, 0]
-        #     )
-
-    #         # Apply
-    #         for time_index in range(t_shape):
-    #             zyx_phase = phase_thick_3d.apply_inverse_transfer_function(
-    #                 tczyx_data[time_index, 0],
-    #                 real_potential_transfer_function,
-    #                 imaginary_potential_transfer_function,
-    #                 z_padding=settings.phase_transfer_function_settings.z_padding,
-    #                 z_pixel_size=settings.phase_transfer_function_settings.z_pixel_size,
-    #                 illumination_wavelength=wavelength,
-    #                 method=inverse_settings.phase_apply_inverse_settings.reconstruction_algorithm,
-    #                 reg_re=inverse_settings.phase_apply_inverse_settings.strength,
-    #                 rho=inverse_settings.phase_apply_inverse_settings.TV_rho_strength,
-    #                 itr=inverse_settings.phase_apply_inverse_settings.TV_iterations,
-    #             )
-    #             # Save
-    #             output_array[time_index, -1] = zyx_phase
+        # [phase only, 3]
+        elif recon_dim == 3:
+            _mp_flag = 3
+            # Apply
+            for time_index in range(t_shape):
+                _phase_MP_params = [
+                    _mp_flag,
+                    position,
+                    time_index,
+                    input_dataset,
+                    output_path,
+                    transfer_function_dataset,
+                    (wavelength, settings, inverse_settings),
+                ]
+                # Add to the the multiprocessing queue list
+                multiprocessing_queue.append(_phase_MP_params)
 
     # # [biref and phase]
     # if recon_biref and recon_phase:
