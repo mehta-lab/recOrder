@@ -15,6 +15,7 @@ from recOrder.cli.parsing import (
     input_data_path_argument,
     config_path_option,
     output_dataset_options,
+    cores_option,
 )
 from recOrder.io import utils
 from waveorder.models import (
@@ -288,7 +289,11 @@ def multiprocess_position(args):
 
 
 def apply_inverse_transfer_function_cli(
-    input_data_path, transfer_function_path, config_path, output_path
+    input_data_path,
+    transfer_function_path,
+    config_path,
+    output_path,
+    cores_option,
 ):
     echo_headline("Starting reconstruction...")
     # TODO: Need to change the Click args=-1
@@ -300,7 +305,7 @@ def apply_inverse_transfer_function_cli(
 
     # Load datasets
     # TODO pending for loop for multiple positions
-    position = 0  # Iterable variable to change later
+
     transfer_function_dataset = open_ome_zarr(transfer_function_path)
     print(f"path to position to process: {position_paths[0]}")
     input_dataset = open_ome_zarr(position_paths[0])
@@ -361,178 +366,181 @@ def apply_inverse_transfer_function_cli(
     output_dataset = open_ome_zarr(
         output_path, layout="fov", mode="w", channel_names=channel_names
     )
-
-    output_array = output_dataset.create_zeros(
-        name="0",
-        shape=output_shape,
-        dtype=np.float32,
-        chunks=(
-            1,
-            1,
-            1,
+    for position in range(len(position_paths)):
+        output_array = output_dataset.create_zeros(
+            name="0",
+            shape=output_shape,
+            dtype=np.float32,
+            chunks=(
+                1,
+                1,
+                1,
+            )
+            + input_dataset.data.shape[3:],  # chunk by YX
         )
-        + input_dataset.data.shape[3:],  # chunk by YX
-    )
 
     # -----------------------------------------------------------------
     # Set-up the multiprocessing queue
     multiprocessing_queue = []
-
-    # Prepare background dataset
-    if recon_biref:
-        biref_inverse_dict = (
-            inverse_settings.birefringence_apply_inverse_settings.dict()
-        )
-
-        # Resolve background path into array
-        background_path = biref_inverse_dict["background_path"]
-        biref_inverse_dict.pop("background_path")
-        if background_path != "":
-            cyx_no_sample_data = utils.new_load_background(background_path)
-            _check_background_consistency(
-                cyx_no_sample_data.shape, input_dataset.data.shape
-            )
-        else:
-            cyx_no_sample_data = None
-
-    # Main reconstruction logic
-    # Six different cases [2, 3] x [biref only, phase only, both]
-    # [biref only] [2 or 3]
-    if recon_biref and (not recon_phase):
-        _mp_flag = 1
-        echo_headline("Reconstructing birefringence with settings:")
-        echo_settings(inverse_settings.birefringence_apply_inverse_settings)
-        echo_headline("Reconstructing birefringence...")
-
-        _bire_MP_params = []
-        # TODO We could also iterate through Z... ?
-        for time_index in range(t_shape):
-            _bire_MP_params = [
-                _mp_flag,
-                position,
-                time_index,
-                input_dataset,
-                output_path,
-                transfer_function_dataset,
-                (wavelength, cyx_no_sample_data, biref_inverse_dict),
-            ]
-            # Add to the the multiprocessing queue list
-            multiprocessing_queue.append(_bire_MP_params)
-
-    # [phase only]
-    if recon_phase and (not recon_biref):
-        _phase_MP_params = []
-        echo_headline("Reconstructing phase with settings:")
-        echo_settings(inverse_settings.phase_apply_inverse_settings)
-        echo_headline("Reconstructing phase...")
-
-        # check data shapes
-        if input_dataset.data.shape[1] != 1:
-            raise ValueError(
-                "You have requested a phase-only reconstruction, but the input dataset has more than one channel."
+    for position in range(len(position_paths)):
+        # Prepare background dataset
+        if recon_biref:
+            biref_inverse_dict = (
+                inverse_settings.birefringence_apply_inverse_settings.dict()
             )
 
-        # [phase only, 2]
-        if recon_dim == 2:
-            _mp_flag = 2
+            # Resolve background path into array
+            background_path = biref_inverse_dict["background_path"]
+            biref_inverse_dict.pop("background_path")
+            if background_path != "":
+                cyx_no_sample_data = utils.new_load_background(background_path)
+                _check_background_consistency(
+                    cyx_no_sample_data.shape, input_dataset.data.shape
+                )
+            else:
+                cyx_no_sample_data = None
+
+        # Main reconstruction logic
+        # Six different cases [2, 3] x [biref only, phase only, both]
+        # [biref only] [2 or 3]
+        if recon_biref and (not recon_phase):
+            _mp_flag = 1
+            echo_headline("Reconstructing birefringence with settings:")
+            echo_settings(
+                inverse_settings.birefringence_apply_inverse_settings
+            )
+            echo_headline("Reconstructing birefringence...")
+
+            _bire_MP_params = []
+            # TODO We could also iterate through Z... ?
             for time_index in range(t_shape):
-                _phase_MP_params = [
+                _bire_MP_params = [
                     _mp_flag,
                     position,
                     time_index,
                     input_dataset,
                     output_path,
                     transfer_function_dataset,
-                    (inverse_settings),
+                    (wavelength, cyx_no_sample_data, biref_inverse_dict),
                 ]
                 # Add to the the multiprocessing queue list
-                multiprocessing_queue.append(_phase_MP_params)
+                multiprocessing_queue.append(_bire_MP_params)
 
-        # [phase only, 3]
-        elif recon_dim == 3:
-            _mp_flag = 3
-            # Apply
-            for time_index in range(t_shape):
-                _phase_MP_params = [
-                    _mp_flag,
-                    position,
-                    time_index,
-                    input_dataset,
-                    output_path,
-                    transfer_function_dataset,
-                    (wavelength, settings, inverse_settings),
+        # [phase only]
+        if recon_phase and (not recon_biref):
+            _phase_MP_params = []
+            echo_headline("Reconstructing phase with settings:")
+            echo_settings(inverse_settings.phase_apply_inverse_settings)
+            echo_headline("Reconstructing phase...")
+
+            # check data shapes
+            if input_dataset.data.shape[1] != 1:
+                raise ValueError(
+                    "You have requested a phase-only reconstruction, but the input dataset has more than one channel."
+                )
+
+            # [phase only, 2]
+            if recon_dim == 2:
+                _mp_flag = 2
+                for time_index in range(t_shape):
+                    _phase_MP_params = [
+                        _mp_flag,
+                        position,
+                        time_index,
+                        input_dataset,
+                        output_path,
+                        transfer_function_dataset,
+                        (inverse_settings),
+                    ]
+                    # Add to the the multiprocessing queue list
+                    multiprocessing_queue.append(_phase_MP_params)
+
+            # [phase only, 3]
+            elif recon_dim == 3:
+                _mp_flag = 3
+                # Apply
+                for time_index in range(t_shape):
+                    _phase_MP_params = [
+                        _mp_flag,
+                        position,
+                        time_index,
+                        input_dataset,
+                        output_path,
+                        transfer_function_dataset,
+                        (wavelength, settings, inverse_settings),
+                    ]
+                    # Add to the the multiprocessing queue list
+                    multiprocessing_queue.append(_phase_MP_params)
+
+        # # [biref and phase]
+        if recon_biref and recon_phase:
+            _phase_MP_params = []
+
+            echo_headline("Reconstructing phase with settings:")
+            echo_settings(inverse_settings.phase_apply_inverse_settings)
+            echo_headline("Reconstructing birefringence with settings:")
+            echo_settings(
+                inverse_settings.birefringence_apply_inverse_settings
+            )
+            echo_headline("Reconstructing...")
+
+            # Load birefringence transfer function
+            intensity_to_stokes_matrix = torch.tensor(
+                transfer_function_dataset["intensity_to_stokes_matrix"][
+                    0, 0, 0
                 ]
-                # Add to the the multiprocessing queue list
-                multiprocessing_queue.append(_phase_MP_params)
+            )
 
-    # # [biref and phase]
-    if recon_biref and recon_phase:
-        _phase_MP_params = []
+            # [biref and phase, 2]
+            if recon_dim == 2:
+                _mp_flag = 4
 
-        echo_headline("Reconstructing phase with settings:")
-        echo_settings(inverse_settings.phase_apply_inverse_settings)
-        echo_headline("Reconstructing birefringence with settings:")
-        echo_settings(inverse_settings.birefringence_apply_inverse_settings)
-        echo_headline("Reconstructing...")
+                for time_index in range(t_shape):
+                    _phase_MP_params = [
+                        _mp_flag,
+                        position,
+                        time_index,
+                        input_dataset,
+                        output_path,
+                        transfer_function_dataset,
+                        (
+                            wavelength,
+                            cyx_no_sample_data,
+                            biref_inverse_dict,
+                            inverse_settings,
+                        ),
+                    ]
+                    multiprocessing_queue.append(_phase_MP_params)
 
-        # Load birefringence transfer function
-        intensity_to_stokes_matrix = torch.tensor(
-            transfer_function_dataset["intensity_to_stokes_matrix"][0, 0, 0]
-        )
+            # [biref and phase, 3]
+            elif recon_dim == 3:
+                _mp_flag = 5
 
-        # [biref and phase, 2]
-        if recon_dim == 2:
-            _mp_flag = 4
-
-            for time_index in range(t_shape):
-                _phase_MP_params = [
-                    _mp_flag,
-                    position,
-                    time_index,
-                    input_dataset,
-                    output_path,
-                    transfer_function_dataset,
-                    (
-                        wavelength,
-                        cyx_no_sample_data,
-                        biref_inverse_dict,
-                        inverse_settings,
-                    ),
-                ]
-                multiprocessing_queue.append(_phase_MP_params)
-
-        # [biref and phase, 3]
-        elif recon_dim == 3:
-
-            _mp_flag = 5
-
-            # Apply
-            for time_index in range(t_shape):
-                _phase_MP_params = [
-                    _mp_flag,
-                    position,
-                    time_index,
-                    input_dataset,
-                    output_path,
-                    transfer_function_dataset,
-                    (
-                        wavelength,
-                        cyx_no_sample_data,
-                        biref_inverse_dict,
-                        inverse_settings,
-                        settings,
-                    ),
-                ]
-                multiprocessing_queue.append(_phase_MP_params)
-
+                # Apply
+                for time_index in range(t_shape):
+                    _phase_MP_params = [
+                        _mp_flag,
+                        position,
+                        time_index,
+                        input_dataset,
+                        output_path,
+                        transfer_function_dataset,
+                        (
+                            wavelength,
+                            cyx_no_sample_data,
+                            biref_inverse_dict,
+                            inverse_settings,
+                            settings,
+                        ),
+                    ]
+                    multiprocessing_queue.append(_phase_MP_params)
 
     output_dataset.zattrs["transfer_function_settings"] = settings.dict()
     output_dataset.zattrs["apply_inverse_settings"] = inverse_settings.dict()
 
     ## Multiprocessing
-    nProc = mp.cpu_count()
-    pool = mp.Pool(nProc)
-    print(nProc)
+    pool = mp.Pool(cores_option)
+    echo_headline(f"Processing with <{cores_option}> cores\n")
     results = []
     for result in tqdm(
         pool.imap(multiprocess_position, multiprocessing_queue),
@@ -560,12 +568,21 @@ def apply_inverse_transfer_function_cli(
 )
 @config_path_option()
 @output_dataset_options(default="./reconstruction.zarr")
+@cores_option(default=mp.cpu_count())
 def apply_inverse_transfer_function(
-    input_data_path, transfer_function_path, config_path, output_path
+    input_data_path,
+    transfer_function_path,
+    config_path,
+    output_path,
+    num_cores,
 ):
     "Invert and apply a transfer function"
     apply_inverse_transfer_function_cli(
-        input_data_path, transfer_function_path, config_path, output_path
+        input_data_path,
+        transfer_function_path,
+        config_path,
+        output_path,
+        num_cores,
     )
 
 
@@ -576,3 +593,6 @@ def apply_inverse_transfer_function(
 
 # 2D Phase only
 # recorder apply-inverse-transfer-function /home/eduardo.hirata/mydata/repos/recOrder/recOrder/tests/cli_tests/data_temp/20230501_162727_BF.zarr/*/*/* ../test_transfer_function.zarr -o ../test_phase_only.zarr
+
+# 3D phase and bire
+# recorder apply-inverse-transfer-function /home/eduardo.hirata/mydata/repos/recOrder/recOrder/tests/cli_tests/data_temp/20230426_211658_temp.zarr/0/0/0 /home/eduardo.hirata/mydata/repos/recOrder/recOrder/tests/cli_tests/TF_3DPhase_Bire.zarr -o ../test_3dphase_bire.zarr
