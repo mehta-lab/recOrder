@@ -7,6 +7,7 @@ from napari.viewer import ViewerModel
 from recOrder.plugin.main_widget import MainWidget
 
 
+# FIXME: Linux Qt platform in GitHub actions
 @pytest.mark.skipif(
     "linux" in sys.platform and os.environ.get("CI"),
     reason="Qt on Linux CI runners does not work",
