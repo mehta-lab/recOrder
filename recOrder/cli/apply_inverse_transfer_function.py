@@ -75,13 +75,11 @@ def multiprocess_position(args):
         transfer_function_dataset,
         reconstructor_params,
     ) = args
-    print(f"arguments {input_dataset} {time_index}")
     t, c, z, y, x = input_dataset.data.shape
     # Load the time
     tczyx_data = torch.tensor(
         input_dataset.data[time_index].astype(np.float32), dtype=torch.float32
     )
-    print(f"TCZYX shape {tczyx_data.shape}")
 
     if mp_flag == 1:  # Unpack the reconstructor specific parameters
         (
@@ -89,7 +87,6 @@ def multiprocess_position(args):
             cyx_no_sample_data,
             biref_inverse_dict,
         ) = reconstructor_params
-        print(f"biref dic {biref_inverse_dict}")
 
         # Load transfer function
         intensity_to_stokes_matrix = torch.tensor(
@@ -110,9 +107,7 @@ def multiprocess_position(args):
             input
             # TODO: add position string if we will loop for positions.
             for parameter_idx, parameter in enumerate(output):
-                output_array[0][
-                    time_index, parameter_idx
-                ] = parameter.numpy()
+                output_array[0][time_index, parameter_idx] = parameter.numpy()
 
     elif mp_flag == 2:
         # Unpack parameters
@@ -124,7 +119,6 @@ def multiprocess_position(args):
         phase_transfer_function = torch.tensor(
             transfer_function_dataset["phase_transfer_function"][0, 0]
         )
-        print(f"dataset shape {tczyx_data[0].shape}")
         _, output = isotropic_thin_3d.apply_inverse_transfer_function(
             tczyx_data[0],
             absorption_transfer_function,
@@ -134,7 +128,6 @@ def multiprocess_position(args):
             rho=inverse_settings.phase_apply_inverse_settings.TV_rho_strength,
             itr=inverse_settings.phase_apply_inverse_settings.TV_iterations,
         )
-        print(f"2D phase out {output.shape}")
         with open_ome_zarr(output_path, mode="r+") as output_array:
             output_array[0][time_index, -1, 0] = output.numpy()
 
@@ -227,9 +220,7 @@ def multiprocess_position(args):
             for parameter_idx, parameter in enumerate(
                 reconstructed_parameters_2d
             ):
-                output_array[0][
-                    time_index, parameter_idx
-                ] = parameter.numpy()
+                output_array[0][time_index, parameter_idx] = parameter.numpy()
             output_array[0][time_index, -1, 0] = yx_phase.numpy()
 
     elif mp_flag == 5:
@@ -285,9 +276,7 @@ def multiprocess_position(args):
             for parameter_idx, parameter in enumerate(
                 reconstructed_parameters_3d
             ):
-                output_array[0][
-                    time_index, parameter_idx
-                ] = parameter.numpy()
+                output_array[0][time_index, parameter_idx] = parameter.numpy()
             output_array[0][time_index, -1] = zyx_phase.numpy()
 
 
@@ -299,10 +288,9 @@ def apply_inverse_transfer_function_cli(
     num_cores,
 ):
     echo_headline("Starting reconstruction...")
-    # TODO: Need to change the Click args=-1
+    # Parse the argument list and get parameterst to mirror the I/O file tree
     position_paths = []
     output_path_strings = []
-    print(input_data_path)
     for path in input_data_path:
         for filepath in glob.glob(path):
             position_paths.append(filepath)
@@ -310,13 +298,12 @@ def apply_inverse_transfer_function_cli(
                 -3:
             ]  # get the last 4 path components
             output_path_strings.append(path_strings)
-    print(f"Position Paths {position_paths}")
+    echo_headline("Reconstructing positions:")
+    click.echo(f"{position_paths}\n")
 
     # Load datasets
-    # TODO pending for loop for multiple positions
     # Take position 0 as sample
     transfer_function_dataset = open_ome_zarr(transfer_function_path)
-    print(f"path to position to process: {position_paths[0]}")
     input_dataset = open_ome_zarr(position_paths[0])
 
     # Load config file
@@ -389,6 +376,7 @@ def apply_inverse_transfer_function_cli(
     # Set-up the multiprocessing queue
     multiprocessing_queue = []
     for position in range(len(position_paths)):
+        # Input and output paths
         input_dataset = open_ome_zarr(position_paths[position])
         output_pos_path = os.path.join(
             output_path,
@@ -597,17 +585,3 @@ def apply_inverse_transfer_function(
         output_path,
         num_cores,
     )
-
-
-# Recon scripts
-
-# Bire
-# recorder apply-inverse-transfer-function ./data_temp/2022_08_04_recOrder_pytest_20x_04NA_zarr/2T_3P_16Z_128Y_256X_Kazansky.zarr/*/*/* ../test_transfer_function.zarr -o ../test_delete2.zarr
-
-# 2D Phase only
-# recorder apply-inverse-transfer-function /home/eduardo.hirata/mydata/repos/recOrder/recOrder/tests/cli_tests/data_temp/20230501_162727_BF.zarr/*/*/* ../test_transfer_function.zarr -o ../test_phase_only.zarr
-
-# 3D phase and bire
-# recorder apply-inverse-transfer-function /home/eduardo.hirata/mydata/repos/recOrder/recOrder/tests/cli_tests/data_temp/20230426_211658_temp.zarr/0/0/0 /home/eduardo.hirata/mydata/repos/recOrder/recOrder/tests/cli_tests/TF_3DPhase_Bire.zarr -o ../test_3dphase_bire.zarr
-
-# %%
