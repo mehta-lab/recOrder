@@ -69,7 +69,7 @@ Add 5 presets to this group named `State0`, `State1`, `State2`, `State3`, and `S
 ![](https://github.com/mehta-lab/recOrder/blob/main/docs/images/create_preset.png)
 
 ### Option 3 (requires a Triggerscope): Setup the LCs with the triggerscope
-Alternatively, the LC's can be driven with an external DAC, like the triggerscope, for hardware sequencing. To setup the triggerscope, please follow the instructions [here](./triggerscope-set-up.md)
+Alternatively, the LCs can be driven with an external DAC, like the triggerscope, for hardware sequencing. To setup the triggerscope, please follow the instructions [here](./triggerscope-set-up.md).
 
 ### (Optional) Enable "Phase From BF" acquisition
 
