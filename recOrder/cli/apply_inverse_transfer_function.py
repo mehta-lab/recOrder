@@ -1,31 +1,32 @@
+import glob
+import os
+
 import click
 import numpy as np
 import torch
+import torch.multiprocessing as mp
 import yaml
 from iohub import open_ome_zarr
-from recOrder.cli.printing import echo_headline, echo_settings
-from recOrder.cli.settings import (
-    TransferFunctionSettings,
-    ApplyInverseSettings,
-)
-from recOrder.cli.parsing import (
-    input_data_path_argument,
-    config_path_option,
-    output_dataset_options,
-)
-from recOrder.io import utils
+from tqdm import tqdm
 from waveorder.models import (
     inplane_anisotropic_thin_pol3d,
     isotropic_thin_3d,
     phase_thick_3d,
 )
 
-import glob
-import os
-import multiprocessing as mp
-from tqdm import tqdm
-
-# import torch.multiprocessing as mp
+from recOrder.cli.parsing import (
+    config_path_option,
+    input_data_path_argument,
+    output_dataset_options,
+    cores_option,
+)
+from recOrder.cli.printing import echo_headline, echo_settings
+from recOrder.cli.settings import (
+    ApplyInverseSettings,
+    TransferFunctionSettings,
+)
+from recOrder.io import utils
+import functools
 
 
 def parallel(func=None, **options):
@@ -33,22 +34,22 @@ def parallel(func=None, **options):
         return functools.partial(parallel, **options)
 
     def wrapper(*arguments):
-        print(f'arguments {arguments}')
-        pool = mp.Pool(mp.cpu_count())
-        #Split the arguments
+        # Split the arguments
         position_paths = arguments[0]
-        recon_params = arguments[1:]
+        output_paths = arguments[1]
+        recon_params = arguments[2:-1]
+        # Check number of processes and available cores
+        processes = (
+            mp.cpu_count() if arguments[-1] > mp.cpu_count() else arguments[-1]
+        )
 
-        # Multiprocessing
+        # Multiprocess per position
         result = []
-        for position in position_paths:
-            print(f"filepath: {position}")
-            args = (position,) + recon_params
-            print(f'args: {args}')
-            for results in tqdm(pool.starmap(func, [args])):
-                result.append(results)
-        pool.close()
-        pool.join()
+        with mp.Pool(processes) as pool:
+            for pos_in, pos_out in zip(position_paths, output_paths):
+                args = (pos_in,) + recon_params + (pos_out,)
+                for results in tqdm(pool.starmap(func, [args])):
+                    result.append(results)
         return result
 
     return wrapper
@@ -90,21 +91,13 @@ def _check_background_consistency(background_shape, data_shape):
         )
 
 
-def _parse_FOVs_per_filepath(input_data_path):
-    # Parse the argument list and get parameterst to mirror the I/O file tree
-    position_paths = []
-    output_path_strings = []
-    for path in input_data_path:
-        for filepath in glob.glob(path):
-            position_paths.append(filepath)
-            path_strings = path.split(os.path.sep)[
-                -3:
-            ]  # get the last 4 path components
-            output_path_strings.append(str(path_strings))
-            print(f"output_path:{path_strings}")
-    print("Reconstructing positions:")
-    click.echo(f"{position_paths}\n")
-    return position_paths
+def _get_output_paths(list_pos, output_path):
+    # From the position filepath generate the output filepath
+    list_output_path = []
+    for filepath in list_pos:
+        path_strings = filepath.split(os.path.sep)[-3:]
+        list_output_path.append(os.path.join(output_path, *path_strings))
+    return list_output_path
 
 
 def apply_inverse_transfer_function_cli(
@@ -141,46 +134,13 @@ def apply_inverse_transfer_function_cli(
     recon_dim = settings.universal_settings.reconstruction_dimension
     wavelength = settings.universal_settings.wavelength_illumination
 
-    # Prepare output dataset
-    channel_names = []
-    if recon_biref:
-        channel_names.append("Retardance")
-        channel_names.append("Orientation")
-        channel_names.append("BF")
-        channel_names.append("Pol")
-    if recon_phase:
-        if recon_dim == 2:
-            channel_names.append("Phase2D")
-        elif recon_dim == 3:
-            channel_names.append("Phase3D")
-
-    if recon_dim == 2:
-        output_z_shape = 1
-    elif recon_dim == 3:
-        output_z_shape = input_dataset.data.shape[2]
-
-    output_shape = (
-        t_shape,
-        len(channel_names),
-        output_z_shape,
-    ) + input_dataset.data.shape[3:]
-
     # Create output dataset
-    output_dataset = open_ome_zarr(
-        output_path, layout="fov", mode="w", channel_names=channel_names
-    )
-    output_array = output_dataset.create_zeros(
-        name="0",
-        shape=output_shape,
-        dtype=np.float32,
-        chunks=(
-            1,
-            1,
-            1,
-        )
-        + input_dataset.data.shape[3:],  # chunk by YX
-    )
-
+    # TODO: make sure the output matches the input_path_string
+    print(f"output_dataset{output_path}")
+    output_dataset = open_ome_zarr(output_path, mode="r+")
+    output_array = output_dataset[0]
+    
+    # -----------------------------------------------------------------
     # Load data
     tczyx_data = torch.tensor(input_dataset.data, dtype=torch.float32)
 
@@ -432,6 +392,76 @@ def apply_inverse_transfer_function_cli(
     )
 
 
+def _create_empty_zarr(
+    position_paths,
+    transfer_function_path,
+    config_path,
+    output_path
+):
+    # Load datasets
+    # Take position 0 as sample
+    transfer_function_dataset = open_ome_zarr(transfer_function_path)
+    input_dataset = open_ome_zarr(str(position_paths[0]), mode="r")
+
+    # Load transfer settings
+    settings = TransferFunctionSettings(
+        **transfer_function_dataset.zattrs["transfer_function_settings"]
+    )
+
+    # Load dataset shape and check for consistency
+    _check_shape_consistency(
+        settings, input_dataset.data.shape  # only loads a single position "0"
+    )
+    t_shape = input_dataset.data.shape[0]
+
+    # Simplify important settings names
+    recon_biref = settings.universal_settings.reconstruct_birefringence
+    recon_phase = settings.universal_settings.reconstruct_phase
+    recon_dim = settings.universal_settings.reconstruction_dimension
+
+    # Prepare output dataset
+    channel_names = []
+    if recon_biref:
+        channel_names.append("Retardance")
+        channel_names.append("Orientation")
+        channel_names.append("BF")
+        channel_names.append("Pol")
+        output_z_shape = input_dataset.data.shape[2]
+    if recon_phase:
+        if recon_dim == 2:
+            channel_names.append("Phase2D")
+            output_z_shape = 1
+        elif recon_dim == 3:
+            channel_names.append("Phase3D")
+            output_z_shape = input_dataset.data.shape[2]
+
+    # Output shape based on the type of reconstruction
+    output_shape = (
+        t_shape,
+        len(channel_names),
+        output_z_shape,
+    ) + input_dataset.data.shape[3:]
+
+    # Create output dataset
+    output_dataset = open_ome_zarr(
+        output_path, layout="hcs", mode="w", channel_names=channel_names
+    )
+    for filepath in position_paths:
+        path_strings = filepath.split(os.path.sep)[-3:]
+        pos = output_dataset.create_position(str(path_strings[0]), str(path_strings[1]), str(path_strings[2]))
+        output_array = pos.create_zeros(
+            name="0",
+            shape=output_shape,
+            dtype=np.float32,
+            chunks=(
+                1,
+                1,
+                1,
+            )
+            + input_dataset.data.shape[3:],  # chunk by YX
+        )
+
+
 @click.command()
 @input_data_path_argument()
 @click.argument(
@@ -440,14 +470,35 @@ def apply_inverse_transfer_function_cli(
 )
 @config_path_option()
 @output_dataset_options(default="./reconstruction.zarr")
+@cores_option(default=mp.cpu_count())
 def apply_inverse_transfer_function(
-    input_data_path, transfer_function_path, config_path, output_path
+    input_data_path,
+    transfer_function_path,
+    config_path,
+    output_path,
+    num_cores,
 ):
     # Handle single position or wildcard filepath
-    list_pos = _parse_FOVs_per_filepath(input_data_path)
-    parameters = (list_pos, transfer_function_path, config_path, output_path)
+    list_output_pos = _get_output_paths(input_data_path, output_path)
+    print(f'list output {list_output_pos}')
+
+    # Create a zarr store output to mirror the input
+    _create_empty_zarr(
+        input_data_path,
+        transfer_function_path,
+        config_path,
+        output_path
+    )
+
     "Invert and apply a transfer function"
     # Paralellize the function
+    parameters = (
+        input_data_path,
+        list_output_pos,
+        transfer_function_path,
+        config_path,
+        num_cores,
+    )
     mp_inverse_transfer_function = parallel(
         apply_inverse_transfer_function_cli
     )
@@ -455,5 +506,4 @@ def apply_inverse_transfer_function(
 
 
 # recorder apply-inverse-transfer-function ./data_temp/2022_08_04_recOrder_pytest_20x_04NA_zarr/2T_3P_16Z_128Y_256X_Kazansky.zarr/*/*/* ../test_transfer_function.zarr -o ../test_delete2.zarr
-
 # recorder apply-inverse-transfer-function ./data_temp/2022_08_04_recOrder_pytest_20x_04NA/2T_3P_16Z_128Y_256X_Kazansky_1.zarr/*/*/* ./TF.zarr -c test_config.yaml
