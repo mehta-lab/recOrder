@@ -24,7 +24,6 @@ c_max = intended_dims.getC() - 1
 z_max = intended_dims.getZ() - 1
 
 p = 0
-last = False
 
 while datastore:
     if engine.isFinished():
