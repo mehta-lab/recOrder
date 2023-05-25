@@ -17,20 +17,22 @@ This guide will walk through setting up the triggerscope (DAC device) to externa
 
 ---
 ## Triggerscope
-The Triggerscope is ...
-The triggerscope replaces the Meadowlark control box and allows one to drive the LCs through external analog inputs. 
+The Triggerscope is a device for hardware control and synchronization of cameras, lasers, shutters, galvos, stages and other optoelectronic equipment used popularily used home-built microscopes. 
 
-Check the Triggerscope Firmware
-** references to triggerscope setup
+** triggerscope image
 
-## Setup the Triggerscope with micromanager
-** Confirm instructions on setup.
+In this case, the triggerscope is used to send 0-5V signal to the Meadowlark DS5020 controlbox to drive the LCs through external analog inputs. 
+*Note: the Meadowlark DS5020 is required as it converts the signals 
+
+**  Check the Triggerscope Firmware
+
+Additionally, the triggerscope can be used as a device that can be sequenced to trigger fast and precisely the optoelectronic hardware in the microscope. In Micromanager, sequencing referes to the pre-computed train of events that will trigger the different pieces of hardware fast and precisly. To create fast and precise triggering sequences, Micromanager needs to know what devices will be `sequenced` and in what order, typically predetermined by the MDA. The devices that can be sequenced include lightsources, laser combiners, stages, and DACs. Refer to the individual device adapater to check if this devices supports `hardware sequencing`.
+
+## Setup the Triggerscope with Micromanager
 
 Launch Micromanager, open `Devices > Hardware Configuration Wizard...`, and add the `Triggerscope  Hub` device to your configuration.
 
 Confirm your installation by opening Devices > Device Property Browser... and confirming that `Triggerscope DAC` properties appear.
-
-
 ### Plugin the triggerscope
 - Connect the triggerscope via USB
 - Connect the external power supply to the triggerscope
@@ -57,5 +59,5 @@ Make sure to note which LC (i.e LCA and LCB) is connected to Triggerscope DAC ##
   - Open CellDrive and set the LCs in ["external mode"](#set-the-lcs-to-external-mode)
 - When I change the triggerscope voltages from the MM device property manager, MM crashes
   - [Check](#plugin-the-triggerscope) that the Triggerscope is connected via USB and connected to its power supply through the barrel connector. 
-  
+- What is sequencing?
 
