@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from typing import Callable
 from functools import wraps
 import numpy as np
 import matplotlib.pyplot as plt
@@ -35,7 +34,8 @@ from importlib_metadata import version
 LC_DEVICE_NAME = "MeadowlarkLcOpenSource"
 
 
-def _calib_suspend_live(method: Callable):
+def _calib_suspend_live(method):
+    """Decorator to suspend Live Mode in MM."""
     @wraps(method)
     def wrapper(*args, **kwargs):
         with suspend_live_sm(args[0].snap_manager) as _:
