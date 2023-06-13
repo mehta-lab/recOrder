@@ -45,10 +45,10 @@ def compute_transfer_function_cli(config_path, output_path):
 
     # Pass settings to appropriate calculate_transfer_function and save
     if settings.universal_settings.reconstruct_birefringence:
-        dataset = generate_birefringence(settings, dataset)
+        generate_and_save_birefringence_transfer_function(settings, dataset)
 
     if settings.universal_settings.reconstruct_phase:
-        datatset = generate_phase(settings, dataset)
+        generate_save_phase_transfer_function(settings, dataset)
 
     # Write settings to metadata
     dataset.zattrs["transfer_function_settings"] = settings.dict()
@@ -60,8 +60,8 @@ def compute_transfer_function_cli(config_path, output_path):
         f"Recreate this transfer function with:\n>> recorder compute-transfer-function {config_path} -o {output_path}"
     )
 
-def generate_birefringence(settings, dataset):
-    """Generates the birefringence transfer function based on the settings.
+def generate_and_save_birefringence_transfer_function(settings, dataset):
+    """Generates and saves the birefringence transfer function to the dataset, based on the settings.
 
     Parameters
     ----------
@@ -90,11 +90,8 @@ def generate_birefringence(settings, dataset):
         "intensity_to_stokes_matrix"
     ] = intensity_to_stokes_matrix.cpu().numpy()[None, None, None, ...]    
 
-    return dataset
-
-
-def generate_phase(settings, dataset):
-    """Generates the phase transfer function based on the settings.
+def generate_save_phase_transfer_function(settings, dataset):
+    """Generates and saves the phase transfer function to the dataset, based on the settings.
 
     Parameters
     ----------
@@ -102,10 +99,6 @@ def generate_phase(settings, dataset):
             Instance of the TransferFunctionSettings class.
         dataset: object
             NGFF Node to be updated.
-
-    Returns
-    -------
-    NGFF Node with updated dataset
     """
     echo_headline("Generating phase transfer function with settings:")
     echo_settings(settings.phase_transfer_function_settings)
@@ -160,9 +153,6 @@ def generate_phase(settings, dataset):
         ] = imaginary_potential_transfer_function.cpu().numpy()[
             None, None, ...
         ]
-
-    return dataset
-
 
 @click.command()
 @config_path_option()
