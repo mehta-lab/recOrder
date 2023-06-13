@@ -2,7 +2,9 @@ from recOrder.cli.main import cli
 from click.testing import CliRunner
 from unittest.mock import patch, Mock
 from iohub.ngff import open_ome_zarr, Position
-from recOrder.cli.compute_transfer_function import generate_phase, generate_birefringence
+from hypothesis import given
+from hypothesis import strategies as st
+from recOrder.cli.compute_transfer_function import generate_save_phase_transfer_function, generate_and_save_birefringence_transfer_function
 
 def test_main():
     runner = CliRunner()
@@ -18,7 +20,7 @@ def test_compute_transfer():
     assert result.exit_code == 0
     assert "Generating" in result.output
 
-def test_compute_transfer_blank():
+def test_compute_transfer_blank_config():
     runner = CliRunner()
     for option in ("-c", "--config-path"):
         cmd = "compute-transfer-function" + option
@@ -28,10 +30,12 @@ def test_compute_transfer_blank():
 
 def test_compute_transfer_output_file():
     runner = CliRunner()
-    path = "test"
-    # for option in ("-o", "--output-path"):
-    option = "-o"
-    cmd = "compute-transfer-function " + option + path
-    result = runner.invoke(cli, cmd)
-    assert result.exit_code == 0
-    assert path in result.output
+    paths = ["test1", "test2/test", "test3/"]
+    for option in ("-o ", "--output-path "):
+        cmd = "compute-transfer-function " + option
+        for path in paths:
+            run_cmd = cmd
+            run_cmd += path
+            result = runner.invoke(cli, run_cmd)
+            assert result.exit_code == 0
+            assert path in result.output
