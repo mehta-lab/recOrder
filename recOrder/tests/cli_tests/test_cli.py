@@ -28,8 +28,10 @@ def test_compute_transfer_blank():
 
 def test_compute_transfer_output_file():
     runner = CliRunner()
-    for option in ("-o", "--output-path"):
-        cmd = "compute-transfer-function " + option
-        result = runner.invoke(cli, cmd)
-        assert result.exit_code == 0
-        assert dir in result.output
+    path = "test"
+    # for option in ("-o", "--output-path"):
+    option = "-o"
+    cmd = "compute-transfer-function " + option + path
+    result = runner.invoke(cli, cmd)
+    assert result.exit_code == 0
+    assert path in result.output

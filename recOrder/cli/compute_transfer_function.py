@@ -13,6 +13,17 @@ from waveorder.models import (
 
 
 def compute_transfer_function_cli(config_path, output_path):
+    """CLI command to compute the transfer function given a configuration file path 
+    and a desired output path. Given no arguments, a default configuration file will 
+    be used and the output will be in transfer-function.zarr.
+
+    Parameters
+    ----------
+        config_path : string
+            Path of the configuration file.
+        output_path : string
+            Path of the output file.
+    """
     # Load config file
     if config_path is None:
         settings = TransferFunctionSettings()
@@ -50,6 +61,19 @@ def compute_transfer_function_cli(config_path, output_path):
     )
 
 def generate_birefringence(settings, dataset):
+    """Generates the birefringence transfer function based on the settings.
+
+    Parameters
+    ----------
+        settings: object
+            Instance of the TransferFunctionSettings class.
+        dataset: object
+            NGFF Node to be updated.
+
+    Returns
+    -------
+    NGFF Node with updated dataset
+    """
     echo_headline(
         "Generating birefringence transfer function with settings:"
     )
@@ -70,6 +94,19 @@ def generate_birefringence(settings, dataset):
 
 
 def generate_phase(settings, dataset):
+    """Generates the phase transfer function based on the settings.
+
+    Parameters
+    ----------
+        settings: object
+            Instance of the TransferFunctionSettings class.
+        dataset: object
+            NGFF Node to be updated.
+
+    Returns
+    -------
+    NGFF Node with updated dataset
+    """
     echo_headline("Generating phase transfer function with settings:")
     echo_settings(settings.phase_transfer_function_settings)
 
