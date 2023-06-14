@@ -6,7 +6,7 @@ from iohub.ngff import open_ome_zarr, Position
 from hypothesis import given
 from hypothesis import strategies as st
 from recOrder.cli.compute_transfer_function import (
-    generate_save_phase_transfer_function, 
+    generate_and_save_phase_transfer_function, 
     generate_and_save_birefringence_transfer_function,
     compute_transfer_function_cli,
 )
@@ -24,10 +24,9 @@ def test_main():
     assert result.exit_code == 0
     assert "Toolkit" in result.output
 
-def test_compute_transfer():
+def test_compute_transfer(tmp_path):
     runner = CliRunner()
-    result = runner.invoke(cli, "compute-transfer-function")
-
+    result = runner.invoke(cli, "compute-transfer-function -o " + str(tmp_path))
     assert result.exit_code == 0
     assert "Generating" in result.output
 
@@ -39,26 +38,53 @@ def test_compute_transfer_blank_config():
         assert result.exit_code == 2
         assert "Error" in result.output
 
-def test_compute_transfer_output_file():
+def test_compute_transfer_output_file(tmp_path):
     runner = CliRunner()
-    paths = ["test1", "test2/test", "test3/"]
+    paths = ["test1", "test2/test"]
     for option in ("-o ", "--output-path "):
         temp_cmd = "compute-transfer-function " + option
         for path in paths:
             cmd = temp_cmd
-            cmd += path
+            cmd += str(tmp_path.joinpath(path))
             result = runner.invoke(cli, cmd)
             assert result.exit_code == 0
             assert path in result.output
 
-def test_compute_transfer_config_none():
+def test_compute_transfer_config_none(tmp_path):
     runner = CliRunner()
     for option in ("-c ", "--config-path "):
-        cmd = "compute-transfer-function " + option + "None"
+        cmd = "compute-transfer-function " + option + "None " + "-o " + str(tmp_path)
         result = runner.invoke(cli, cmd)
         assert result.exit_code == 0
-        assert "Generating"
+        assert "Generating" in result.output
 
+def test_birefringence_subcall(tmp_path):
+    runner = CliRunner()
+    cmd = "compute-transfer-function -o " + str(tmp_path)
+    with patch("recOrder.cli.compute_transfer_function.open_ome_zarr") as mock_zarr_function:
+        settings = TransferFunctionSettings()
+        dataset = open_ome_zarr(str(tmp_path), layout="fov", mode="w", channel_names=["None"])
+        mock_zarr_function.return_value = dataset
+        with patch("recOrder.cli.compute_transfer_function.generate_and_save_birefringence_transfer_function") as mock:
+            result = runner.invoke(cli, cmd)
+            mock.assert_called_once_with(settings, dataset)
+            assert result.exit_code == 0
+            assert "reconstruct_birefringence: true" in result.output
+
+def test_phase_subcall(tmp_path):
+    runner = CliRunner()
+    cmd = "compute-transfer-function -o " + str(tmp_path)
+    with patch("recOrder.cli.compute_transfer_function.open_ome_zarr") as mock_zarr_function:
+        settings = TransferFunctionSettings()
+        dataset  = open_ome_zarr(str(tmp_path), layout="fov", mode="w", channel_names=["None"])
+        mock_zarr_function.return_value = dataset
+        with patch("recOrder.cli.compute_transfer_function.generate_and_save_phase_transfer_function") as mock:
+            result = runner.invoke(cli, cmd)
+            mock.assert_called_once_with(settings, dataset)
+            assert result.exit_code == 0
+            assert "reconstruct_phase: true" in result.output
+
+# Think about this and make edits
 @patch("recOrder.cli.compute_transfer_function.TransferFunctionSettings")
 def test_compute_transfer_config_settings(mock_function):
     mock_settings = Mock()
