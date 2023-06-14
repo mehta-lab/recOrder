@@ -4,7 +4,7 @@ from typing import Literal, List
 
 
 class _UniversalSettings(BaseModel):
-    # these parameters for needed for each step:
+    # these parameters are used by each step:
     #  - compute-transfer-function
     #  - apply-inverse-transfer-function
     #  - reconstruct
@@ -130,7 +130,7 @@ class _BirefringenceApplyInverseSettings(BaseModel):
 class _PhaseApplyInverseSettings(BaseModel):
     reconstruction_algorithm: Literal["Tikhonov", "TV"] = "Tikhonov"
     strength: float = 1e-3
-    TV_rho_strength: float = 1e-3 
+    TV_rho_strength: float = 1e-3
     TV_iterations: int = 1
 
     @validator("strength")
@@ -144,7 +144,7 @@ class _PhaseApplyInverseSettings(BaseModel):
         if v < 0 and values["reconstruction_algorithm"] == "TV":
             raise ValueError(f"TV_rho_strength = {v} cannot be negative")
         return v
-    
+
     @validator("TV_iterations")
     def check_TV_iterations(cls, v, values):
         if v < 1 and values["reconstruction_algorithm"] == "TV":
