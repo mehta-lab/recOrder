@@ -25,7 +25,7 @@ def compute_transfer_function_cli(config_path, output_path):
             Path of the output file.
     """
     # Load config file
-    if config_path is None:
+    if config_path is None or "None":
         settings = TransferFunctionSettings()
     else:
         with open(config_path) as file:
@@ -41,7 +41,9 @@ def compute_transfer_function_cli(config_path, output_path):
     )
 
     echo_headline("Generating transfer functions with universal settings:")
+    echo_headline(settings.universal_settings.dict())
     echo_settings(settings.universal_settings)
+    echo_headline('Hello world')
 
     # Pass settings to appropriate calculate_transfer_function and save
     if settings.universal_settings.reconstruct_birefringence:
@@ -51,6 +53,7 @@ def compute_transfer_function_cli(config_path, output_path):
         generate_save_phase_transfer_function(settings, dataset)
 
     # Write settings to metadata
+    echo_headline(settings.dict())
     dataset.zattrs["transfer_function_settings"] = settings.dict()
 
     echo_headline(f"Closing {output_path}\n")
