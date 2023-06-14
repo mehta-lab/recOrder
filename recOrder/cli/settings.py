@@ -159,10 +159,3 @@ class ApplyInverseSettings(BaseModel):
     phase_apply_inverse_settings: _PhaseApplyInverseSettings = (
         _PhaseApplyInverseSettings()
     )
-
-
-########## reconstruction settings ##########
-
-
-class ReconstructionSettings(TransferFunctionSettings, ApplyInverseSettings):
-    pass
