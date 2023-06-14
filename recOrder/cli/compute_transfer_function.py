@@ -93,7 +93,7 @@ def generate_and_save_birefringence_transfer_function(settings, dataset):
         "intensity_to_stokes_matrix"
     ] = intensity_to_stokes_matrix.cpu().numpy()[None, None, None, ...]    
 
-def generate_save_phase_transfer_function(settings, dataset):
+def generate_and_save_phase_transfer_function(settings, dataset):
     """Generates and saves the phase transfer function to the dataset, based on the settings.
 
     Parameters

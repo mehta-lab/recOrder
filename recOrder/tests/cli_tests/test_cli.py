@@ -71,7 +71,7 @@ def test_compute_transfer_config_settings(mock_function):
     ]
     mock_settings.universal_settings.reconstruct_birefringence = False
     mock_settings.universal_settings.reconstruct_phase = True
-    mock_settings.universal_settings.econstruct_dimension = 2
+    mock_settings.universal_settings.reconstruct_dimension = 2
     mock_settings.universal_settings.wavelength_illumination = 0.532
 
     mock_settings.phase_transfer_function_settings = _PhaseTransferFunctionSettings()
@@ -107,3 +107,4 @@ def test_compute_transfer_config_settings(mock_function):
     # settings.universal_settings.reconstruct_phase = #phase
     # settings.universal_settings.reconstruction_dimension = #dim
     # print('hello')
+
