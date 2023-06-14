@@ -15,7 +15,7 @@ from recOrder.cli.parsing import (
 )
 from recOrder.io import utils
 from waveorder.models import (
-    inplane_anisotropic_thin_pol3d,
+    inplane_oriented_thick_pol3d,
     isotropic_thin_3d,
     phase_thick_3d,
 )
@@ -168,7 +168,7 @@ def apply_inverse_transfer_function_cli(
         for time_index in range(t_shape):
             # Apply
             reconstructed_parameters = (
-                inplane_anisotropic_thin_pol3d.apply_inverse_transfer_function(
+                inplane_oriented_thick_pol3d.apply_inverse_transfer_function(
                     tczyx_data[time_index],
                     intensity_to_stokes_matrix,
                     wavelength,
@@ -277,7 +277,7 @@ def apply_inverse_transfer_function_cli(
 
             for time_index in range(t_shape):
                 # Apply
-                reconstructed_parameters_2d = inplane_anisotropic_thin_pol3d.apply_inverse_transfer_function(
+                reconstructed_parameters_2d = inplane_oriented_thick_pol3d.apply_inverse_transfer_function(
                     tczyx_data[time_index],
                     intensity_to_stokes_matrix,
                     wavelength,
@@ -286,7 +286,7 @@ def apply_inverse_transfer_function_cli(
                     **biref_inverse_dict,
                 )
 
-                reconstructed_parameters_3d = inplane_anisotropic_thin_pol3d.apply_inverse_transfer_function(
+                reconstructed_parameters_3d = inplane_oriented_thick_pol3d.apply_inverse_transfer_function(
                     tczyx_data[time_index],
                     intensity_to_stokes_matrix,
                     wavelength,
@@ -339,7 +339,7 @@ def apply_inverse_transfer_function_cli(
 
             # Apply
             for time_index in range(t_shape):
-                reconstructed_parameters_3d = inplane_anisotropic_thin_pol3d.apply_inverse_transfer_function(
+                reconstructed_parameters_3d = inplane_oriented_thick_pol3d.apply_inverse_transfer_function(
                     tczyx_data[time_index],
                     intensity_to_stokes_matrix,
                     wavelength,
