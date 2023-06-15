@@ -144,5 +144,5 @@ def test_generate_example_settings():
     # Save to examples folder and test roundtrip
     for file_name, settings_obj in zip(file_names, settings_list):
         utils.model_to_yaml(settings_obj, example_path + file_name)
-        settings_roundtrip = utils.yaml_to_model(example_path + file_name)
+        settings_roundtrip = utils.yaml_to_model(example_path + file_name, settings.ReconstructionSettings)
         assert settings_obj.dict() == settings_roundtrip.dict()

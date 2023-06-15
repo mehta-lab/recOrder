@@ -330,9 +330,40 @@ def ret_ori_overlay(
 
 
 def model_to_yaml(model, yaml_path):
+    """
+    Save a model's dictionary representation to a YAML file.
+
+    Parameters
+    ----------
+    model : object
+        The model object to convert to YAML.
+    yaml_path : str
+        The path to the output YAML file.
+
+    Raises
+    ------
+    TypeError
+        If the `model` object does not have a `dict()` method.
+
+    Notes
+    -----
+    This function converts a model object into a dictionary representation
+    using the `dict()` method. It removes any fields with None values before
+    writing the dictionary to a YAML file.
+
+    Examples
+    --------
+    >>> from my_model import MyModel
+    >>> model = MyModel()
+    >>> model_to_yaml(model, 'model.yaml')
+
+    """
+    if not hasattr(model, "dict"):
+        raise TypeError("The 'model' object does not have a 'dict()' method.")
+
     model_dict = model.dict()
 
-    # remove None-valued fields
+    # Remove None-valued fields
     clean_model_dict = {
         key: value for key, value in model_dict.items() if value is not None
     }
@@ -342,8 +373,47 @@ def model_to_yaml(model, yaml_path):
             clean_model_dict, f, default_flow_style=False, sort_keys=False
         )
 
+def yaml_to_model(yaml_path, model):
+    """
+    Load model settings from a YAML file and create a model instance.
 
-def yaml_to_model(yaml_path):
-    with open(yaml_path) as file:
-        raw_settings = yaml.safe_load(file)
-    return settings.ReconstructionSettings(**raw_settings)
+    Parameters
+    ----------
+    yaml_path : str
+        The path to the YAML file containing the model settings.
+    model : class
+        The model class used to create an instance with the loaded settings.
+
+    Returns
+    -------
+    object
+        An instance of the model class with the loaded settings.
+
+    Raises
+    ------
+    TypeError
+        If the provided model is not a class or does not have a callable constructor.
+    FileNotFoundError
+        If the YAML file specified by `yaml_path` does not exist.
+
+    Notes
+    -----
+    This function loads model settings from a YAML file using `yaml.safe_load()`.
+    It then creates an instance of the provided `model` class using the loaded settings.
+
+    Examples
+    --------
+    >>> from my_model import MyModel
+    >>> model = yaml_to_model('model.yaml', MyModel)
+
+    """
+    if not callable(getattr(model, "__init__", None)):
+        raise TypeError("The provided model must be a class with a callable constructor.")
+
+    try:
+        with open(yaml_path, "r") as file:
+            raw_settings = yaml.safe_load(file)
+    except FileNotFoundError:
+        raise FileNotFoundError(f"The YAML file '{yaml_path}' does not exist.")
+
+    return model(**raw_settings)

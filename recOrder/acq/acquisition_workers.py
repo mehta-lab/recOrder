@@ -22,7 +22,11 @@ from recOrder.acq.acq_functions import (
     generate_acq_settings,
     acquire_from_settings,
 )
-from recOrder.io.utils import load_bg, extract_reconstruction_parameters
+from recOrder.io.utils import (
+    load_bg,
+    extract_reconstruction_parameters,
+    model_to_yaml,
+)
 from recOrder.compute.reconstructions import QLIPPBirefringenceCompute
 from recOrder.io.metadata_reader import MetadataReader, get_last_metadata_file
 from recOrder.io.utils import ram_message, rec_bkg_to_wo_bkg
@@ -90,13 +94,7 @@ def _generate_transfer_function_config(
         phase_transfer_function_settings=phase_settings,
     )
 
-    with open(transfer_function_settings_path, "w") as f:
-        yaml.dump(
-            transfer_function_settings.dict(),
-            f,
-            default_flow_style=False,
-            sort_keys=False,
-        )
+    model_to_yaml(transfer_function_settings, transfer_function_settings_path)
 
 
 def _generate_apply_inverse_config(apply_inverse_settings_path, calib_window):
@@ -132,13 +130,7 @@ def _generate_apply_inverse_config(apply_inverse_settings_path, calib_window):
         phase_apply_inverse_settings=phase_apply_inverse_settings,
     )
 
-    with open(apply_inverse_settings_path, "w") as f:
-        yaml.dump(
-            apply_inverse_settings.dict(),
-            f,
-            default_flow_style=False,
-            sort_keys=False,
-        )
+    model_to_yaml(apply_inverse_settings, apply_inverse_settings_path)
 
 
 class PolarizationAcquisitionSignals(WorkerBaseSignals):
