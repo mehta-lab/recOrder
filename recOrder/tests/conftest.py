@@ -29,3 +29,10 @@ def setup_b_and_p_false_ctf_settings(tmp_path):
     settings.universal_settings.reconstruct_phase = False
     dataset = open_ome_zarr(tmp_path, layout="fov", mode="w", channel_names=["None"])
     yield settings, dataset
+
+@pytest.fixture(scope="function")
+def setup_3d_ctf_settings(tmp_path):
+    settings = TransferFunctionSettings()
+    settings.universal_settings.reconstruction_dimension = 3
+    dataset = open_ome_zarr(tmp_path, layout="fov", mode = "w", channel_names=["None"])
+    yield settings, dataset
