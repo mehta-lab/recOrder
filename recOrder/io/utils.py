@@ -7,9 +7,11 @@ import torch
 import textwrap
 import tifffile as tiff
 import numpy as np
+import yaml
 from colorspacious import cspace_convert
 from matplotlib.colors import hsv_to_rgb
 from waveorder.waveorder_reconstructor import waveorder_microscopy
+from recOrder.cli import settings
 
 
 # TO BE DEPRECATED
@@ -325,3 +327,23 @@ def ret_ori_overlay(
         raise ValueError(f"Colormap {cmap} not understood")
 
     return overlay_final
+
+
+def model_to_yaml(model, yaml_path):
+    model_dict = model.dict()
+
+    # remove None-valued fields
+    clean_model_dict = {
+        key: value for key, value in model_dict.items() if value is not None
+    }
+
+    with open(yaml_path, "w+") as f:
+        yaml.dump(
+            clean_model_dict, f, default_flow_style=False, sort_keys=False
+        )
+
+
+def yaml_to_model(yaml_path):
+    with open(yaml_path) as file:
+        raw_settings = yaml.safe_load(file)
+    return settings.ReconstructionSettings(**raw_settings)
