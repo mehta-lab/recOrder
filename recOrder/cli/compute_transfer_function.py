@@ -19,10 +19,10 @@ def compute_transfer_function_cli(config_path, output_path):
 
     Parameters
     ----------
-        config_path : string
-            Path of the configuration file.
-        output_path : string
-            Path of the output file.
+    config_path : string
+        Path of the configuration file.
+    output_path : string
+        Path of the output file.
     """
     # Load config file
     if config_path is None or "None":
@@ -65,14 +65,10 @@ def generate_and_save_birefringence_transfer_function(settings, dataset):
 
     Parameters
     ----------
-        settings: object
-            Instance of the TransferFunctionSettings class.
-        dataset: object
-            NGFF Node to be updated.
-
-    Returns
-    -------
-    NGFF Node with updated dataset
+    settings: object
+        Instance of the TransferFunctionSettings class.
+    dataset: object
+        NGFF Node to be updated.
     """
     echo_headline(
         "Generating birefringence transfer function with settings:"
@@ -86,19 +82,20 @@ def generate_and_save_birefringence_transfer_function(settings, dataset):
         )
     )
     # Save
+
     dataset[
         "intensity_to_stokes_matrix"
-    ] = intensity_to_stokes_matrix.cpu().numpy()[None, None, None, ...]    
+    ] = intensity_to_stokes_matrix.cpu().numpy()[None, None, None, ...]
 
 def generate_and_save_phase_transfer_function(settings, dataset):
     """Generates and saves the phase transfer function to the dataset, based on the settings.
 
     Parameters
     ----------
-        settings: object
-            Instance of the TransferFunctionSettings class.
-        dataset: object
-            NGFF Node to be updated.
+    settings: object
+        Instance of the TransferFunctionSettings class.
+    dataset: object
+        NGFF Node to be updated.
     """
     echo_headline("Generating phase transfer function with settings:")
     echo_settings(settings.phase_transfer_function_settings)
