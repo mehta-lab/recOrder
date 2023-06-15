@@ -71,11 +71,11 @@ def _generate_transfer_function_config(
         reconstruction_dimension=reconstruction_dimension,
         wavelength_illumination=calib_window.recon_wavelength / 1000,
     )
-    birefringence_settings = settings._BirefringenceTransferFunctionSettings(
+    birefringence_settings = settings.BirefringenceTransferFunctionSettings(
         swing=calib_window.swing,
         scheme=calib_window.calib_scheme,
     )
-    phase_settings = settings._PhaseTransferFunctionSettings(
+    phase_settings = settings.PhaseTransferFunctionSettings(
         zyx_shape=zyx_shape,
         yx_pixel_size=calib_window.ps / calib_window.mag,
         z_pixel_size=calib_window.z_step,
@@ -114,7 +114,7 @@ def _generate_apply_inverse_config(apply_inverse_settings_path, calib_window):
         remove_estimated_background = True
 
     birefringence_apply_inverse_settings = (
-        settings._BirefringenceApplyInverseSettings(
+        settings.BirefringenceApplyInverseSettings(
             background_path=background_path,
             remove_estimated_background=remove_estimated_background,
         )

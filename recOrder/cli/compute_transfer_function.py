@@ -3,7 +3,7 @@ import numpy as np
 import yaml
 from iohub import open_ome_zarr
 from recOrder.cli.printing import echo_settings, echo_headline
-from recOrder.cli.settings import TransferFunctionSettings
+from recOrder.cli.settings import ReconstructionSettings
 from recOrder.cli.parsing import config_path_option, output_dataset_options
 from waveorder.models import (
     inplane_oriented_thick_pol3d,

@@ -4,10 +4,7 @@ import torch
 import yaml
 from iohub import open_ome_zarr
 from recOrder.cli.printing import echo_headline, echo_settings
-from recOrder.cli.settings import (
-    TransferFunctionSettings,
-    ApplyInverseSettings,
-)
+from recOrder.cli.settings import ReconstructionSettings
 from recOrder.cli.parsing import (
     input_data_path_argument,
     config_path_option,
