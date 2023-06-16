@@ -331,7 +331,7 @@ def apply_inverse_transfer_function_cli(
     input_dataset.close()
 
     echo_headline(
-        f"Recreate this reconstruction with:\n>> recorder apply-inverse-transfer-function {input_data_path} {transfer_function_path} -c {config_path} -o {output_path}"
+        f"Recreate this reconstruction with:\n>> recorder apply-inv-tf {input_data_path} {transfer_function_path} -c {config_path} -o {output_path}"
     )
 
 
@@ -343,7 +343,7 @@ def apply_inverse_transfer_function_cli(
 )
 @config_path_option()
 @output_dataset_options(default="./reconstruction.zarr")
-def apply_inverse_transfer_function(
+def apply_inv_tf(
     input_data_path, transfer_function_path, config_path, output_path
 ):
     """
@@ -352,7 +352,7 @@ def apply_inverse_transfer_function(
     See /examples/settings/ for example configuration files.
 
     Example usage:
-    $ recOrder apply-inverse-transfer-function input.zarr transfer-function.zarr -c /examples/settings/birefringence.yml -o output.zarr
+    $ recOrder apply-inv-tf input.zarr transfer-function.zarr -c /examples/settings/birefringence.yml -o output.zarr
     """
     apply_inverse_transfer_function_cli(
         input_data_path, transfer_function_path, config_path, output_path
