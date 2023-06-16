@@ -119,7 +119,7 @@ def compute_transfer_function_cli(input_data_path, config_path, output_path):
     output_dataset.close()
 
     echo_headline(
-        f"Recreate this transfer function with:\n>> recorder compute-transfer-function {input_data_path} -c {config_path} -o {output_path}"
+        f"Recreate this transfer function with:\n>> recorder compute-transfer-function {input_data_path} {config_path} -o {output_path}"
     )
 
 
@@ -128,5 +128,12 @@ def compute_transfer_function_cli(input_data_path, config_path, output_path):
 @config_path_option()
 @output_dataset_options(default="./transfer-function.zarr")
 def compute_transfer_function(input_data_path, config_path, output_path):
-    "Compute a transfer function from a configuration file"
+    """
+    Compute a transfer function from a .yaml configuration file.
+
+    See /examples/settings/ for example configuration files.
+
+    Example usage:
+    $ recOrder compute-transfer-function input.zarr -c /examples/settings/birefringence.yml -o output.zarr
+    """
     compute_transfer_function_cli(input_data_path, config_path, output_path)

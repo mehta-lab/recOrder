@@ -346,7 +346,14 @@ def apply_inverse_transfer_function_cli(
 def apply_inverse_transfer_function(
     input_data_path, transfer_function_path, config_path, output_path
 ):
-    "Invert and apply a transfer function"
+    """
+    Invert and apply a transfer function using .yaml configuration settings.
+
+    See /examples/settings/ for example configuration files.
+
+    Example usage:
+    $ recOrder apply-inverse-transfer-function input.zarr transfer-function.zarr -c /examples/settings/birefringence.yml -o output.zarr
+    """
     apply_inverse_transfer_function_cli(
         input_data_path, transfer_function_path, config_path, output_path
     )
