@@ -51,86 +51,78 @@ if TYPE_CHECKING:
     from recOrder.calib.Calibration import QLIPP_Calibration
 
 
-def _generate_transfer_function_config(
-    transfer_function_settings_path, mode, calib_window, zyx_shape
+def _generate_reconstruction_config_from_gui(
+    reconstruction_config_path,
+    mode,
+    calib_window,
+    input_channel_names,
 ):
-    if mode == "birefringence":
-        reconstruct_phase = False
-        reconstruct_birefringence = True
-    elif mode == "phase":
-        reconstruct_phase = True
-        reconstruct_birefringence = False
-    elif mode == "all":
-        reconstruct_phase = True
-        reconstruct_birefringence = True
+    if mode == "birefringence" or "all":
+        if calib_window.bg_option == "None":
+            background_path = ""
+            remove_estimated_background = False
+        elif calib_window.bg_option == "Measured":
+            background_path = calib_window.acq_bg_directory
+            remove_estimated_background = False
+        elif calib_window.bg_option == "Estimated":
+            background_path = ""
+            remove_estimated_background = True
+        elif calib_window.bg_option == "Measured + Estimated":
+            background_path = calib_window.acq_bg_directory
+            remove_estimated_background = True
 
-    if calib_window.acq_mode == "2D":
-        reconstruction_dimension = 2
-    elif calib_window.acq_mode == "3D":
-        reconstruction_dimension = 3
-
-    universal_settings = settings._UniversalSettings(
-        reconstruct_phase=reconstruct_phase,
-        reconstruct_birefringence=reconstruct_birefringence,
-        reconstruction_dimension=reconstruction_dimension,
-        wavelength_illumination=calib_window.recon_wavelength / 1000,
-    )
-    birefringence_settings = settings.BirefringenceTransferFunctionSettings(
-        swing=calib_window.swing,
-        scheme=calib_window.calib_scheme,
-    )
-    phase_settings = settings.PhaseTransferFunctionSettings(
-        zyx_shape=zyx_shape,
-        yx_pixel_size=calib_window.ps / calib_window.mag,
-        z_pixel_size=calib_window.z_step,
-        z_padding=calib_window.pad_z,
-        index_of_refraction_media=calib_window.n_media,
-        numerical_aperture_illumination=calib_window.cond_na,
-        numerical_aperture_detection=calib_window.obj_na,
-    )
-    transfer_function_settings = settings.TransferFunctionSettings(
-        universal_settings=universal_settings,
-        birefringence_transfer_function_settings=birefringence_settings,
-        phase_transfer_function_settings=phase_settings,
-    )
-
-    model_to_yaml(transfer_function_settings, transfer_function_settings_path)
-
-
-def _generate_apply_inverse_config(apply_inverse_settings_path, calib_window):
-    if calib_window.bg_option == "None":
-        background_path = ""
-        remove_estimated_background = False
-    elif calib_window.bg_option == "Measured":
-        background_path = calib_window.acq_bg_directory
-        remove_estimated_background = False
-    elif calib_window.bg_option == "Estimated":
-        background_path = ""
-        remove_estimated_background = True
-    elif calib_window.bg_option == "Measured + Estimated":
-        background_path = calib_window.acq_bg_directory
-        remove_estimated_background = True
-
-    birefringence_apply_inverse_settings = (
-        settings.BirefringenceApplyInverseSettings(
-            background_path=background_path,
-            remove_estimated_background=remove_estimated_background,
+        birefringence_transfer_function_settings = (
+            settings.BirefringenceTransferFunctionSettings(
+                wavelength_illumination=calib_window.recon_wavelength / 1000,
+                swing=calib_window.swing,
+                scheme=calib_window.calib_scheme,
+            )
         )
+        birefringence_apply_inverse_settings = (
+            settings.BirefringenceApplyInverseSettings(
+                background_path=background_path,
+                remove_estimated_background=remove_estimated_background,
+            )
+        )
+        birefringence_settings = settings.BirefringenceSettings(
+            birefringence_transfer_function_settings=birefringence_transfer_function_settings,
+            birefringence_apply_inverse_settings=birefringence_apply_inverse_settings,
+        )
+    else:
+        birefringence_settings = None
+
+    if mode == "phase" or "all":
+        phase_transfer_function_settings = (
+            settings.PhaseTransferFunctionSettings(
+                yx_pixel_size=calib_window.ps / calib_window.mag,
+                z_pixel_size=calib_window.z_step,
+                z_padding=calib_window.pad_z,
+                index_of_refraction_media=calib_window.n_media,
+                numerical_aperture_illumination=calib_window.cond_na,
+                numerical_aperture_detection=calib_window.obj_na,
+            )
+        )
+        phase_apply_inverse_settings = settings._PhaseApplyInverseSettings(
+            reconstruction_algorithm=calib_window.phase_regularizer,
+            strength=calib_window.ui.le_phase_strength.text(),
+            TV_rho_strength=calib_window.ui.le_rho.text(),
+            TV_iterations=calib_window.ui.le_itr.text(),
+        )
+        phase_settings = settings.PhaseSettings(
+            phase_transfer_function_settings=phase_transfer_function_settings,
+            phase_apply_inverse_settings=phase_apply_inverse_settings,
+        )
+    else:
+        phase_settings = None
+
+    reconstruction_settings = settings.ReconstructionSettings(
+        input_channel_names=input_channel_names,
+        reconstruction_dimension=str(calib_window.acq_mode[0]),
+        birefringence=birefringence_settings,
+        phase=phase_settings,
     )
 
-    phase_apply_inverse_settings = settings._PhaseApplyInverseSettings(
-        reconstruction_algorithm=calib_window.phase_regularizer,
-        strength=calib_window.ui.le_phase_strength.text(),
-        TV_rho_strength=calib_window.ui.le_rho.text(),
-        TV_iterations=calib_window.ui.le_itr.text(),
-    )
-
-    apply_inverse_settings = settings.ApplyInverseSettings(
-        birefringence_apply_inverse_settings=birefringence_apply_inverse_settings,
-        phase_apply_inverse_settings=phase_apply_inverse_settings,
-    )
-
-    model_to_yaml(apply_inverse_settings, apply_inverse_settings_path)
+    model_to_yaml(reconstruction_settings, reconstruction_config_path)
 
 
 class PolarizationAcquisitionSignals(WorkerBaseSignals):
