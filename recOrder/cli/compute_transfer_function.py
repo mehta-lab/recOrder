@@ -124,16 +124,17 @@ def compute_transfer_function_cli(input_data_path, config_path, output_path):
 
 
 @click.command()
+@click.help_option("-h", "--help")
 @input_data_path_argument()
 @config_path_option()
 @output_dataset_options(default="./transfer-function.zarr")
 def compute_tf(input_data_path, config_path, output_path):
     """
-    Compute a transfer function from a .yaml configuration file.
+    Compute a transfer function using a a dataset and configuration file.
 
     See /examples/settings/ for example configuration files.
 
-    Example usage:
+    Example usage:\n
     $ recorder compute-tf input.zarr -c /examples/settings/birefringence.yml -o output.zarr
     """
     compute_transfer_function_cli(input_data_path, config_path, output_path)

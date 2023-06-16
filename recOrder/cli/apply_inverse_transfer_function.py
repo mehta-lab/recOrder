@@ -336,6 +336,7 @@ def apply_inverse_transfer_function_cli(
 
 
 @click.command()
+@click.help_option("-h", "--help")
 @input_data_path_argument()
 @click.argument(
     "transfer_function_path",
@@ -347,12 +348,12 @@ def apply_inv_tf(
     input_data_path, transfer_function_path, config_path, output_path
 ):
     """
-    Invert and apply a transfer function using .yaml configuration settings.
+    Invert and apply a transfer function to a dataset using a configuration file.
 
     See /examples/settings/ for example configuration files.
 
-    Example usage:
-    $ recOrder apply-inv-tf input.zarr transfer-function.zarr -c /examples/settings/birefringence.yml -o output.zarr
+    Example usage:\n
+    $ recorder apply-inv-tf input.zarr transfer-function.zarr -c /examples/settings/birefringence.yml -o output.zarr
     """
     apply_inverse_transfer_function_cli(
         input_data_path, transfer_function_path, config_path, output_path
