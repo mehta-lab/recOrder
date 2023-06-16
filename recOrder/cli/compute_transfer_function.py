@@ -29,7 +29,13 @@ def compute_transfer_function_cli(input_data_path, config_path, output_path):
 
     # Read shape from input dataset
     input_dataset = open_ome_zarr(input_data_path, layout="fov", mode="r")
-    _, _, z_shape, y_shape, x_shape = input_dataset.data.shape
+    (
+        _,
+        _,
+        z_shape,
+        y_shape,
+        x_shape,
+    ) = input_dataset.data.shape  # only loads a single position "0"
 
     # Prepare output dataset
     output_dataset = open_ome_zarr(
@@ -107,13 +113,13 @@ def compute_transfer_function_cli(input_data_path, config_path, output_path):
             ]
 
     # Write settings to metadata
-    output_dataset.zattrs["transfer_function_settings"] = settings.dict()
+    output_dataset.zattrs["settings"] = settings.dict()
 
     echo_headline(f"Closing {output_path}\n")
     output_dataset.close()
 
     echo_headline(
-        f"Recreate this transfer function with:\n>> recorder compute-transfer-function {config_path} -o {output_path}"
+        f"Recreate this transfer function with:\n>> recorder compute-transfer-function {input_data_path} -c {config_path} -o {output_path}"
     )
 
 
