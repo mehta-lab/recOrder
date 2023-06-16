@@ -11,7 +11,7 @@ def input_data_path_argument() -> Callable:
         return click.argument(
             "input-data-path",
             type=click.Path(exists=True),
-            nargs=1,
+            nargs=-1,
         )(f)
 
     return decorator
