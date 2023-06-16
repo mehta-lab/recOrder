@@ -65,10 +65,9 @@ def generate_and_save_birefringence_transfer_function(settings, dataset):
 
     Parameters
     ----------
-    settings: object
-        Instance of the TransferFunctionSettings class.
-    dataset: object
-        NGFF Node to be updated.
+    settings: TransferFunctionSettings
+    dataset: NGFF Node
+        The dataset that will be updated.
     """
     echo_headline(
         "Generating birefringence transfer function with settings:"
@@ -92,10 +91,9 @@ def generate_and_save_phase_transfer_function(settings, dataset):
 
     Parameters
     ----------
-    settings: object
-        Instance of the TransferFunctionSettings class.
-    dataset: object
-        NGFF Node to be updated.
+    settings: TransferFunctionSettings
+    dataset: NGFF Node
+        The dataset that will be updated.
     """
     echo_headline("Generating phase transfer function with settings:")
     echo_settings(settings.phase_transfer_function_settings)
