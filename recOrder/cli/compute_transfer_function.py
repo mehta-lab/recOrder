@@ -13,6 +13,7 @@ from waveorder.models import (
     inplane_oriented_thick_pol3d,
     isotropic_thin_3d,
     phase_thick_3d,
+    isotropic_fluorescent_thick_3d,
 )
 
 
@@ -111,6 +112,27 @@ def compute_transfer_function_cli(input_data_path, config_path, output_path):
             ] = imaginary_potential_transfer_function.cpu().numpy()[
                 None, None, ...
             ]
+
+    if settings.fluorescence is not None:
+        echo_headline(
+            "Generating fluorescence transfer function with settings:"
+        )
+        echo_settings(settings.fluorescence.transfer_function)
+
+        if settings.reconstruction_dimension == 2:
+            raise NotImplemented
+        elif settings.reconstruction_dimension == 3:
+            # Calculate transfer functions
+            optical_transfer_function = (
+                isotropic_fluorescent_thick_3d.calculate_transfer_function(
+                    zyx_shape=(z_shape, y_shape, x_shape),
+                    **settings.fluorescence.transfer_function.dict(),
+                )
+            )
+            # Save
+            output_dataset[
+                "optical_transfer_function"
+            ] = optical_transfer_function.cpu().numpy()[None, None, ...]
 
     # Write settings to metadata
     output_dataset.zattrs["settings"] = settings.dict()
