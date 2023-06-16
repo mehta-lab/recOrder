@@ -6,7 +6,7 @@ from recOrder.cli.printing import echo_settings, echo_headline
 from recOrder.cli.settings import TransferFunctionSettings
 from recOrder.cli.parsing import config_path_option, output_dataset_options
 from waveorder.models import (
-    inplane_anisotropic_thin_pol3d,
+    inplane_oriented_thick_pol3d,
     isotropic_thin_3d,
     phase_thick_3d,
 )
@@ -77,7 +77,7 @@ def generate_and_save_birefringence_transfer_function(settings, dataset):
 
     # Calculate transfer functions
     intensity_to_stokes_matrix = (
-        inplane_anisotropic_thin_pol3d.calculate_transfer_function(
+        inplane_oriented_thick_pol3d.calculate_transfer_function(
             **settings.birefringence_transfer_function_settings.dict()
         )
     )
