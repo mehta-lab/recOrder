@@ -120,7 +120,7 @@ def compute_transfer_function_cli(input_data_path, config_path, output_path):
         echo_settings(settings.fluorescence.transfer_function)
 
         if settings.reconstruction_dimension == 2:
-            raise NotImplemented
+            raise NotImplementedError
         elif settings.reconstruction_dimension == 3:
             # Calculate transfer functions
             optical_transfer_function = (
