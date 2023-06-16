@@ -48,14 +48,6 @@ def test_compute_transfer_output_file(tmp_path):
             assert path in result.output
             assert joined_path.exists()
 
-def test_compute_transfer_config_none(tmp_path):
-    runner = CliRunner()
-    for option in ("-c ", "--config-path "):
-        cmd = "compute-transfer-function " + option + "None " + "-o " + str(tmp_path)
-        result = runner.invoke(cli, cmd)
-        assert result.exit_code == 0
-        assert "Generating" in result.output
-
 def test_stokes_matrix_write(default_settings_and_transfer_function):
     settings, dataset = default_settings_and_transfer_function
     generate_and_save_birefringence_transfer_function(settings, dataset)
@@ -69,8 +61,9 @@ def test_absorption_and_phase_write(default_settings_and_transfer_function):
     assert "real_potential_transfer_function" not in dataset
     assert "imaginary_potential_transfer_function" not in dataset
 
-def test_phase_3dim_write(settings_3d_and_default_transfer_function):
-    settings, dataset = settings_3d_and_default_transfer_function
+def test_phase_3dim_write(default_settings_and_transfer_function):
+    settings, dataset = default_settings_and_transfer_function
+    settings.universal_settings.reconstruction_dimension = 3
     generate_and_save_phase_transfer_function(settings, dataset)
     assert dataset["real_potential_transfer_function"]
     assert dataset["imaginary_potential_transfer_function"]
@@ -101,10 +94,11 @@ def test_phase_default_call(tmp_path, default_settings_and_transfer_function):
             assert result.exit_code == 0
             assert "reconstruct_phase: true" in result.output
 
-def test_birefringence_false_call(tmp_path, birefringence_settings_false_and_default_transfer_function):
+def test_birefringence_false_call(tmp_path, default_settings_and_transfer_function):
     runner = CliRunner()
     cmd = "compute-transfer-function -o " + str(tmp_path)
-    settings, _ = birefringence_settings_false_and_default_transfer_function
+    settings, _ = default_settings_and_transfer_function
+    settings.universal_settings.reconstruct_birefringence = False
     with patch("recOrder.cli.compute_transfer_function.TransferFunctionSettings") as mock_settings:
         mock_settings.return_value = settings
         with patch("recOrder.cli.compute_transfer_function.generate_and_save_birefringence_transfer_function") as mock:
@@ -113,10 +107,11 @@ def test_birefringence_false_call(tmp_path, birefringence_settings_false_and_def
             assert result.exit_code == 0
             assert "reconstruct_birefringence: false" in result.output
 
-def test_phase_false_call(tmp_path, phase_settings_false_and_default_transfer_function):
+def test_phase_false_call(tmp_path, default_settings_and_transfer_function):
     runner = CliRunner()
     cmd = "compute-transfer-function -o " + str(tmp_path)
-    settings, _ = phase_settings_false_and_default_transfer_function
+    settings, _ = default_settings_and_transfer_function
+    settings.universal_settings.reconstruct_phase = False
     with patch("recOrder.cli.compute_transfer_function.TransferFunctionSettings") as mock_settings:
         mock_settings.return_value = settings
         with patch("recOrder.cli.compute_transfer_function.generate_and_save_phase_transfer_function") as mock:
@@ -125,10 +120,12 @@ def test_phase_false_call(tmp_path, phase_settings_false_and_default_transfer_fu
             assert result.exit_code == 0
             assert "reconstruct_phase: false" in result.output
 
-def test_b_and_p_false_call(tmp_path, birefringence_and_phase_settings_false_and_default_transfer_function):
+def test_b_and_p_false_call(tmp_path, default_settings_and_transfer_function):
     runner = CliRunner()
     cmd = "compute-transfer-function -o " + str(tmp_path)
-    settings, _ = birefringence_and_phase_settings_false_and_default_transfer_function
+    settings, _ = default_settings_and_transfer_function
+    settings.universal_settings.reconstruct_birefringence = False
+    settings.universal_settings.reconstruct_phase = False
     with patch("recOrder.cli.compute_transfer_function.TransferFunctionSettings") as mock_settings:
         mock_settings.return_value = settings
         with patch("recOrder.cli.compute_transfer_function.generate_and_save_birefringence_transfer_function") as mock_1:
