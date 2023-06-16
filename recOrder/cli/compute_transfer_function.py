@@ -17,7 +17,140 @@ from waveorder.models import (
 )
 
 
+def generate_and_save_birefringence_transfer_function(settings, dataset):
+    """Generates and saves the birefringence transfer function to the dataset, based on the settings.
+
+    Parameters
+    ----------
+    settings: ReconstructionSettings
+    dataset: NGFF Node
+        The dataset that will be updated.
+    """
+    echo_headline("Generating birefringence transfer function with settings:")
+    echo_settings(settings.birefringence.transfer_function)
+
+    # Calculate transfer functions
+    intensity_to_stokes_matrix = (
+        inplane_oriented_thick_pol3d.calculate_transfer_function(
+            **settings.birefringence.transfer_function.dict()
+        )
+    )
+    # Save
+    dataset[
+        "intensity_to_stokes_matrix"
+    ] = intensity_to_stokes_matrix.cpu().numpy()[None, None, None, ...]
+
+
+def generate_and_save_phase_transfer_function(settings, dataset, zyx_shape):
+    """Generates and saves the phase transfer function to the dataset, based on the settings.
+
+    Parameters
+    ----------
+    settings: ReconstructionSettings
+    dataset: NGFF Node
+        The dataset that will be updated.
+    zyx_shape : tuple
+        A tuple of integers specifying the input data's shape in (Z, Y, X) order
+    """
+    echo_headline("Generating phase transfer function with settings:")
+    echo_settings(settings.phase.transfer_function)
+
+    if settings.reconstruction_dimension == 2:
+        # Convert zyx_shape and z_pixel_size into yx_shape and z_position_list
+        settings_dict = settings.phase.transfer_function.dict()
+        settings_dict["yx_shape"] = [zyx_shape[1], zyx_shape[2]]
+        settings_dict["z_position_list"] = list(
+            -(np.arange(zyx_shape[0]) - zyx_shape[0] // 2)
+            * settings_dict["z_pixel_size"]
+        )
+
+        # Remove unused parameters
+        settings_dict.pop("z_pixel_size")
+        settings_dict.pop("z_padding")
+
+        # Calculate transfer functions
+        (
+            absorption_transfer_function,
+            phase_transfer_function,
+        ) = isotropic_thin_3d.calculate_transfer_function(
+            **settings_dict,
+        )
+
+        # Save
+        dataset[
+            "absorption_transfer_function"
+        ] = absorption_transfer_function.cpu().numpy()[None, None, ...]
+        dataset[
+            "phase_transfer_function"
+        ] = phase_transfer_function.cpu().numpy()[None, None, ...]
+
+    elif settings.reconstruction_dimension == 3:
+        # Calculate transfer functions
+        (
+            real_potential_transfer_function,
+            imaginary_potential_transfer_function,
+        ) = phase_thick_3d.calculate_transfer_function(
+            zyx_shape=zyx_shape,
+            **settings.phase.transfer_function.dict(),
+        )
+        # Save
+        dataset[
+            "real_potential_transfer_function"
+        ] = real_potential_transfer_function.cpu().numpy()[None, None, ...]
+        dataset[
+            "imaginary_potential_transfer_function"
+        ] = imaginary_potential_transfer_function.cpu().numpy()[
+            None, None, ...
+        ]
+
+
+def generate_and_save_fluorescence_transfer_function(
+    settings, dataset, zyx_shape
+):
+    """Generates and saves the fluorescence transfer function to the dataset, based on the settings.
+
+    Parameters
+    ----------
+    settings: ReconstructionSettings
+    dataset: NGFF Node
+        The dataset that will be updated.
+    zyx_shape : tuple
+        A tuple of integers specifying the input data's shape in (Z, Y, X) order
+    """
+    echo_headline("Generating fluorescence transfer function with settings:")
+    echo_settings(settings.fluorescence.transfer_function)
+
+    if settings.reconstruction_dimension == 2:
+        raise NotImplementedError
+    elif settings.reconstruction_dimension == 3:
+        # Calculate transfer functions
+        optical_transfer_function = (
+            isotropic_fluorescent_thick_3d.calculate_transfer_function(
+                zyx_shape=zyx_shape,
+                **settings.fluorescence.transfer_function.dict(),
+            )
+        )
+        # Save
+        dataset[
+            "optical_transfer_function"
+        ] = optical_transfer_function.cpu().numpy()[None, None, ...]
+
+
 def compute_transfer_function_cli(input_data_path, config_path, output_path):
+    """CLI command to compute the transfer function given a configuration file path
+    and a desired output path. Given no arguments, a default configuration file will
+    be used and the output will be in transfer-function.zarr.
+
+    Parameters
+    ----------
+    input_data_path : string
+        Path to the input data file.
+    config_path : string
+        Path of the configuration file.
+    output_path : string
+        Path of the output file.
+    """
+
     # Load config file
     if config_path is None:
         settings = ReconstructionSettings()
@@ -37,6 +170,7 @@ def compute_transfer_function_cli(input_data_path, config_path, output_path):
         y_shape,
         x_shape,
     ) = input_dataset.data.shape  # only loads a single position "0"
+    zyx_shape = (z_shape, y_shape, x_shape)
 
     # Prepare output dataset
     output_dataset = open_ome_zarr(
@@ -45,94 +179,17 @@ def compute_transfer_function_cli(input_data_path, config_path, output_path):
 
     # Pass settings to appropriate calculate_transfer_function and save
     if settings.birefringence is not None:
-        echo_headline(
-            "Generating birefringence transfer function with settings:"
+        generate_and_save_birefringence_transfer_function(
+            settings, output_dataset
         )
-        echo_settings(settings.birefringence.transfer_function)
-
-        # Calculate transfer functions
-        intensity_to_stokes_matrix = (
-            inplane_oriented_thick_pol3d.calculate_transfer_function(
-                **settings.birefringence.transfer_function.dict()
-            )
-        )
-        # Save
-        output_dataset[
-            "intensity_to_stokes_matrix"
-        ] = intensity_to_stokes_matrix.cpu().numpy()[None, None, None, ...]
-
     if settings.phase is not None:
-        echo_headline("Generating phase transfer function with settings:")
-        echo_settings(settings.phase.transfer_function)
-
-        if settings.reconstruction_dimension == 2:
-            # Convert zyx_shape and z_pixel_size into yx_shape and z_position_list
-            settings_dict = settings.phase.transfer_function.dict()
-            settings_dict["yx_shape"] = [y_shape, x_shape]
-            settings_dict["z_position_list"] = list(
-                -(np.arange(z_shape) - z_shape // 2)
-                * settings_dict["z_pixel_size"]
-            )
-
-            # Remove unused parameters
-            settings_dict.pop("z_pixel_size")
-            settings_dict.pop("z_padding")
-
-            # Calculate transfer functions
-            (
-                absorption_transfer_function,
-                phase_transfer_function,
-            ) = isotropic_thin_3d.calculate_transfer_function(
-                **settings_dict,
-            )
-
-            # Save
-            output_dataset[
-                "absorption_transfer_function"
-            ] = absorption_transfer_function.cpu().numpy()[None, None, ...]
-            output_dataset[
-                "phase_transfer_function"
-            ] = phase_transfer_function.cpu().numpy()[None, None, ...]
-
-        elif settings.reconstruction_dimension == 3:
-            # Calculate transfer functions
-            (
-                real_potential_transfer_function,
-                imaginary_potential_transfer_function,
-            ) = phase_thick_3d.calculate_transfer_function(
-                zyx_shape=(z_shape, y_shape, x_shape),
-                **settings.phase.transfer_function.dict(),
-            )
-            # Save
-            output_dataset[
-                "real_potential_transfer_function"
-            ] = real_potential_transfer_function.cpu().numpy()[None, None, ...]
-            output_dataset[
-                "imaginary_potential_transfer_function"
-            ] = imaginary_potential_transfer_function.cpu().numpy()[
-                None, None, ...
-            ]
-
-    if settings.fluorescence is not None:
-        echo_headline(
-            "Generating fluorescence transfer function with settings:"
+        generate_and_save_phase_transfer_function(
+            settings, output_dataset, zyx_shape
         )
-        echo_settings(settings.fluorescence.transfer_function)
-
-        if settings.reconstruction_dimension == 2:
-            raise NotImplementedError
-        elif settings.reconstruction_dimension == 3:
-            # Calculate transfer functions
-            optical_transfer_function = (
-                isotropic_fluorescent_thick_3d.calculate_transfer_function(
-                    zyx_shape=(z_shape, y_shape, x_shape),
-                    **settings.fluorescence.transfer_function.dict(),
-                )
-            )
-            # Save
-            output_dataset[
-                "optical_transfer_function"
-            ] = optical_transfer_function.cpu().numpy()[None, None, ...]
+    if settings.fluorescence is not None:
+        generate_and_save_fluorescence_transfer_function(
+            settings, output_dataset, zyx_shape
+        )
 
     # Write settings to metadata
     output_dataset.zattrs["settings"] = settings.dict()
