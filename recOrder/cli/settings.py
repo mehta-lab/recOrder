@@ -88,6 +88,7 @@ class PhaseTransferFunctionSettings(
     WavelengthIllumination,
 ):
     numerical_aperture_illumination: NonNegativeFloat = 0.5
+    axial_flip: bool = False
 
     @validator("numerical_aperture_illumination")
     def na_ill(cls, v, values):
