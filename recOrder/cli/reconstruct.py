@@ -1,4 +1,5 @@
 import click
+import os
 from recOrder.cli.compute_transfer_function import (
     compute_transfer_function_cli,
 )
@@ -18,7 +19,18 @@ from recOrder.cli.parsing import (
 @config_path_option()
 @output_dataset_options(default="./reconstruction.zarr")
 def reconstruct(input_data_path, config_path, output_path):
-    transfer_function_path = "transfer_function.zarr"
-    compute_transfer_function_cli(input_data_path, config_path, transfer_function_path)
-    apply_inverse_transfer_function_cli(input_data_path, transfer_function_path, config_path, output_path=)
     """Reconstruct a dataset using configuration file."""
+
+    # Handle transfer function path
+    output_directory = os.path.dirname(output_path)
+    transfer_function_path = os.path.join(
+        output_directory, "transfer_function.zarr"
+    )
+
+    # Compute transfer function and apply inverse
+    compute_transfer_function_cli(
+        input_data_path, config_path, transfer_function_path
+    )
+    apply_inverse_transfer_function_cli(
+        input_data_path, transfer_function_path, config_path, output_path
+    )
