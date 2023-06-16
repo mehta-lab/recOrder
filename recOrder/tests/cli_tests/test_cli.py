@@ -1,22 +1,10 @@
 from recOrder.cli.main import cli
-import unittest
 from click.testing import CliRunner
-from unittest.mock import patch, Mock
-from iohub.ngff import open_ome_zarr, Position
-from hypothesis import given, HealthCheck, settings
-from hypothesis import strategies as st
+from unittest.mock import patch
 from recOrder.cli.compute_transfer_function import (
     generate_and_save_phase_transfer_function, 
     generate_and_save_birefringence_transfer_function,
-    compute_transfer_function_cli
 )
-from recOrder.cli.settings import (
-    TransferFunctionSettings,
-    _PhaseTransferFunctionSettings,
-    _BirefringenceTransferFunctionSettings,
-    _UniversalSettings
-)
-import pytest
 
 def test_main():
     runner = CliRunner()
@@ -53,11 +41,12 @@ def test_compute_transfer_output_file(tmp_path):
     for option in ("-o ", "--output-path "):
         temp_cmd = "compute-transfer-function " + option
         for path in paths:
-            cmd = temp_cmd + str(tmp_path.joinpath(path))
+            joined_path = tmp_path.joinpath(path)
+            cmd = temp_cmd + str(joined_path)
             result = runner.invoke(cli, cmd)
             assert result.exit_code == 0
             assert path in result.output
-            assert tmp_path.exists()
+            assert joined_path.exists()
 
 def test_compute_transfer_config_none(tmp_path):
     runner = CliRunner()
@@ -67,33 +56,31 @@ def test_compute_transfer_config_none(tmp_path):
         assert result.exit_code == 0
         assert "Generating" in result.output
 
-def test_stokes_matrix_write(setup_default_ctf_settings):
-    settings, dataset = setup_default_ctf_settings
+def test_stokes_matrix_write(default_settings_and_transfer_function):
+    settings, dataset = default_settings_and_transfer_function
     generate_and_save_birefringence_transfer_function(settings, dataset)
     assert dataset["intensity_to_stokes_matrix"]
 
-def test_absorption_and_phase_write(setup_default_ctf_settings):
-    settings, dataset = setup_default_ctf_settings
+def test_absorption_and_phase_write(default_settings_and_transfer_function):
+    settings, dataset = default_settings_and_transfer_function
     generate_and_save_phase_transfer_function(settings, dataset)
     assert dataset["absorption_transfer_function"]
     assert dataset["phase_transfer_function"]
-    with pytest.raises(KeyError):
-        assert dataset["real_potential_transfer_function"]
-        assert dataset["imaginary_potential_transfer_function"]
+    assert "real_potential_transfer_function" not in dataset
+    assert "imaginary_potential_transfer_function" not in dataset
 
-def test_phase_3dim_write(setup_3d_ctf_settings):
-    settings, dataset = setup_3d_ctf_settings
+def test_phase_3dim_write(settings_3d_and_default_transfer_function):
+    settings, dataset = settings_3d_and_default_transfer_function
     generate_and_save_phase_transfer_function(settings, dataset)
     assert dataset["real_potential_transfer_function"]
     assert dataset["imaginary_potential_transfer_function"]
-    with pytest.raises(KeyError):
-        assert dataset["absorption_transfer_function"]
-        assert dataset["phase_transfer_function"]
+    assert "absorption_transfer_function" not in dataset
+    assert "phase_transfer_function" not in dataset
 
-def test_birefringence_default_call(tmp_path, setup_default_ctf_settings):
+def test_birefringence_default_call(tmp_path, default_settings_and_transfer_function):
     runner = CliRunner()
     cmd = "compute-transfer-function -o " + str(tmp_path)
-    settings, dataset = setup_default_ctf_settings
+    settings, dataset = default_settings_and_transfer_function
     with patch("recOrder.cli.compute_transfer_function.open_ome_zarr") as mock_zarr_function:
         mock_zarr_function.return_value = dataset
         with patch("recOrder.cli.compute_transfer_function.generate_and_save_birefringence_transfer_function") as mock:
@@ -102,10 +89,10 @@ def test_birefringence_default_call(tmp_path, setup_default_ctf_settings):
             assert result.exit_code == 0
             assert "reconstruct_birefringence: true" in result.output
 
-def test_phase_default_call(tmp_path, setup_default_ctf_settings):
+def test_phase_default_call(tmp_path, default_settings_and_transfer_function):
     runner = CliRunner()
     cmd = "compute-transfer-function -o " + str(tmp_path)
-    settings, dataset = setup_default_ctf_settings
+    settings, dataset = default_settings_and_transfer_function
     with patch("recOrder.cli.compute_transfer_function.open_ome_zarr") as mock_zarr_function:
         mock_zarr_function.return_value = dataset
         with patch("recOrder.cli.compute_transfer_function.generate_and_save_phase_transfer_function") as mock:
@@ -114,10 +101,10 @@ def test_phase_default_call(tmp_path, setup_default_ctf_settings):
             assert result.exit_code == 0
             assert "reconstruct_phase: true" in result.output
 
-def test_birefringence_false_call(tmp_path, setup_b_false_ctf_settings):
+def test_birefringence_false_call(tmp_path, birefringence_settings_false_and_default_transfer_function):
     runner = CliRunner()
     cmd = "compute-transfer-function -o " + str(tmp_path)
-    settings, _ = setup_b_false_ctf_settings
+    settings, _ = birefringence_settings_false_and_default_transfer_function
     with patch("recOrder.cli.compute_transfer_function.TransferFunctionSettings") as mock_settings:
         mock_settings.return_value = settings
         with patch("recOrder.cli.compute_transfer_function.generate_and_save_birefringence_transfer_function") as mock:
@@ -126,10 +113,10 @@ def test_birefringence_false_call(tmp_path, setup_b_false_ctf_settings):
             assert result.exit_code == 0
             assert "reconstruct_birefringence: false" in result.output
 
-def test_phase_false_call(tmp_path, setup_p_false_ctf_settings):
+def test_phase_false_call(tmp_path, phase_settings_false_and_default_transfer_function):
     runner = CliRunner()
     cmd = "compute-transfer-function -o " + str(tmp_path)
-    settings, _ = setup_p_false_ctf_settings
+    settings, _ = phase_settings_false_and_default_transfer_function
     with patch("recOrder.cli.compute_transfer_function.TransferFunctionSettings") as mock_settings:
         mock_settings.return_value = settings
         with patch("recOrder.cli.compute_transfer_function.generate_and_save_phase_transfer_function") as mock:
@@ -138,10 +125,10 @@ def test_phase_false_call(tmp_path, setup_p_false_ctf_settings):
             assert result.exit_code == 0
             assert "reconstruct_phase: false" in result.output
 
-def test_b_and_p_false_call(tmp_path, setup_b_and_p_false_ctf_settings):
+def test_b_and_p_false_call(tmp_path, birefringence_and_phase_settings_false_and_default_transfer_function):
     runner = CliRunner()
     cmd = "compute-transfer-function -o " + str(tmp_path)
-    settings, _ = setup_b_and_p_false_ctf_settings
+    settings, _ = birefringence_and_phase_settings_false_and_default_transfer_function
     with patch("recOrder.cli.compute_transfer_function.TransferFunctionSettings") as mock_settings:
         mock_settings.return_value = settings
         with patch("recOrder.cli.compute_transfer_function.generate_and_save_birefringence_transfer_function") as mock_1:

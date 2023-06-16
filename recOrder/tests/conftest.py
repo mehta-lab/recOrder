@@ -3,36 +3,32 @@ from recOrder.cli.settings import TransferFunctionSettings
 from iohub.ngff import open_ome_zarr
 
 @pytest.fixture(scope="function")
-def setup_default_ctf_settings(tmp_path):
+def default_settings_and_transfer_function(tmp_path):
     settings = TransferFunctionSettings()
     dataset = open_ome_zarr(tmp_path, layout="fov", mode="w", channel_names=["None"])
     yield settings, dataset
 
 @pytest.fixture(scope="function")
-def setup_b_false_ctf_settings(tmp_path):
-    settings = TransferFunctionSettings()
+def birefringence_settings_false_and_default_transfer_function(default_settings_and_transfer_function):
+    settings, dataset = default_settings_and_transfer_function
     settings.universal_settings.reconstruct_birefringence = False
-    dataset = open_ome_zarr(tmp_path, layout="fov", mode="w", channel_names=["None"])
     yield settings, dataset
 
 @pytest.fixture(scope="function")
-def setup_p_false_ctf_settings(tmp_path):
-    settings = TransferFunctionSettings()
+def phase_settings_false_and_default_transfer_function(default_settings_and_transfer_function):
+    settings, dataset = default_settings_and_transfer_function
     settings.universal_settings.reconstruct_phase = False
-    dataset = open_ome_zarr(tmp_path, layout="fov", mode="w", channel_names=["None"])
     yield settings, dataset
 
 @pytest.fixture(scope="function")
-def setup_b_and_p_false_ctf_settings(tmp_path):
-    settings = TransferFunctionSettings()
+def birefringence_and_phase_settings_false_and_default_transfer_function(default_settings_and_transfer_function):
+    settings, dataset = default_settings_and_transfer_function
     settings.universal_settings.reconstruct_birefringence = False
     settings.universal_settings.reconstruct_phase = False
-    dataset = open_ome_zarr(tmp_path, layout="fov", mode="w", channel_names=["None"])
     yield settings, dataset
 
 @pytest.fixture(scope="function")
-def setup_3d_ctf_settings(tmp_path):
-    settings = TransferFunctionSettings()
+def settings_3d_and_default_transfer_function(default_settings_and_transfer_function):
+    settings, dataset = default_settings_and_transfer_function
     settings.universal_settings.reconstruction_dimension = 3
-    dataset = open_ome_zarr(tmp_path, layout="fov", mode = "w", channel_names=["None"])
     yield settings, dataset
