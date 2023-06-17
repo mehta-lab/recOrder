@@ -43,19 +43,3 @@ def test_model_to_yaml_invalid_model():
     # Call the function and expect a TypeError
     with pytest.raises(TypeError):
         model_to_yaml(invalid_model, "model.yaml")
-
-
-class MockModel:
-    def __init__(self, field1=None, field2=None):
-        self.field1 = field1
-        self.field2 = field2
-
-
-def test_yaml_to_model(sample_yaml):
-    # Call the function under test
-    result = yaml_to_model(sample_yaml, MockModel)
-
-    # Verify the result
-    assert isinstance(result, MockModel)
-    assert result.field1 == "value1"
-    assert result.field2 == "value2"

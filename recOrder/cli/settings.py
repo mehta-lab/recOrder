@@ -21,7 +21,7 @@ class WavelengthIllumination(MyBaseModel):
     wavelength_illumination: PositiveFloat = 0.532
 
 
-class BirefringenceTransferFunctionSettings(WavelengthIllumination):
+class BirefringenceTransferFunctionSettings(MyBaseModel):
     swing: float = 0.1
     scheme: Literal["4-State", "5-State"] = "5-State"
 
