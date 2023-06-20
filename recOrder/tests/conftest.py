@@ -28,3 +28,14 @@ def birefringence_phase_recon_settings_function(tmp_path):
         tmp_path, layout="fov", mode="w", channel_names=["None"]
     )
     yield recon_settings, dataset
+
+
+@pytest.fixture(scope="function")
+def fluorescence_recon_settings_function(tmp_path):
+    recon_settings = settings.ReconstructionSettings(
+        fluorescence=settings.FluorescenceSettings()
+    )
+    dataset = open_ome_zarr(
+        tmp_path, layout="fov", mode="w", channel_names=["None"]
+    )
+    yield recon_settings, dataset
