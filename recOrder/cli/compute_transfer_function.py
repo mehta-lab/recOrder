@@ -209,7 +209,7 @@ def compute_transfer_function_cli(input_data_path, config_path, output_path):
 @output_dataset_options(default="./transfer-function.zarr")
 def compute_tf(input_data_path, config_path, output_path):
     """
-    Compute a transfer function using a a dataset and configuration file.
+    Compute a transfer function using a dataset and configuration file.
 
     See /examples/settings/ for example configuration files.
 
