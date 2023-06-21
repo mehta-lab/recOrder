@@ -13,6 +13,6 @@ phase:
     axial_flip: false
   apply_inverse:
     reconstruction_algorithm: Tikhonov
-    strength: 0.001
+    regularization_strength: 0.001
     TV_rho_strength: 0.001
     TV_iterations: 1

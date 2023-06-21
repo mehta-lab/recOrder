@@ -32,7 +32,7 @@ class BirefringenceTransferFunctionSettings(MyBaseModel):
         return v
 
 
-class BirefringenceApplyInverseSettings(MyBaseModel):
+class BirefringenceApplyInverseSettings(WavelengthIllumination):
     background_path: str = ""
     remove_estimated_background: bool = False
     orientation_flip: bool = False
@@ -78,7 +78,7 @@ class FourierTransferFunctionSettings(MyBaseModel):
 
 class FourierApplyInverseSettings(MyBaseModel):
     reconstruction_algorithm: Literal["Tikhonov", "TV"] = "Tikhonov"
-    strength: NonNegativeFloat = 1e-3
+    regularization_strength: NonNegativeFloat = 1e-3
     TV_rho_strength: PositiveFloat = 1e-3
     TV_iterations: NonNegativeInt = 1
 
