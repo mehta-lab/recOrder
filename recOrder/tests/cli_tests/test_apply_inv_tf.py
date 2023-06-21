@@ -65,9 +65,6 @@ def test_apply_inv_tf(tmp_path):
         # Apply the tf
         result_path = input_path.with_name("result.zarr")
 
-        import pdb
-
-        pdb.set_trace()
         result_inv = runner.invoke(
             cli,
             "apply-inv-tf "
