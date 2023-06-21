@@ -42,7 +42,7 @@ def apply_inverse_transfer_function_cli(
     else:
         settings = utils.yaml_to_model(config_path, ReconstructionSettings)
 
-    # Load dataset shape and check for consistency
+    # Load dataset shape
     t_shape = input_dataset.data.shape[0]
 
     # Simplify important settings names
@@ -131,13 +131,14 @@ def apply_inverse_transfer_function_cli(
 
         for time_index in range(t_shape):
             # Apply
-            reconstructed_parameters = inplane_oriented_thick_pol3d.apply_inverse_transfer_function(
-                tczyx_data[time_index],
-                intensity_to_stokes_matrix,
-                settings.birefringence.transfer_function.wavelength_illumination,
-                cyx_no_sample_data,
-                project_stokes_to_2d=False,
-                **biref_inverse_dict,
+            reconstructed_parameters = (
+                inplane_oriented_thick_pol3d.apply_inverse_transfer_function(
+                    tczyx_data[time_index],
+                    intensity_to_stokes_matrix,
+                    cyx_no_sample_data,
+                    project_stokes_to_2d=False,
+                    **biref_inverse_dict,
+                )
             )
             # Save
             for param_index, parameter in enumerate(reconstructed_parameters):
@@ -290,12 +291,17 @@ def apply_inverse_transfer_function_cli(
                 ][0, 0]
             )
 
+            # Prepare wavelength illumination
+            # wavelength_illumination = biref_inverse_dict[
+            #    "wavelength_illumination"
+            # ]
+            # biref_inverse_dict.pop("wavelength_illumination")
+
             # Apply
             for time_index in range(t_shape):
                 reconstructed_parameters_3d = inplane_oriented_thick_pol3d.apply_inverse_transfer_function(
                     tczyx_data[time_index],
                     intensity_to_stokes_matrix,
-                    settings.birefringence.transfer_function.wavelength_illumination,
                     cyx_no_sample_data,
                     project_stokes_to_2d=False,
                     **biref_inverse_dict,
@@ -355,7 +361,7 @@ def apply_inverse_transfer_function_cli(
     input_dataset.close()
 
     echo_headline(
-        f"Recreate this reconstruction with:\n>> recorder apply-inv-tf {input_data_path} {transfer_function_path} -c {config_path} -o {output_path}"
+        f"Recreate this reconstruction with:\n$ recorder apply-inv-tf {input_data_path} {transfer_function_path} -c {config_path} -o {output_path}"
     )
 
 
@@ -372,7 +378,7 @@ def apply_inv_tf(
     input_data_path, transfer_function_path, config_path, output_path
 ):
     """
-    Invert and apply a transfer function to a dataset using a configuration file.
+    Apply an inverse transfer function to a dataset using a configuration file.
 
     See /examples/settings/ for example configuration files.
 
