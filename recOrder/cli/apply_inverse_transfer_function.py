@@ -135,8 +135,8 @@ def apply_inverse_transfer_function_cli(
                 inplane_oriented_thick_pol3d.apply_inverse_transfer_function(
                     tczyx_data[time_index],
                     intensity_to_stokes_matrix,
-                    cyx_no_sample_data,
-                    project_stokes_to_2d=False,
+                    cyx_no_sample_data=cyx_no_sample_data,
+                    project_stokes_to_2d=(recon_dim == 2),
                     **biref_inverse_dict,
                 )
             )
@@ -237,8 +237,7 @@ def apply_inverse_transfer_function_cli(
                 reconstructed_parameters_2d = inplane_oriented_thick_pol3d.apply_inverse_transfer_function(
                     tczyx_data[time_index],
                     intensity_to_stokes_matrix,
-                    settings.birefringence.transfer_function.wavelength_illumination,
-                    cyx_no_sample_data,
+                    cyx_no_sample_data=cyx_no_sample_data,
                     project_stokes_to_2d=True,
                     **biref_inverse_dict,
                 )
@@ -246,8 +245,7 @@ def apply_inverse_transfer_function_cli(
                 reconstructed_parameters_3d = inplane_oriented_thick_pol3d.apply_inverse_transfer_function(
                     tczyx_data[time_index],
                     intensity_to_stokes_matrix,
-                    settings.birefringence.transfer_function.wavelength_illumination,
-                    cyx_no_sample_data,
+                    cyx_no_sample_data=cyx_no_sample_data,
                     project_stokes_to_2d=False,
                     **biref_inverse_dict,
                 )
@@ -291,18 +289,12 @@ def apply_inverse_transfer_function_cli(
                 ][0, 0]
             )
 
-            # Prepare wavelength illumination
-            # wavelength_illumination = biref_inverse_dict[
-            #    "wavelength_illumination"
-            # ]
-            # biref_inverse_dict.pop("wavelength_illumination")
-
             # Apply
             for time_index in range(t_shape):
                 reconstructed_parameters_3d = inplane_oriented_thick_pol3d.apply_inverse_transfer_function(
                     tczyx_data[time_index],
                     intensity_to_stokes_matrix,
-                    cyx_no_sample_data,
+                    cyx_no_sample_data=cyx_no_sample_data,
                     project_stokes_to_2d=False,
                     **biref_inverse_dict,
                 )

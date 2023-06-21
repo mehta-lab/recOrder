@@ -1,5 +1,6 @@
 import pathlib
 import numpy as np
+import itertools
 from recOrder.cli.main import cli
 from recOrder.cli import settings
 from recOrder.io import utils
@@ -20,54 +21,69 @@ def test_apply_inv_tf(tmp_path):
     )
     dataset.create_zeros("0", (2, 4, 4, 5, 6), dtype=np.uint16)
 
-    # Generate recon settings
-    recon_settings = settings.ReconstructionSettings(
-        input_channel_names=channel_names,
-        reconstruction_dimension=3,
-        birefringence=settings.BirefringenceSettings(
-            transfer_function=settings.BirefringenceTransferFunctionSettings(
-                scheme="4-State"
-            )
-        ),
-        phase=settings.PhaseSettings(),
+    # Setup options
+    birefringence_settings = settings.BirefringenceSettings(
+        transfer_function=settings.BirefringenceTransferFunctionSettings(
+            scheme="4-State"
+        )
     )
-    config_path = tmp_path / "test.yml"
-    utils.model_to_yaml(recon_settings, config_path)
+    all_options = [
+        (birefringence_settings, None, 2),
+        (birefringence_settings, settings.PhaseSettings(), 2),
+        (birefringence_settings, None, 3),
+        (birefringence_settings, settings.PhaseSettings(), 3),
+    ]
 
-    # Run CLI
-    runner = CliRunner()
-    tf_path = input_path.with_name("tf.zarr")
-    runner.invoke(
-        cli,
-        "compute-tf "
-        + str(input_path)
-        + " -c "
-        + str(config_path)
-        + " -o "
-        + str(tf_path),
-    )
-    assert tf_path.exists()
+    for birefringence_option, phase_option, dimension_option in all_options:
+        if (birefringence_option is None) and (phase_option is None):
+            continue
 
-    # Apply the tf
-    result_path = input_path.with_name("result.zarr")
+        # Generate recon settings
+        recon_settings = settings.ReconstructionSettings(
+            input_channel_names=channel_names,
+            reconstruction_dimension=dimension_option,
+            birefringence=birefringence_option,
+            phase=phase_option,
+        )
+        config_path = tmp_path / "test.yml"
+        utils.model_to_yaml(recon_settings, config_path)
 
-    result_inv = runner.invoke(
-        cli,
-        "apply-inv-tf "
-        + str(input_path)
-        + " "
-        + str(tf_path)
-        + " -c "
-        + str(config_path)
-        + " -o "
-        + str(result_path),
-    )
-    assert result_path.exists()
-    assert result_inv.exit_code == 0
-    assert "Reconstructing" in result_inv.output
+        # Run CLI
+        runner = CliRunner()
+        tf_path = input_path.with_name("tf.zarr")
+        runner.invoke(
+            cli,
+            "compute-tf "
+            + str(input_path)
+            + " -c "
+            + str(config_path)
+            + " -o "
+            + str(tf_path),
+        )
+        assert tf_path.exists()
 
-    # Check output
-    result_dataset = open_ome_zarr(result_path)
-    assert result_dataset["0"].shape == (2, 5, 4, 5, 6)
-    assert "Retardance" in result_dataset.channel_names
-    assert "Phase3D" in result_dataset.channel_names
+        # Apply the tf
+        result_path = input_path.with_name("result.zarr")
+
+        import pdb
+
+        pdb.set_trace()
+        result_inv = runner.invoke(
+            cli,
+            "apply-inv-tf "
+            + str(input_path)
+            + " "
+            + str(tf_path)
+            + " -c "
+            + str(config_path)
+            + " -o "
+            + str(result_path),
+        )
+        assert result_path.exists()
+        assert result_inv.exit_code == 0
+        assert "Reconstructing" in result_inv.output
+
+        # Check output
+        result_dataset = open_ome_zarr(result_path)
+        assert result_dataset["0"].shape[0] == 2
+        assert result_dataset["0"].shape[3:] == (5, 6)

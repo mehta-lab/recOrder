@@ -146,22 +146,6 @@ class ReconstructionSettings(MyBaseModel):
     phase: Optional[PhaseSettings]
     fluorescence: Optional[FluorescenceSettings]
 
-    @validator("birefringence")
-    def validate_number_of_channel_names(cls, v, values):
-        num_channel_names = len(values.get("input_channel_names"))
-        if v is None and num_channel_names != 1:
-            raise ValueError(
-                f"{num_channel_names} channels names provided. Please provide a single channel for fluorescence/phase reconstructions."
-            )
-        if v is not None:
-            scheme = v.transfer_function.scheme
-            n_scheme = int(scheme[0])
-            if n_scheme != num_channel_names:
-                raise ValueError(
-                    f"{num_channel_names} channels names provided, but the birefringence reconstruction is set to scheme = {scheme}. Please make sure that the number of channels matches the scheme."
-                )
-        return v
-
     @validator("fluorescence")
     def validate_reconstruction_types(cls, v, values):
         if (
@@ -170,4 +154,26 @@ class ReconstructionSettings(MyBaseModel):
             raise ValueError(
                 '"fluorescence" cannot be present alongside "birefringence" or "phase". Please use one configuration file for a "fluorescence" reconstruction and another configuration file for a "birefringence" and/or "phase" reconstructions.'
             )
+    
+        num_channel_names = len(values.get("input_channel_names"))
+        if values.get("birefringence") is None:
+            if (
+                values.get("phase") is None
+                and v is None
+            ):
+                raise ValueError(
+                    "Provide settings for either birefringence, phase, birefringence + phase, or fluorescence."
+                )
+            if num_channel_names != 1:
+                raise ValueError(
+                    f"{num_channel_names} channels names provided. Please provide a single channel for fluorescence/phase reconstructions."
+                )
+        else:
+            scheme = values.get("birefringence").transfer_function.scheme
+            n_scheme = int(scheme[0])
+            if n_scheme != num_channel_names:
+                raise ValueError(
+                    f"{num_channel_names} channels names provided, but the birefringence reconstruction is set to scheme = {scheme}. Please make sure that the number of channels matches the scheme."
+                )
         return v
+
