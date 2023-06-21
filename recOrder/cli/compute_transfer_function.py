@@ -198,7 +198,7 @@ def compute_transfer_function_cli(input_data_path, config_path, output_path):
     output_dataset.close()
 
     echo_headline(
-        f"Recreate this transfer function with:\n>> recorder compute-tf {input_data_path} -c {config_path} -o {output_path}"
+        f"Recreate this transfer function with:\n$ recorder compute-tf {input_data_path} -c {config_path} -o {output_path}"
     )
 
 
