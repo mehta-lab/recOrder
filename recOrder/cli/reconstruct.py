@@ -9,7 +9,7 @@ from recOrder.cli.apply_inverse_transfer_function import (
 from recOrder.cli.parsing import (
     input_data_path_argument,
     config_path_option,
-    output_dataset_options,
+    output_dataset_option,
 )
 
 
@@ -17,7 +17,7 @@ from recOrder.cli.parsing import (
 @click.help_option("-h", "--help")
 @input_data_path_argument()
 @config_path_option()
-@output_dataset_options(default="./reconstruction.zarr")
+@output_dataset_option(default="./reconstruction.zarr")
 def reconstruct(input_data_path, config_path, output_path):
     """Reconstruct a dataset using configuration file."""
 

@@ -6,7 +6,7 @@ from recOrder.cli.settings import ReconstructionSettings
 from recOrder.cli.parsing import (
     input_data_path_argument,
     config_path_option,
-    output_dataset_options,
+    output_dataset_option,
 )
 from recOrder.io import utils
 from waveorder.models import (
@@ -203,7 +203,7 @@ def compute_transfer_function_cli(input_data_path, config_path, output_path):
 @click.help_option("-h", "--help")
 @input_data_path_argument()
 @config_path_option()
-@output_dataset_options(default="./transfer-function.zarr")
+@output_dataset_option(default="./transfer-function.zarr")
 def compute_tf(input_data_path, config_path, output_path):
     """
     Compute a transfer function using a dataset and configuration file.

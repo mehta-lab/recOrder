@@ -8,7 +8,7 @@ from recOrder.cli.settings import ReconstructionSettings
 from recOrder.cli.parsing import (
     input_data_path_argument,
     config_path_option,
-    output_dataset_options,
+    output_dataset_option,
 )
 from recOrder.io import utils
 from waveorder.models import (
@@ -362,7 +362,7 @@ def apply_inverse_transfer_function_cli(
     type=click.Path(exists=True),
 )
 @config_path_option()
-@output_dataset_options(default="./reconstruction.zarr")
+@output_dataset_option(default="./reconstruction.zarr")
 def apply_inv_tf(
     input_data_path, transfer_function_path, config_path, output_path
 ):

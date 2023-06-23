@@ -26,7 +26,7 @@ def config_path_option() -> Callable:
     return decorator
 
 
-def output_dataset_options(default) -> Callable:
+def output_dataset_option(default) -> Callable:
     click_options = [
         click.option(
             "--output-path",
