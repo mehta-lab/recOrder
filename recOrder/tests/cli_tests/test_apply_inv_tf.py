@@ -1,6 +1,4 @@
-import pathlib
 import numpy as np
-import itertools
 from recOrder.cli.main import cli
 from recOrder.cli import settings
 from recOrder.io import utils
