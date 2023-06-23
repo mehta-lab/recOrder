@@ -1,7 +1,6 @@
 import click
 import numpy as np
 import torch
-import yaml
 from iohub import open_ome_zarr
 from recOrder.cli.printing import echo_headline, echo_settings
 from recOrder.cli.settings import ReconstructionSettings
