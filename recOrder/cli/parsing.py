@@ -1,9 +1,17 @@
-# lifted from dexp
-
 import click
-import warnings
-import glob
-from typing import Callable, Sequence
+from typing import Callable
+from iohub.ngff import open_ome_zarr, Plate
+
+
+def _validate_fov_path(
+    ctx: click.Context, opt: click.Option, value: str
+) -> None:
+    dataset = open_ome_zarr(value)
+    if isinstance(dataset, Plate):
+        raise ValueError(
+            "Please supply a single position instead of an HCS plate. Likely fix: replace 'input.zarr' with 'input.zarr/0/0/0'"
+        )
+    return value
 
 
 def input_data_path_argument() -> Callable:
@@ -11,6 +19,7 @@ def input_data_path_argument() -> Callable:
         return click.argument(
             "input-data-path",
             type=click.Path(exists=True),
+            callback=_validate_fov_path,
             nargs=1,
         )(f)
 
