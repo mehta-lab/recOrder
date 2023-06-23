@@ -83,6 +83,7 @@ def create_empty_zarr(
         elif recon_dim == 3:
             channel_names.append("Phase3D")
             output_z_shape = input_dataset.data.shape[2]
+    click.echo(f'channel names {channel_names}')
 
     # Output shape based on the type of reconstruction
     output_shape = (
@@ -111,70 +112,81 @@ def create_empty_zarr(
             )
             + input_dataset.data.shape[3:],  # chunk by YX
         )
+    click.echo(f'output_shape {output_shape}')
     input_dataset.close()
 
 
 # -------------------  PARALLELIZATION FUNCTIONS--------------------
-def save_output(
-    output_path, result, t_out=Ellipsis, c_out=Ellipsis, z_out=Ellipsis
-):
-    with open_ome_zarr(output_path) as out_array:
-        out_array[0][t_out, c_out, z_out] = result
+# def save_output(
+#     output_path, result, t_out=Ellipsis, c_out=Ellipsis, z_out=Ellipsis
+# ):
+#     with open_ome_zarr(output_path) as out_array:
+#         out_array[0][t_out, c_out, z_out] = result
 
 
-def apply_n_store(func):
-    @functools.wraps(func)
-    def wrapper(*args, **kwargs):
-        # Filter kwargs based on the function parameters
-        params = func.__code__.co_varnames[: func.__code__.co_argcount]
-        # Args corresponding to apply_inverse_funcs
-        filtered_kwargs = {
-            key: value
-            for key, value in kwargs.items()
-            if key in func.__code__.co_varnames
-        }
-        # Args corresponding to save to ome_zarr
-        output_params = {
-            key: value for key, value in kwargs.items() if key not in params
-        }
+# def apply_n_store(func):
+#     @functools.wraps(func)
+#     def wrapper(*args, **kwargs):
+#         # Filter kwargs based on the function parameters
+#         params = func.__code__.co_varnames[: func.__code__.co_argcount]
+#         # Args corresponding to apply_inverse_funcs
+#         filtered_kwargs = {
+#             key: value
+#             for key, value in kwargs.items()
+#             if key in func.__code__.co_varnames
+#         }
+#         # Args corresponding to save to ome_zarr
+#         output_params = {
+#             key: value for key, value in kwargs.items() if key not in params
+#         }
 
-        # Call the function with the filtered kwargs
-        result = func(*args, **filtered_kwargs)
+#         # Call the function with the filtered kwargs
+#         result = func(*args, **filtered_kwargs)
 
-        # Save the result
-        save_output(**output_params)
+#         # Save the result
+#         save_output(**output_params)
 
-    return wrapper
+#     return wrapper
 
 
-def repeat_with_pool(num_cores, range_values):
+# def repeat_with_pool(num_cores, range_values):
+#     def decorator(func):
+#         def wrapper(*args, **kwargs):
+#             with mp.Pool(num_cores) as p:
+#                 p.starmap(
+#                     partial(func, *args, **kwargs),
+#                     itertools.product(range_values),
+#                 )
+
+#         return wrapper
+
+#     return decorator
+
+
+def multiprocessing_decorator(num_cores):
     def decorator(func):
-        def wrapper(*args, **kwargs):
-            with mp.Pool(num_cores) as p:
-                p.starmap(
-                    partial(func, *args, **kwargs),
-                    itertools.product(range_values),
-                )
-        return wrapper
-    return decorator
+        def wrapper(args):
+            func(*args)
 
+        def decorated_function(*args):
+            t_shape = args[-1]
+            with mp.Pool(num_cores) as p:
+                p.starmap(wrapper, itertools.product(range(t_shape)))
+
+        return decorated_function
 
 # --------------SINGLE PROCESS FUNCTIONS-------------------
 
 
-def bire_reconstruction(tczyx_data, output_data, recon_parameters, t):
+def bire_reconstruction(tczyx_data, output_data, recon_parameters, project_stokes_to_2d,   t):
     (
         intensity_to_stokes_matrix,
         wavelength,
         cyx_no_sample_data,
-        project_stokes_to_2d,
         biref_inverse_dict,
         c_out,
         z_out,
     ) = recon_parameters
-
-    click.echo(f"recon_params {recon_parameters}")
-    click.echo(f"time {t}")
     reconstructed_parameters = (
         inplane_oriented_thick_pol3d.apply_inverse_transfer_function(
             tczyx_data[t],
@@ -191,9 +203,10 @@ def bire_reconstruction(tczyx_data, output_data, recon_parameters, t):
         for param_index, parameter in enumerate(reconstructed_parameters):
             click.echo(f"shape {parameter.numpy().shape}")
             output_array[0][t, param_index] = parameter.numpy()
+    return reconstructed_parameters
 
 
-def phase_reconstruction(tczyx_data, output_data, recon_parameters, t):
+def phase2D_reconstruction(tczyx_data, output_data, recon_parameters, t):
     (
         absorption_transfer_function,
         phase_transfer_function,
@@ -212,6 +225,46 @@ def phase_reconstruction(tczyx_data, output_data, recon_parameters, t):
     with open_ome_zarr(output_data, mode="r+") as output_array:
         # Save
         output_array[0][t, -1, 0] = yx_phase
+    return yx_phase
+
+def phase3D_reconstruction(tczyx_data, output_data, recon_parameters, t):
+    (
+        real_potential_transfer_function,
+        imaginary_potential_transfer_function,
+        phase_transfer_function_settings,
+        phase_apply_inverse_settings,
+        wavelength,
+    ) = recon_parameters
+
+    zyx_phase = phase_thick_3d.apply_inverse_transfer_function(
+        tczyx_data[t, 0],
+        real_potential_transfer_function,
+        imaginary_potential_transfer_function,
+        z_padding=phase_transfer_function_settings.z_padding,
+        z_pixel_size=phase_transfer_function_settings.z_pixel_size,
+        wavelength_illumination=wavelength,
+        method=phase_apply_inverse_settings.reconstruction_algorithm,
+        reg_re=phase_apply_inverse_settings.strength,
+        rho=phase_apply_inverse_settings.TV_rho_strength,
+        itr=phase_apply_inverse_settings.TV_iterations,
+    )
+
+    # Save
+    with open_ome_zarr(output_data, mode="r+") as output_array:
+        output_array[0][t, -1] = zyx_phase
+    return zyx_phase
+
+def bire_n_phase_reconstruction(tczyx_data, output_data, bire_recon_parameters, phase_recon_parameters, reconstruct_2D, t):
+    reconstructed_parameters_2d =  bire_reconstruction(tczyx_data, output_data, bire_recon_parameters, True, t)
+    click.echo("Finished 2D Bire")
+    reconstructed_parameters_3d = bire_reconstruction(tczyx_data, output_data, bire_recon_parameters, False, t)
+
+    brightfield_3d = reconstructed_parameters_3d[2]
+    if reconstruct_2D:
+        phase2D_reconstruction(brightfield_3d, output_data, phase_recon_parameters, t)
+    else:
+        phase3D_reconstruction(brightfield_3d, output_data, phase_recon_parameters, t)
+    click.echo("Finished Phase")
 
 
 # -------------- untouched functions from 0.4.0dev
@@ -331,7 +384,6 @@ def apply_inverse_transfer_function_cli(
             intensity_to_stokes_matrix,
             wavelength,
             cyx_no_sample_data,
-            False,
             biref_inverse_dict,
             slice(4),
             slice(None),
@@ -344,11 +396,12 @@ def apply_inverse_transfer_function_cli(
                     tczyx_data,
                     output_path,
                     recon_parameters,
+                    False    # project_stokes_to_2d
                 ),
                 itertools.product(range(t_shape)),
             )
 
-    # # [phase only]
+    # [phase only]
     if recon_phase and (not recon_biref):
         echo_headline("Reconstructing phase with settings:")
         echo_settings(inverse_settings.phase_apply_inverse_settings)
@@ -362,6 +415,7 @@ def apply_inverse_transfer_function_cli(
 
         # [phase only, 2]
         if recon_dim == 2:
+            click.echo('reconstructing phase2D')
             # Load transfer functions
             absorption_transfer_function = torch.tensor(
                 transfer_function_dataset["absorption_transfer_function"][0, 0]
@@ -370,170 +424,157 @@ def apply_inverse_transfer_function_cli(
                 transfer_function_dataset["phase_transfer_function"][0, 0]
             )
 
-            recon_parameters = (
+            phase_2D_recon_parameters = (
                 absorption_transfer_function,
                 phase_transfer_function,
-                inverse_settings.phase_apply_inverse_settings
-            )        
-            
+                inverse_settings.phase_apply_inverse_settings,
+            )
+            click.echo('Starting Pool phase2D')
+
             with mp.Pool(num_cores) as p:
+                pdb.set_trace()
                 p.starmap(
                     partial(
-                        phase_reconstruction,
+                        phase2D_reconstruction,
                         tczyx_data,
                         output_path,
-                        recon_parameters,
+                        phase_2D_recon_parameters,
                     ),
                     itertools.product(range(t_shape)),
                 )
 
-    #     # [phase only, 3]
-        # elif recon_dim == 3:
-        #     # Load transfer functions
-        #     real_potential_transfer_function = torch.tensor(
-        #         transfer_function_dataset["real_potential_transfer_function"][
-        #             0, 0
-        #         ]
-        #     )
-        #     imaginary_potential_transfer_function = torch.tensor(
-        #         transfer_function_dataset[
-        #             "imaginary_potential_transfer_function"
-        #         ][0, 0]
-        #     )
+        # [phase only, 3]
+        elif recon_dim == 3:
+            # Load transfer functions
+            real_potential_transfer_function = torch.tensor(
+                transfer_function_dataset["real_potential_transfer_function"][
+                    0, 0
+                ]
+            )
+            imaginary_potential_transfer_function = torch.tensor(
+                transfer_function_dataset[
+                    "imaginary_potential_transfer_function"
+                ][0, 0]
+            )
 
-    #         # Apply
-    #         for time_index in range(t_shape):
-    #             zyx_phase = phase_thick_3d.apply_inverse_transfer_function(
-    #                 tczyx_data[time_index, 0],
-    #                 real_potential_transfer_function,
-    #                 imaginary_potential_transfer_function,
-    #                 z_padding=settings.phase_transfer_function_settings.z_padding,
-    #                 z_pixel_size=settings.phase_transfer_function_settings.z_pixel_size,
-    #                 wavelength_illumination=wavelength,
-    #                 method=inverse_settings.phase_apply_inverse_settings.reconstruction_algorithm,
-    #                 reg_re=inverse_settings.phase_apply_inverse_settings.strength,
-    #                 rho=inverse_settings.phase_apply_inverse_settings.TV_rho_strength,
-    #                 itr=inverse_settings.phase_apply_inverse_settings.TV_iterations,
-    #             )
-    #             # Save
-    #             output_array[time_index, -1] = zyx_phase
+            phase_3D_recon_parameters = (
+                real_potential_transfer_function,
+                imaginary_potential_transfer_function,
+                settings.phase_transfer_function_settings,
+                inverse_settings.phase_apply_inverse_settings,
+                wavelength,
+            )
 
-    # # [biref and phase]
-    # if recon_biref and recon_phase:
-    #     echo_headline("Reconstructing phase with settings:")
-    #     echo_settings(inverse_settings.phase_apply_inverse_settings)
-    #     echo_headline("Reconstructing birefringence with settings:")
-    #     echo_settings(inverse_settings.birefringence_apply_inverse_settings)
-    #     echo_headline("Reconstructing...")
+            with mp.Pool(num_cores) as p:
+                p.starmap(
+                    partial(
+                        phase3D_reconstruction,
+                        tczyx_data,
+                        output_path,
+                        phase_3D_recon_parameters,
+                    ),
+                    itertools.product(range(t_shape)),
+                )
 
-    #     # Load birefringence transfer function
-    #     intensity_to_stokes_matrix = torch.tensor(
-    #         transfer_function_dataset["intensity_to_stokes_matrix"][0, 0, 0]
-    #     )
+    # [biref and phase]
+    if recon_biref and recon_phase:
+        echo_headline("Reconstructing phase with settings:")
+        echo_settings(inverse_settings.phase_apply_inverse_settings)
+        echo_headline("Reconstructing birefringence with settings:")
+        echo_settings(inverse_settings.birefringence_apply_inverse_settings)
+        echo_headline("Reconstructing...")
 
-    #     # [biref and phase, 2]
-    #     if recon_dim == 2:
-    #         # Load phase transfer functions
-    #         absorption_transfer_function = torch.tensor(
-    #             transfer_function_dataset["absorption_transfer_function"][0, 0]
-    #         )
-    #         phase_transfer_function = torch.tensor(
-    #             transfer_function_dataset["phase_transfer_function"][0, 0]
-    #         )
+        # Load birefringence transfer function
+        intensity_to_stokes_matrix = torch.tensor(
+            transfer_function_dataset["intensity_to_stokes_matrix"][0, 0, 0]
+        )
 
-    #         for time_index in range(t_shape):
-    #             # Apply
-    #             reconstructed_parameters_2d = inplane_oriented_thick_pol3d.apply_inverse_transfer_function(
-    #                 tczyx_data[time_index],
-    #                 intensity_to_stokes_matrix,
-    #                 wavelength,
-    #                 cyx_no_sample_data,
-    #                 project_stokes_to_2d=True,
-    #                 **biref_inverse_dict,
-    #             )
+        # [biref and phase, 2]
+        if recon_dim == 2:
+            # Load phase transfer functions
+            absorption_transfer_function = torch.tensor(
+                transfer_function_dataset["absorption_transfer_function"][0, 0]
+            )
+            phase_transfer_function = torch.tensor(
+                transfer_function_dataset["phase_transfer_function"][0, 0]
+            )
 
-    #             reconstructed_parameters_3d = inplane_oriented_thick_pol3d.apply_inverse_transfer_function(
-    #                 tczyx_data[time_index],
-    #                 intensity_to_stokes_matrix,
-    #                 wavelength,
-    #                 cyx_no_sample_data,
-    #                 project_stokes_to_2d=False,
-    #                 **biref_inverse_dict,
-    #             )
+            bire_recon_parameters = (
+                intensity_to_stokes_matrix,
+                wavelength,
+                cyx_no_sample_data,
+                biref_inverse_dict,
+                slice(4),
+                slice(None),
+            )
+            phase_2D_recon_parameters = (
+                absorption_transfer_function,
+                phase_transfer_function,
+                inverse_settings.phase_apply_inverse_settings,
+            )
 
-    #             brightfield_3d = reconstructed_parameters_3d[2]
+            with mp.Pool(num_cores) as p:
+                p.starmap(
+                    partial(
+                        bire_n_phase_reconstruction,
+                        tczyx_data,
+                        output_path,
+                        bire_recon_parameters,
+                        phase_2D_recon_parameters,
+                        True
+                    ),
+                    itertools.product(range(t_shape)),
+                )
 
-    #             (
-    #                 _,
-    #                 yx_phase,
-    #             ) = isotropic_thin_3d.apply_inverse_transfer_function(
-    #                 brightfield_3d,
-    #                 absorption_transfer_function,
-    #                 phase_transfer_function,
-    #                 method=inverse_settings.phase_apply_inverse_settings.reconstruction_algorithm,
-    #                 reg_p=inverse_settings.phase_apply_inverse_settings.strength,
-    #                 rho=inverse_settings.phase_apply_inverse_settings.TV_rho_strength,
-    #                 itr=inverse_settings.phase_apply_inverse_settings.TV_iterations,
-    #             )
+        # [biref and phase, 3]
+        elif recon_dim == 3:
+            # Load phase transfer functions
+            intensity_to_stokes_matrix = torch.tensor(
+                transfer_function_dataset["intensity_to_stokes_matrix"][
+                    0, 0, 0
+                ]
+            )
+            # Load transfer functions
+            real_potential_transfer_function = torch.tensor(
+                transfer_function_dataset["real_potential_transfer_function"][
+                    0, 0
+                ]
+            )
+            imaginary_potential_transfer_function = torch.tensor(
+                transfer_function_dataset[
+                    "imaginary_potential_transfer_function"
+                ][0, 0]
+            )
 
-    #             # Save
-    #             for param_index, parameter in enumerate(
-    #                 reconstructed_parameters_2d
-    #             ):
-    #                 output_array[time_index, param_index] = parameter
-    #             output_array[time_index, -1, 0] = yx_phase
+            bire_recon_parameters = (
+                intensity_to_stokes_matrix,
+                wavelength,
+                cyx_no_sample_data,
+                biref_inverse_dict,
+                slice(4),
+                slice(None),
+            )
 
-    #     # [biref and phase, 3]
-    #     elif recon_dim == 3:
-    #         # Load phase transfer functions
-    #         intensity_to_stokes_matrix = torch.tensor(
-    #             transfer_function_dataset["intensity_to_stokes_matrix"][
-    #                 0, 0, 0
-    #             ]
-    #         )
-    #         # Load transfer functions
-    #         real_potential_transfer_function = torch.tensor(
-    #             transfer_function_dataset["real_potential_transfer_function"][
-    #                 0, 0
-    #             ]
-    #         )
-    #         imaginary_potential_transfer_function = torch.tensor(
-    #             transfer_function_dataset[
-    #                 "imaginary_potential_transfer_function"
-    #             ][0, 0]
-    #         )
+            phase_3D_recon_parameters = (
+                real_potential_transfer_function,
+                imaginary_potential_transfer_function,
+                settings.phase_transfer_function_settings,
+                inverse_settings.phase_apply_inverse_settings,
+                wavelength
+            )
 
-    #         # Apply
-    #         for time_index in range(t_shape):
-    #             reconstructed_parameters_3d = inplane_oriented_thick_pol3d.apply_inverse_transfer_function(
-    #                 tczyx_data[time_index],
-    #                 intensity_to_stokes_matrix,
-    #                 wavelength,
-    #                 cyx_no_sample_data,
-    #                 project_stokes_to_2d=False,
-    #                 **biref_inverse_dict,
-    #             )
-
-    #             brightfield_3d = reconstructed_parameters_3d[2]
-
-    #             zyx_phase = phase_thick_3d.apply_inverse_transfer_function(
-    #                 brightfield_3d,
-    #                 real_potential_transfer_function,
-    #                 imaginary_potential_transfer_function,
-    #                 z_padding=settings.phase_transfer_function_settings.z_padding,
-    #                 z_pixel_size=settings.phase_transfer_function_settings.z_pixel_size,
-    #                 wavelength_illumination=wavelength,
-    #                 method=inverse_settings.phase_apply_inverse_settings.reconstruction_algorithm,
-    #                 reg_re=inverse_settings.phase_apply_inverse_settings.strength,
-    #                 rho=inverse_settings.phase_apply_inverse_settings.TV_rho_strength,
-    #                 itr=inverse_settings.phase_apply_inverse_settings.TV_iterations,
-    #             )
-    #             # Save
-    #             for param_index, parameter in enumerate(
-    #                 reconstructed_parameters_3d
-    #             ):
-    #                 output_array[time_index, param_index] = parameter
-    #             output_array[time_index, -1] = zyx_phase
+            with mp.Pool(num_cores) as p:
+                p.starmap(
+                    partial(
+                        bire_n_phase_reconstruction,
+                        tczyx_data,
+                        output_path,
+                        bire_recon_parameters,
+                        phase_3D_recon_parameters,
+                        False
+                    ),
+                    itertools.product(range(t_shape)),
+                )
 
     output_dataset = open_ome_zarr(output_path, mode="r+")
     output_dataset.zattrs["transfer_function_settings"] = settings.dict()
@@ -599,3 +640,4 @@ def apply_inverse_transfer_function(
 
 # recorder apply-inverse-transfer-function ./data_temp/20230426_211658_temp.zarr/0/0/0 ./230615_TF.zarr -c test_config.yaml -o ./test_delete.zarr
 # recorder apply-inverse-transfer-function ./data_temp/20230426_211658_temp.zarr/*/*/* ./230615_TF_BIRE_ONLY.zarr -c ./test_config.yaml -o ./test_delete.zarr
+# recorder apply-inverse-transfer-function ./data_temp/20230501_162727_BF.zarr/0/0/0 ./230615_TF_phase_2D.zarr -o ./test_delete2.zarr
