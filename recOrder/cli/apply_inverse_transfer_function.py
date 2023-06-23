@@ -37,10 +37,7 @@ def apply_inverse_transfer_function_cli(
     input_dataset = open_ome_zarr(input_data_path)
 
     # Load config file
-    if config_path is None:
-        settings = ReconstructionSettings()
-    else:
-        settings = utils.yaml_to_model(config_path, ReconstructionSettings)
+    settings = utils.yaml_to_model(config_path, ReconstructionSettings)
 
     # Load dataset shape
     t_shape = input_dataset.data.shape[0]

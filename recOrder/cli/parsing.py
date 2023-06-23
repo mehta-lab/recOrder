@@ -20,7 +20,7 @@ def input_data_path_argument() -> Callable:
 def config_path_option() -> Callable:
     def decorator(f: Callable) -> Callable:
         return click.option(
-            "--config-path", "-c", default=None, help="Path to config.yml"
+            "--config-path", "-c", required=True, help="Path to config.yml"
         )(f)
 
     return decorator

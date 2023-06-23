@@ -152,10 +152,7 @@ def compute_transfer_function_cli(input_data_path, config_path, output_path):
     """
 
     # Load config file
-    if config_path is None:
-        settings = ReconstructionSettings()
-    else:
-        settings = utils.yaml_to_model(config_path, ReconstructionSettings)
+    settings = utils.yaml_to_model(config_path, ReconstructionSettings)
 
     echo_headline(
         f"Generating transfer functions and storing in {output_path}\n"
