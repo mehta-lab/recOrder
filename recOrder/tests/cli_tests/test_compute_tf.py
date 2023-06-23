@@ -1,5 +1,7 @@
 from recOrder.cli.main import cli
 from click.testing import CliRunner
+from recOrder.cli import settings
+from recOrder.io import utils
 from recOrder.cli.compute_transfer_function import (
     generate_and_save_phase_transfer_function,
     generate_and_save_birefringence_transfer_function,
@@ -11,8 +13,7 @@ def test_compute_transfer(input_zarr):
     path, _ = input_zarr
     runner = CliRunner()
     result = runner.invoke(cli, "compute-tf " + str(path))
-    assert result.exit_code == 0
-    assert "Generating" in result.output
+    assert result.exit_code == 1
 
 
 def test_compute_transfer_blank_config():
@@ -34,18 +35,33 @@ def test_compute_transfer_blank_output():
 
 
 def test_compute_transfer_output_file(tmp_path, input_zarr):
+    recon_settings = settings.ReconstructionSettings(
+            input_channel_names=["TEST"],
+            reconstruction_dimension=3,
+            phase=settings.PhaseSettings(),
+        )
+    config_path = tmp_path / "test.yml"
+    utils.model_to_yaml(recon_settings, config_path)
+
     input_path, _ = input_zarr
     runner = CliRunner()
-    paths = ["test1", "test2/test"]
-    for option in (" -o ", " --output-path "):
-        temp_cmd = "compute-tf " + str(input_path) + option
-        for path in paths:
-            joined_path = tmp_path.joinpath(path)
-            cmd = temp_cmd + str(joined_path)
-            result = runner.invoke(cli, cmd)
+    for option in ("-o", "--output-path"):
+        for output_folder in ["test1", "test2/test"]:
+            output_path = tmp_path.joinpath(output_folder)
+            result = runner.invoke(
+                cli,
+                [
+                    "compute-tf",
+                    str(input_path),
+                    "-c",
+                    str(config_path),
+                    str(option),
+                    str(output_path),
+                ],
+            )
             assert result.exit_code == 0
-            assert path in result.output
-            assert joined_path.exists()
+            assert str(output_path) in result.output
+            assert output_path.exists()
 
 
 def test_stokes_matrix_write(birefringence_phase_recon_settings_function):

@@ -6,6 +6,7 @@ from pydantic import (
     NonNegativeFloat,
     PositiveInt,
     PositiveFloat,
+    root_validator,
     validator,
 )
 from typing import Literal, List, Optional
@@ -146,20 +147,19 @@ class ReconstructionSettings(MyBaseModel):
     phase: Optional[PhaseSettings]
     fluorescence: Optional[FluorescenceSettings]
 
-    @validator("fluorescence")
-    def validate_reconstruction_types(cls, v, values):
-        if (
-            values.get("birefringence") or values.get("phase")
-        ) and v is not None:
+    @root_validator(pre=False)
+    def validate_reconstruction_types(cls, values):
+        if (values.get("birefringence") or values.get("phase")) and values.get(
+            "fluorescence"
+        ) is not None:
             raise ValueError(
                 '"fluorescence" cannot be present alongside "birefringence" or "phase". Please use one configuration file for a "fluorescence" reconstruction and another configuration file for a "birefringence" and/or "phase" reconstructions.'
             )
-    
         num_channel_names = len(values.get("input_channel_names"))
         if values.get("birefringence") is None:
             if (
                 values.get("phase") is None
-                and v is None
+                and values.get("fluorescence") is None
             ):
                 raise ValueError(
                     "Provide settings for either birefringence, phase, birefringence + phase, or fluorescence."
@@ -175,5 +175,4 @@ class ReconstructionSettings(MyBaseModel):
                 raise ValueError(
                     f"{num_channel_names} channels names provided, but the birefringence reconstruction is set to scheme = {scheme}. Please make sure that the number of channels matches the scheme."
                 )
-        return v
-
+        return values

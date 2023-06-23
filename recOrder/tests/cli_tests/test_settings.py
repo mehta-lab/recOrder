@@ -48,7 +48,7 @@ def test_reconstruction_settings():
 def test_reconstruction_channel_names():
     # Test number of channel names
     with pytest.raises(ValidationError):
-        settings.ReconstructionSettings(
+        x = settings.ReconstructionSettings(
             input_channel_names=["Test"],
             birefringence=settings.BirefringenceSettings(),
         )
@@ -144,5 +144,7 @@ def test_generate_example_settings():
     # Save to examples folder and test roundtrip
     for file_name, settings_obj in zip(file_names, settings_list):
         utils.model_to_yaml(settings_obj, example_path + file_name)
-        settings_roundtrip = utils.yaml_to_model(example_path + file_name, settings.ReconstructionSettings)
+        settings_roundtrip = utils.yaml_to_model(
+            example_path + file_name, settings.ReconstructionSettings
+        )
         assert settings_obj.dict() == settings_roundtrip.dict()

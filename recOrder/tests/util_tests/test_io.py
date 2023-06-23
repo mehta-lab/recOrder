@@ -2,14 +2,16 @@ import os
 import pytest
 import yaml
 
-from recOrder.cli.settings import ReconstructionSettings
+from recOrder.cli import settings
 from recOrder.io.utils import model_to_yaml, yaml_to_model
 
 
 @pytest.fixture
 def model():
     # Create a sample model object
-    return ReconstructionSettings()
+    return settings.ReconstructionSettings(
+        birefringence=settings.BirefringenceSettings()
+    )
 
 
 @pytest.fixture

@@ -33,7 +33,8 @@ def birefringence_phase_recon_settings_function(tmp_path):
 @pytest.fixture(scope="function")
 def fluorescence_recon_settings_function(tmp_path):
     recon_settings = settings.ReconstructionSettings(
-        fluorescence=settings.FluorescenceSettings()
+        input_channel_names=["GFP"],
+        fluorescence=settings.FluorescenceSettings(),
     )
     dataset = open_ome_zarr(
         tmp_path, layout="fov", mode="w", channel_names=["None"]
