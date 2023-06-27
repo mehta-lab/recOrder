@@ -13,57 +13,56 @@ mode = datastore.getPreferredSaveMode(studio).toString()
 data_manager = studio.data()
 
 sequence_settings = engine.getSequenceSettings()
+acq_mode = sequence_settings.acqOrderMode() # 0=TPZC, 1=TPCZ, 2=PTZC, 3=PTCZ
+print(acq_mode)
 #seq settings acq order mode 
 manager = studio.getAcquisitionManager()
 
 intended_dims = datastore.getSummaryMetadata().getIntendedDimensions()
-p_max = intended_dims.getP() - 1
+p_max = intended_dims.getP() - 1 
 t_max = intended_dims.getT() - 1
 c_max = intended_dims.getC() - 1
 z_max = intended_dims.getZ() - 1
 
-p = 0
-prev_pixels = None
+print(f"max p: {p_max}\t max t: {t_max}\t max c: {c_max}\t max z: {z_max}")
+
+curr_p = 0
+curr_t = 0
 while datastore:
     if engine.isFinished():
-        if p < p_max:
-            raise RuntimeError("Not finished properly")
+        if curr_p < p_max:
+            raise RuntimeError("Position not finished properly")
+        elif curr_t < t_max:
+            raise RuntimeError("Time not finished properly")
+        print(f"Current p: {curr_p}\t Current t: {curr_t}")
         print("Finished!")
         break
     required_coord = (
-        intended_dims.copyBuilder().p(p).t(t_max).c(c_max).z(z_max).build()
+        intended_dims.copyBuilder().p(curr_p).t(curr_t).c(c_max).z(z_max).build()
     )
-
-    written_coords = datastore.getUnorderedImageCoords()
     found = False
-    print(written_coords)
-    if mode == "ND_TIFF":
-        written_coords = written_coords.iterator()
-        while written_coords.hasNext():
-            next_coord = written_coords.next()
-            if next_coord.toString() == required_coord.toString():
-                found = True 
-                break
-    elif written_coords.contains(required_coord.toString()):
-            found = True
+    if datastore.hasImage(required_coord):
+        print("Found")
+        found = True
     if found:
-        print(f"Found position {p}")
-        print(next_coord.toString())
-        image = datastore.getImage(next_coord)
-        print(image)
-        height = image.getHeight()
-        width = image.getWidth()
-        intensity_at_mid = image.getIntensityStringAt(70, 350)
-        metadata = image.getMetadata()
-        x_stage = metadata.getXPositionUm()
-        y_stage = metadata.getYPositionUm()
-        pixels = image.getRawPixels()
-        print(type(pixels))
-        print(f"Match: {np.array_equiv(pixels, prev_pixels)}")
-        print(f"Height: {height} \nWidth: {width}\nPoint Intensity: {intensity_at_mid}")
-        print(f"Metadata: {metadata} \nPixels: {pixels}")
-        print(f"Stage position: ({x_stage}, {y_stage})")
-        p += 1
-        prev_pixels = pixels
-    print("Waiting...")
-    time.sleep(1.5)
+        # Do stuff w data
+        print(f"Signal coord: {required_coord.toString()}")
+        print(f"Current p: {curr_p}\t Current t: {curr_t}")
+
+        # Update p or t
+        if acq_mode == 0 or acq_mode == 1:
+            # Do stuff
+            if curr_p < p_max:
+                curr_p += 1
+            else:
+                curr_p = 0
+                curr_t += 1
+        elif acq_mode == 2 or acq_mode == 3:
+            if curr_t < t_max:
+                curr_t += 1
+            else:
+                curr_t = 0
+                curr_p += 1
+
+    print("Waiting..")
+    time.sleep(0.1)
