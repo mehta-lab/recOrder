@@ -47,7 +47,7 @@ Download and install [`Micromanager 2.0` nightly build `20230426` (~150 MB link)
 
 **Note:** We have tested recOrder with `20230426`, but most features will work with newer builds. We recommend testing a minimal installation with `20230426` before testing with a different nightly build or additional device drivers. 
 
-Before launching `Micromanager`, download the USB driver dll from the [release page](https://github.com/mehta-lab/recOrder/releases/) and place this pair of unzipped files into your `Micromanager` folder (likely `C:\Program Files\Micro-Manager` or similar). 
+Before launching `Micromanager`, download the USB driver .dll from the [release page](https://github.com/mehta-lab/recOrder/releases/) and place this file into your `Micromanager` folder (likely `C:\Program Files\Micro-Manager` or similar). 
 
 Launch `Micromanager`, open `Devices > Hardware Configuration Wizard...`, and add the `MeadowlarkLcOpenSource` device to your configuration. Confirm your installation by opening `Devices > Device Property Browser...` and confirming that `MeadowlarkLCOpenSource` properties appear. 
 
