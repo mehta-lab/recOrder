@@ -1,6 +1,9 @@
 import time
 from pycromanager import Studio
 import numpy as np
+from ndtiff import Dataset
+from iohub.ngff import open_ome_zarr
+import tempfile
 
 # Test OME TIFF
 # Test diff orders
@@ -9,6 +12,7 @@ import numpy as np
 studio = Studio(convert_camel_case=False)
 manager = studio.getAcquisitionManager()
 # manager.runAcquisition()
+# look for acq run non-blocking
 
 engine = studio.getAcquisitionEngine()
 datastore = engine.getAcquisitionDatastore()
@@ -18,6 +22,10 @@ data_manager = studio.data()
 sequence_settings = engine.getSequenceSettings()
 acq_mode = sequence_settings.acqOrderMode() # 0=TPZC, 1=TPCZ, 2=PTZC, 3=PTCZ
 print(acq_mode)
+channel_names_string = datastore.getSummaryMetadata().getChannelNameList().toString()
+print(type(channel_names_string))
+channel_names = channel_names_string.strip('][').split(', ')
+print(channel_names)
 #seq settings acq order mode 
 
 intended_dims = datastore.getSummaryMetadata().getIntendedDimensions()
@@ -33,10 +41,14 @@ curr_t = 0
 curr_z = 0
 curr_c = 0
 i = 0
+
+max_images = (p_max + 1) * (t_max + 1) * (c_max + 1) * (z_max + 1)
+images_list = []
 while datastore:
-    # print('Hello')
     if engine.isFinished():
+        # Add an assert that the correct number of images are found
         print(f"Found {i} images")
+        # print(images_array.reshape(max_images, 512, 512))
         if curr_p < p_max:
             raise RuntimeError("Position not finished properly")
         elif curr_t < t_max:
@@ -55,11 +67,28 @@ while datastore:
         print("Found")
         found = True
     if found:
-        i += 1
         # Do stuff w data
         print(f"Signal coord: {required_coord.toString()}")
-        image = datastore.getImage(required_coord)
-        # print(np.array(image.getRawPixels()).shape)
+        # image = datastore.getImage(required_coord)
+        # datatstore get tiff location, list of readers/arrays, need to read source code
+        # similar code mm to python -> may point to how to get tiff file location with memory mapping
+        # print(np.array(image.getRawPixels()))
+        path = datastore.getSavePath()
+        # print(f"Path: {path}")
+        data = Dataset(path)
+        image = data.read_image(curr_c, curr_z, curr_t, curr_p)
+
+        images_list.append(image)
+        if curr_z == z_max:
+            z_array = np.stack(images_list)
+            print(z_array.shape)
+            images_list.clear()
+
+        i += 1
+
+        # print(f"Pixels shape: {data.read_image(curr_c, curr_z, curr_t, curr_p).shape}")
+        # print(f"Max Intensity: {data.read_image(curr_c, curr_z, curr_t, curr_p).max()}")
+        # print(f"Min Intensity: {data.read_image(curr_c, curr_z, curr_t, curr_p).min()}")
         print(f"Current p: {curr_p}\t Current t: {curr_t}\t Current c: {curr_c}\t Current z: {curr_z}")
 
         # Update p or t
@@ -128,5 +157,6 @@ while datastore:
                             curr_p += 1
                             curr_t = 0
 
-    # print("Waiting..")
+
+    print("Waiting..")
     # time.sleep(0.1)
