@@ -160,14 +160,9 @@ def compute_transfer_function_cli(input_data_path, config_path, output_path):
 
     # Read shape from input dataset
     input_dataset = open_ome_zarr(input_data_path, layout="fov", mode="r")
-    (
-        _,
-        _,
-        z_shape,
-        y_shape,
-        x_shape,
-    ) = input_dataset.data.shape  # only loads a single position "0"
-    zyx_shape = (z_shape, y_shape, x_shape)
+    zyx_shape = input_dataset.data.shape[
+        2:
+    ]  # only loads a single position "0"
 
     # Prepare output dataset
     output_dataset = open_ome_zarr(
