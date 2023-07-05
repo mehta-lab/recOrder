@@ -38,6 +38,14 @@ def apply_inverse_transfer_function_cli(
     # Load config file
     settings = utils.yaml_to_model(config_path, ReconstructionSettings)
 
+    # Check input channel names
+    if not set(settings.input_channel_names).issubset(
+        input_dataset.channel_names
+    ):
+        raise ValueError(
+            f"Each of the input_channel_names = {settings.input_channel_names} in {config_path} must appear in the dataset {input_data_path} which currently contains channel_names = {input_dataset.channel_names}."
+        )
+
     # Load dataset shape
     t_shape = input_dataset.data.shape[0]
 

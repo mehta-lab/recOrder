@@ -164,6 +164,14 @@ def compute_transfer_function_cli(input_data_path, config_path, output_path):
         2:
     ]  # only loads a single position "0"
 
+    # Check input channel names
+    if not set(settings.input_channel_names).issubset(
+        input_dataset.channel_names
+    ):
+        raise ValueError(
+            f"Each of the input_channel_names = {settings.input_channel_names} in {config_path} must appear in the dataset {input_data_path} which currently contains channel_names = {input_dataset.channel_names}."
+        )
+
     # Prepare output dataset
     output_dataset = open_ome_zarr(
         output_path, layout="fov", mode="w", channel_names=["None"]
