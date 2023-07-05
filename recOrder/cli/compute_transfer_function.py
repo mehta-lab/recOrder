@@ -139,8 +139,7 @@ def generate_and_save_fluorescence_transfer_function(
 
 def compute_transfer_function_cli(input_data_path, config_path, output_path):
     """CLI command to compute the transfer function given a configuration file path
-    and a desired output path. Given no arguments, a default configuration file will
-    be used and the output will be in transfer-function.zarr.
+    and a desired output path.
 
     Parameters
     ----------
