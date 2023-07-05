@@ -3,7 +3,6 @@ input_channel_names:
 - State1
 - State2
 - State3
-- State4
 reconstruction_dimension: 3
 birefringence:
   transfer_function:
