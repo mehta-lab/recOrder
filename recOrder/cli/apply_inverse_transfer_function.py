@@ -46,6 +46,13 @@ def apply_inverse_transfer_function_cli(
             f"Each of the input_channel_names = {settings.input_channel_names} in {config_path} must appear in the dataset {input_data_path} which currently contains channel_names = {input_dataset.channel_names}."
         )
 
+    # Find channel indices
+    channel_indices = []
+    for input_channel_name in settings.input_channel_names:
+        channel_indices.append(
+            input_dataset.channel_names.index(input_channel_name)
+        )
+
     # Load dataset shape
     t_shape = input_dataset.data.shape[0]
 
@@ -102,7 +109,9 @@ def apply_inverse_transfer_function_cli(
     )
 
     # Load data
-    tczyx_data = torch.tensor(input_dataset.data, dtype=torch.float32)
+    tczyx_data = torch.tensor(
+        input_dataset.data.oindex[:, channel_indices], dtype=torch.float32
+    )
 
     # Prepare background dataset
     if settings.birefringence is not None:
