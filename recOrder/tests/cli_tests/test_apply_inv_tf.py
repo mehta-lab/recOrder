@@ -21,9 +21,7 @@ def test_apply_inv_tf(tmp_path):
 
     # Setup options
     birefringence_settings = settings.BirefringenceSettings(
-        transfer_function=settings.BirefringenceTransferFunctionSettings(
-            scheme="4-State"
-        )
+        transfer_function=settings.BirefringenceTransferFunctionSettings()
     )
     all_options = [
         (birefringence_settings, None, 2),

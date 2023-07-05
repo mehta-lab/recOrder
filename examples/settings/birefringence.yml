@@ -8,7 +8,6 @@ reconstruction_dimension: 3
 birefringence:
   transfer_function:
     swing: 0.1
-    scheme: 5-State
   apply_inverse:
     wavelength_illumination: 0.532
     background_path: ''

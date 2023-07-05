@@ -45,36 +45,8 @@ def test_reconstruction_settings():
         )
 
 
-def test_reconstruction_channel_names():
-    # Test number of channel names
-    with pytest.raises(ValidationError):
-        x = settings.ReconstructionSettings(
-            input_channel_names=["Test"],
-            birefringence=settings.BirefringenceSettings(),
-        )
-
-    settings.ReconstructionSettings(
-        input_channel_names=["1", "2", "3", "4"],
-        birefringence=settings.BirefringenceSettings(
-            transfer_function=settings.BirefringenceTransferFunctionSettings(
-                scheme="4-State"
-            ),
-        ),
-    )
-
-    with pytest.raises(ValidationError):
-        settings.ReconstructionSettings(
-            input_channel_names=["1", "2", "3", "4", "5"],
-            birefringence=settings.BirefringenceSettings(
-                transfer_function=settings.BirefringenceTransferFunctionSettings(
-                    scheme="4-State"
-                )
-            ),
-        )
-
-
 def test_biref_tf_settings():
-    settings.BirefringenceTransferFunctionSettings(scheme="4-State", swing=0.1)
+    settings.BirefringenceTransferFunctionSettings(swing=0.1)
 
     with pytest.raises(ValidationError):
         settings.BirefringenceTransferFunctionSettings(swing=1.1)

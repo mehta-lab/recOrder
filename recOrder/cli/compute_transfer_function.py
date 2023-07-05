@@ -32,7 +32,8 @@ def generate_and_save_birefringence_transfer_function(settings, dataset):
     # Calculate transfer functions
     intensity_to_stokes_matrix = (
         inplane_oriented_thick_pol3d.calculate_transfer_function(
-            **settings.birefringence.transfer_function.dict()
+            scheme=str(len(settings.input_channel_names)) + "-State",
+            **settings.birefringence.transfer_function.dict(),
         )
     )
     # Save

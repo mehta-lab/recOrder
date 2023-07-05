@@ -24,7 +24,6 @@ class WavelengthIllumination(MyBaseModel):
 
 class BirefringenceTransferFunctionSettings(MyBaseModel):
     swing: float = 0.1
-    scheme: Literal["4-State", "5-State"] = "5-State"
 
     @validator("swing")
     def swing_range(cls, v):
@@ -168,11 +167,5 @@ class ReconstructionSettings(MyBaseModel):
                 raise ValueError(
                     f"{num_channel_names} channels names provided. Please provide a single channel for fluorescence/phase reconstructions."
                 )
-        else:
-            scheme = values.get("birefringence").transfer_function.scheme
-            n_scheme = int(scheme[0])
-            if n_scheme != num_channel_names:
-                raise ValueError(
-                    f"{num_channel_names} channels names provided, but the birefringence reconstruction is set to scheme = {scheme}. Please make sure that the number of channels matches the scheme."
-                )
+
         return values
