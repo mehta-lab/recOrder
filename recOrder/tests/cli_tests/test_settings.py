@@ -88,7 +88,7 @@ def test_fluor_tf_settings():
 
 
 def test_generate_example_settings():
-    example_path = "./examples/settings/"
+    example_path = "./examples/"
 
     s0 = settings.ReconstructionSettings(
         birefringence=settings.BirefringenceSettings(),

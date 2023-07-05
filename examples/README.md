@@ -66,3 +66,9 @@ TODO: @Ed I think we'll use the same strategy as ```mantis deskew```
 3. **Q: What regularization parameter should I use?**
 
     We recommend starting with the defaults then testing over a few orders of magnitude and choosing a result that isn't too noisy or too smooth.
+
+### Developers note
+
+These configuration files are automatically generated when the tests run. See `/tests/cli_tests/test_settings.py` - `test_generate_example_settings`. 
+
+To keep these settings up to date, run `pytest` locally when `cli/settings.py` changes. 
