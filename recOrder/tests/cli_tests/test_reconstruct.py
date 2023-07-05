@@ -6,7 +6,7 @@ from click.testing import CliRunner
 from iohub.ngff import open_ome_zarr
 
 
-def test_apply_inv_tf(tmp_path):
+def test_reconstruct(tmp_path):
     input_path = tmp_path / "input.zarr"
 
     # Generate input "dataset"
@@ -80,3 +80,19 @@ def test_apply_inv_tf(tmp_path):
         result_dataset = open_ome_zarr(result_path)
         assert result_dataset["0"].shape[0] == 2
         assert result_dataset["0"].shape[3:] == (5, 6)
+
+        # Test direct recon
+        result_inv = runner.invoke(
+            cli,
+            [
+                "reconstruct",
+                str(input_path),
+                "-c",
+                str(config_path),
+                "-o",
+                str(result_path),
+            ],
+        )
+        assert result_path.exists()
+        assert result_inv.exit_code == 0
+        assert "Reconstructing" in result_inv.output

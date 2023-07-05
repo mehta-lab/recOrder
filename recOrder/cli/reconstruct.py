@@ -19,7 +19,15 @@ from recOrder.cli.parsing import (
 @config_path_option()
 @output_dataset_option(default="./reconstruction.zarr")
 def reconstruct(input_data_path, config_path, output_path):
-    """Reconstruct a dataset using configuration file."""
+    """Reconstruct a dataset using a configuration file. This is a
+    convenience function for a `compute-tf` call followed by a `apply-inv-tf`
+    call.
+
+    See /examples/settings/ for example configuration files.
+
+    Example usage:\n
+    $ recorder reconstruct input.zarr -c /examples/settings/birefringence.yml -o output.zarr
+    """
 
     # Handle transfer function path
     output_directory = os.path.dirname(output_path)
