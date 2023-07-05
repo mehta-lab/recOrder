@@ -11,7 +11,7 @@ import tempfile
 
 studio = Studio(convert_camel_case=False)
 manager = studio.getAcquisitionManager()
-# manager.runAcquisition()
+manager.runAcquisitionNonblocking()
 # look for acq run non-blocking
 
 engine = studio.getAcquisitionEngine()
@@ -40,58 +40,77 @@ curr_p = 0
 curr_t = 0
 curr_z = 0
 curr_c = 0
-i = 0
+img_count = 0
+
+position_list = tuple((0, i, 0) for i in range(p_max + 1))
+
+zarr_path = "/Applications/Micro-Manager-2.0.1-20220920/prac_folder/hcs.zarr"
 
 max_images = (p_max + 1) * (t_max + 1) * (c_max + 1) * (z_max + 1)
-images_list = []
+
+initialize = True
+refresh_p = False
 while datastore:
     if engine.isFinished():
-        # Add an assert that the correct number of images are found
-        print(f"Found {i} images")
-        # print(images_array.reshape(max_images, 512, 512))
+        with open_ome_zarr(
+            zarr_path,
+            layout="hcs",
+            mode="a",
+            channel_names=channel_names
+        ) as dataset:
+            print(curr_p)
+            position = dataset.create_position(curr_p + 1, "0", "0")
+            position["0"] = position_array
+            dataset.print_tree()
+        assert img_count == max_images, f"Found {img_count} images but should be {max_images}"
         if curr_p < p_max:
             raise RuntimeError("Position not finished properly")
         elif curr_t < t_max:
-            print(curr_t, t_max)
             raise RuntimeError("Time not finished properly")
-        print(f"End p: {curr_p}\t End t: {curr_t}")
-        print("Finished!")
+        print(f"Found {img_count} images\nFinished!\nFinal position: {curr_p}")
         break
     required_coord = (
         intended_dims.copyBuilder().p(curr_p).t(curr_t).c(curr_c).z(curr_z).build()
     )
     found = False
-    # Look into how the datastore is being saved/are we traversing the whole datastore the whole time
-    # -> might slow down the whole call if you have to traverse through the whole list
     if datastore.hasImage(required_coord):
         print("Found")
         found = True
     if found:
         # Do stuff w data
         print(f"Signal coord: {required_coord.toString()}")
-        # image = datastore.getImage(required_coord)
-        # datatstore get tiff location, list of readers/arrays, need to read source code
+        print(f"Current p: {curr_p}\t Current t: {curr_t}\t Current c: {curr_c}\t Current z: {curr_z}")
+        # datastore get tiff location, list of readers/arrays, need to read source code
         # similar code mm to python -> may point to how to get tiff file location with memory mapping
-        # print(np.array(image.getRawPixels()))
         path = datastore.getSavePath()
-        # print(f"Path: {path}")
         data = Dataset(path)
         image = data.read_image(curr_c, curr_z, curr_t, curr_p)
 
-        images_list.append(image)
-        if curr_z == z_max:
-            z_array = np.stack(images_list)
-            print(z_array.shape)
-            images_list.clear()
+        if initialize:
+            height, width = image.shape
+            print(height, width)
+            position_array = np.zeros((t_max + 1, c_max + 1, z_max + 1, width, height), dtype=np.uint16)
+            initialize = False
+        elif refresh_p:
+            with open_ome_zarr(
+                zarr_path,
+                layout="hcs",
+                mode="a",
+                channel_names=channel_names
+            ) as dataset:
+                print(curr_p)
+                position = dataset.create_position(curr_p, "0", "0")
+                position["0"] = position_array
+                dataset.print_tree()
+            height, width = image.shape
+            position_array = np.zeros((t_max + 1, c_max + 1, z_max + 1, width, height), dtype=np.uint16)
+            refresh_p = False
+            print(refresh_p)
+        position_array[curr_t, curr_c, curr_z] = image
 
-        i += 1
+        img_count += 1
 
-        # print(f"Pixels shape: {data.read_image(curr_c, curr_z, curr_t, curr_p).shape}")
-        # print(f"Max Intensity: {data.read_image(curr_c, curr_z, curr_t, curr_p).max()}")
-        # print(f"Min Intensity: {data.read_image(curr_c, curr_z, curr_t, curr_p).min()}")
-        print(f"Current p: {curr_p}\t Current t: {curr_t}\t Current c: {curr_c}\t Current z: {curr_z}")
-
-        # Update p or t
+        # Update the dimensions
         # 0=TPZC, 1=TPCZ, 2=PTZC, 3=PTCZ
         if acq_mode == 0:
             if curr_c < c_max:
@@ -139,6 +158,7 @@ while datastore:
                     else:
                         if curr_p < p_max:
                             curr_p += 1
+                            refresh_p = True
                             curr_t = 0
 
         if acq_mode == 3:
@@ -155,6 +175,7 @@ while datastore:
                     else:
                         if curr_p < p_max:
                             curr_p += 1
+                            refresh_p = True
                             curr_t = 0
 
 
