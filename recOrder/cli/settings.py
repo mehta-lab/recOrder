@@ -147,7 +147,7 @@ class FluorescenceSettings(MyBaseModel):
 
 # Top level settings
 class ReconstructionSettings(MyBaseModel):
-    input_channel_names: List[str] = [f"State{i}" for i in range(5)]
+    input_channel_names: List[str] = [f"State{i}" for i in range(4)]
     reconstruction_dimension: Literal[2, 3] = 3
     birefringence: Optional[BirefringenceSettings]
     phase: Optional[PhaseSettings]
