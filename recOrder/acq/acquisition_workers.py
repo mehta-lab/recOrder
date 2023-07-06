@@ -127,6 +127,7 @@ class BFAcquisitionSignals(WorkerBaseSignals):
     phase_reconstructor_emitter = Signal(object)
     aborted = Signal()
 
+
 class BFAcquisitionWorker(WorkerBase):
     """
     Class to execute a brightfield acquisition.  First step is to snap the images follow by a second
@@ -275,40 +276,36 @@ class BFAcquisitionWorker(WorkerBase):
         self._check_abort()
 
         # Create config and i/o paths
-        transfer_function_settings_path = os.path.join(
-            self.snap_dir, "transfer_function_settings.yml"
+        config_path = os.path.join(
+            self.snap_dir, "reconstruction_settings.yml"
         )
         transfer_function_path = os.path.join(
             self.snap_dir, "transfer_function.zarr"
-        )
-        apply_inverse_settings_path = os.path.join(
-            self.snap_dir, "apply_inverse_settings.yml"
         )
         reconstruction_path = os.path.join(
             self.snap_dir, "reconstruction.zarr"
         )
 
-        with open_ome_zarr(self.latest_out_path, mode="r") as dataset:
-            zyx_shape = dataset["0/0/0/0"].shape[2:]
+        input_data_path = (os.path.join(self.latest_out_path, "0", "0", "0"),)
 
-        _generate_reconstruction_config_from_gui(reconstruction_config_path=)
-
-        _generate_transfer_function_config(
-            transfer_function_settings_path,
+        _generate_reconstruction_config_from_gui(
+            config_path,
             "phase",
             self.calib_window,
-            zyx_shape,
+            input_channel_names=["BF"],
         )
+
+        # TODO: skip if config files match
         compute_transfer_function_cli(
-            transfer_function_settings_path, transfer_function_path
-        )
-        _generate_apply_inverse_config(
-            apply_inverse_settings_path, self.calib_window
-        )
-        apply_inverse_transfer_function_cli(
-            os.path.join(self.latest_out_path, "0", "0", "0"),
+            input_data_path,
+            config_path,
             transfer_function_path,
-            apply_inverse_settings_path,
+        )
+
+        apply_inverse_transfer_function_cli(
+            input_data_path, 
+            transfer_function_path,
+            config_path,
             reconstruction_path,
         )
 
