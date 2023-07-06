@@ -4,11 +4,6 @@ from __future__ import annotations
 from qtpy.QtCore import Signal
 from iohub import open_ome_zarr
 from napari.qt.threading import WorkerBaseSignals, WorkerBase, thread_worker
-from recOrder.compute.reconstructions import (
-    initialize_reconstructor,
-    reconstruct_qlipp_birefringence,
-    reconstruct_qlipp_stokes,
-)
 from recOrder.io.core_functions import set_lc_state, snap_and_average
 from recOrder.io.utils import MockEmitter
 from recOrder.calib.Calibration import LC_DEVICE_NAME
@@ -234,7 +229,6 @@ class CalibrationWorker(CalibrationWorkerBase, signals=CalibrationSignals):
         self._check_abort()
 
     def _calibrate_5state(self):
-
         search_radius = np.min((self.calib.swing, 0.05))
 
         self.calib.calib_scheme = "5-State"
@@ -306,7 +300,6 @@ class BackgroundCaptureWorker(
         super().__init__(calib_window, calib)
 
     def work(self):
-
         # Make the background folder
         bg_path = os.path.join(
             self.calib_window.directory,
@@ -315,7 +308,6 @@ class BackgroundCaptureWorker(
         if not os.path.exists(bg_path):
             os.mkdir(bg_path)
         else:
-
             # increment background paths
             idx = 1
             while os.path.exists(bg_path + f"_{idx}"):

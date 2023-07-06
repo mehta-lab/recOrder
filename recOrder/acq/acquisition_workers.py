@@ -39,7 +39,7 @@ def _generate_reconstruction_config_from_gui(
     calib_window,
     input_channel_names,
 ):
-    if mode == "birefringence" or "all":
+    if mode == "birefringence" or mode == "all":
         if calib_window.bg_option == "None":
             background_path = ""
             remove_estimated_background = False
@@ -57,49 +57,50 @@ def _generate_reconstruction_config_from_gui(
             settings.BirefringenceTransferFunctionSettings(
                 wavelength_illumination=calib_window.recon_wavelength / 1000,
                 swing=calib_window.swing,
-                scheme=calib_window.calib_scheme,
             )
         )
-        birefringence_apply_inverse_settings = (
-            settings.BirefringenceApplyInverseSettings(
-                background_path=background_path,
-                remove_estimated_background=remove_estimated_background,
-            )
+        birefringence_apply_inverse_settings = settings.BirefringenceApplyInverseSettings(
+            background_path=background_path,
+            remove_estimated_background=remove_estimated_background,
+            orientation_flip=False,  # TODO connect this to a recOrder button
+            orientation_rotate=False,  # TODO connect this to a recOrder button
         )
         birefringence_settings = settings.BirefringenceSettings(
-            birefringence_transfer_function_settings=birefringence_transfer_function_settings,
-            birefringence_apply_inverse_settings=birefringence_apply_inverse_settings,
+            transfer_function=birefringence_transfer_function_settings,
+            apply_inverse=birefringence_apply_inverse_settings,
         )
     else:
         birefringence_settings = None
 
-    if mode == "phase" or "all":
+    if mode == "phase" or mode == "all":
         phase_transfer_function_settings = (
             settings.PhaseTransferFunctionSettings(
+                wavelength_illumination=calib_window.recon_wavelength / 1000,
                 yx_pixel_size=calib_window.ps / calib_window.mag,
                 z_pixel_size=calib_window.z_step,
                 z_padding=calib_window.pad_z,
                 index_of_refraction_media=calib_window.n_media,
-                numerical_aperture_illumination=calib_window.cond_na,
                 numerical_aperture_detection=calib_window.obj_na,
+                numerical_aperture_illumination=calib_window.cond_na,
+                axial_flip=False,  # TODO: connect this to a recOrder button
             )
         )
-        phase_apply_inverse_settings = settings._PhaseApplyInverseSettings(
+        phase_apply_inverse_settings = settings.FourierApplyInverseSettings(
             reconstruction_algorithm=calib_window.phase_regularizer,
-            strength=calib_window.ui.le_phase_strength.text(),
+            regularization_strength=calib_window.ui.le_phase_strength.text(),
             TV_rho_strength=calib_window.ui.le_rho.text(),
             TV_iterations=calib_window.ui.le_itr.text(),
         )
         phase_settings = settings.PhaseSettings(
-            phase_transfer_function_settings=phase_transfer_function_settings,
-            phase_apply_inverse_settings=phase_apply_inverse_settings,
+            transfer_function=phase_transfer_function_settings,
+            apply_inverse=phase_apply_inverse_settings,
         )
     else:
         phase_settings = None
 
     reconstruction_settings = settings.ReconstructionSettings(
         input_channel_names=input_channel_names,
-        reconstruction_dimension=str(calib_window.acq_mode[0]),
+        reconstruction_dimension=int(calib_window.acq_mode[0]),
         birefringence=birefringence_settings,
         phase=phase_settings,
     )
@@ -220,6 +221,17 @@ class BFAcquisitionWorker(WorkerBase):
                     channel_group = group
                     break
 
+        # Create and validate reconstruction settings
+        self.config_path = os.path.join(
+            self.snap_dir, "reconstruction_settings.yml"
+        )
+        _generate_reconstruction_config_from_gui(
+            self.config_path,
+            "phase",
+            self.calib_window,
+            input_channel_names=["BF"],
+        )
+
         # Acquire 3D stack
         logging.debug("Acquiring 3D stack")
 
@@ -275,10 +287,7 @@ class BFAcquisitionWorker(WorkerBase):
         """
         self._check_abort()
 
-        # Create config and i/o paths
-        config_path = os.path.join(
-            self.snap_dir, "reconstruction_settings.yml"
-        )
+        # Create i/o paths
         transfer_function_path = os.path.join(
             self.snap_dir, "transfer_function.zarr"
         )
@@ -286,26 +295,19 @@ class BFAcquisitionWorker(WorkerBase):
             self.snap_dir, "reconstruction.zarr"
         )
 
-        input_data_path = (os.path.join(self.latest_out_path, "0", "0", "0"),)
-
-        _generate_reconstruction_config_from_gui(
-            config_path,
-            "phase",
-            self.calib_window,
-            input_channel_names=["BF"],
-        )
+        input_data_path = os.path.join(self.latest_out_path, "0", "0", "0")
 
         # TODO: skip if config files match
         compute_transfer_function_cli(
             input_data_path,
-            config_path,
+            self.config_path,
             transfer_function_path,
         )
 
         apply_inverse_transfer_function_cli(
-            input_data_path, 
+            input_data_path,
             transfer_function_path,
-            config_path,
+            self.config_path,
             reconstruction_path,
         )
 
