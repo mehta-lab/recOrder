@@ -8,8 +8,9 @@ import tempfile
 # Test OME TIFF
 # Test diff orders
 # Can display those into napari
+# 0=TPZC, 1=TPCZ, 2=PTZC, 3=PTCZ
 def update_dimensions(acq_mode, curr_p, curr_t, curr_c, curr_z):
-    if acq_mode == 0:
+    if acq_mode == "TPZC":
         if curr_c < c_max:
             curr_c += 1
         else:
@@ -25,7 +26,7 @@ def update_dimensions(acq_mode, curr_p, curr_t, curr_c, curr_z):
                         curr_t += 1
                         curr_p = 0
 
-    if acq_mode == 1:
+    if acq_mode == "TPCZ":
         if curr_z < z_max:
             curr_z += 1
         else:
@@ -41,7 +42,7 @@ def update_dimensions(acq_mode, curr_p, curr_t, curr_c, curr_z):
                         curr_t += 1
                         curr_p = 0
 
-    if acq_mode == 2:
+    if acq_mode == "PTZC":
         if curr_c < c_max:
             curr_c += 1
         else:
@@ -57,7 +58,7 @@ def update_dimensions(acq_mode, curr_p, curr_t, curr_c, curr_z):
                         curr_p += 1
                         curr_t = 0
 
-    if acq_mode == 3:
+    if acq_mode == "PTCZ":
         if curr_z < z_max:
             curr_z += 1
         else:
@@ -84,8 +85,14 @@ datastore = engine.getAcquisitionDatastore()
 mode = datastore.getPreferredSaveMode(studio).toString()
 data_manager = studio.data()
 
+acq_dictionary = {
+    0: "TPZC",
+    1: "TPCZ",
+    2: "PTZC",
+    3: "PTCZ"
+}
 sequence_settings = engine.getSequenceSettings()
-acq_mode = sequence_settings.acqOrderMode() # 0=TPZC, 1=TPCZ, 2=PTZC, 3=PTCZ
+acq_mode = acq_dictionary[sequence_settings.acqOrderMode()] # 0=TPZC, 1=TPCZ, 2=PTZC, 3=PTCZ
 print(acq_mode)
 channel_names_string = datastore.getSummaryMetadata().getChannelNameList().toString()
 print(type(channel_names_string))
@@ -112,6 +119,8 @@ zarr_path = "/Applications/Micro-Manager-2.0.1-20220920/prac_folder/hcs.zarr"
 
 max_images = (p_max + 1) * (t_max + 1) * (c_max + 1) * (z_max + 1)
 
+
+path = datastore.getSavePath()
 initialize = True
 refresh_p = False
 while datastore:
@@ -135,7 +144,6 @@ while datastore:
         # Do stuff w data
         print(f"Signal coord: {required_coord.toString()}")
         print(f"Current p: {curr_p}\t Current t: {curr_t}\t Current c: {curr_c}\t Current z: {curr_z}")
-        path = datastore.getSavePath()
         data = Dataset(path)
         image = data.read_image(curr_c, curr_z, curr_t, curr_p)
 
@@ -152,20 +160,20 @@ while datastore:
                 for p in range(p_max + 1):
                     position = dataset.create_position("0", p, "0")
                     position["0"] = np.zeros((t_max + 1, c_max + 1, z_max + 1, height, width))
-            if acq_mode == 1 or acq_mode == 3:
+            if acq_mode == "TPCZ" or acq_mode == "PTCZ":
                 z_array = np.zeros((z_max + 1, height, width), dtype=np.uint16)
-            elif acq_mode == 0 or acq_mode == 2:
+            elif acq_mode == "TPZC" or acq_mode == "PTZC":
                 czyx_array = np.zeros((c_max + 1, z_max + 1, height, width), dtype=np.uint16)
             initialize = False
 
-        if acq_mode == 1 or acq_mode == 3:
+        if acq_mode == "TPCZ" or acq_mode == "PTCZ":
             z_array[curr_z] = image
-        elif acq_mode == 0 or acq_mode == 2:
+        elif acq_mode == "TPZC" or acq_mode == "PTZC":
             czyx_array[curr_c, curr_z] = image
             print(czyx_array)
 
         # Want to continuously update the zarr store with z-stacks
-        if acq_mode == 1 or acq_mode == 3:
+        if acq_mode == "TPCZ" or acq_mode == "PTCZ":
             if curr_z == z_max:
                 with open_ome_zarr(
                     zarr_path,
@@ -174,7 +182,7 @@ while datastore:
                     img = dataset[f"0/{curr_p}/0"]
                     img["0"][curr_t, curr_c] = z_array
                 z_array = np.zeros((z_max + 1, height, width), dtype=np.uint16)
-        elif acq_mode == 0 or acq_mode == 2:
+        elif acq_mode == "TPZC" or acq_mode == "PTZC":
             if curr_c == c_max and curr_z == z_max:
                 with open_ome_zarr(
                     zarr_path,
