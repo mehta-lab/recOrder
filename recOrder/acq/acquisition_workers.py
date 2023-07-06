@@ -55,11 +55,11 @@ def _generate_reconstruction_config_from_gui(
 
         birefringence_transfer_function_settings = (
             settings.BirefringenceTransferFunctionSettings(
-                wavelength_illumination=calib_window.recon_wavelength / 1000,
                 swing=calib_window.swing,
             )
         )
         birefringence_apply_inverse_settings = settings.BirefringenceApplyInverseSettings(
+            wavelength_illumination=calib_window.recon_wavelength / 1000,
             background_path=background_path,
             remove_estimated_background=remove_estimated_background,
             orientation_flip=False,  # TODO connect this to a recOrder button
@@ -455,6 +455,17 @@ class PolarizationAcquisitionWorker(WorkerBase):
 
         self._check_abort()
 
+        # Create and validate reconstruction settings
+        self.config_path = os.path.join(
+            self.snap_dir, "reconstruction_settings.yml"
+        )
+        _generate_reconstruction_config_from_gui(
+            self.config_path,
+            self.mode,
+            self.calib_window,
+            input_channel_names=channels,
+        )
+
         # Acquire 2D stack
         if self.dim == "2D":
             logging.debug("Acquiring 2D stack")
@@ -609,38 +620,26 @@ class PolarizationAcquisitionWorker(WorkerBase):
         self._check_abort()
 
         # Create config and i/o paths
-        transfer_function_settings_path = os.path.join(
-            self.snap_dir, "transfer_function_settings.yml"
-        )
         transfer_function_path = os.path.join(
             self.snap_dir, "transfer_function.zarr"
-        )
-        apply_inverse_settings_path = os.path.join(
-            self.snap_dir, "apply_inverse_settings.yml"
         )
         reconstruction_path = os.path.join(
             self.snap_dir, "reconstruction.zarr"
         )
 
-        with open_ome_zarr(self.latest_out_path, mode="r") as dataset:
-            zyx_shape = dataset["0/0/0/0"].shape[2:]
+        input_data_path = os.path.join(self.latest_out_path, "0", "0", "0")
 
-        _generate_transfer_function_config(
-            transfer_function_settings_path,
-            self.mode,
-            self.calib_window,
-            zyx_shape,
-        )
+        # TODO: skip if config files match
         compute_transfer_function_cli(
-            transfer_function_settings_path, transfer_function_path
-        )
-        _generate_apply_inverse_config(
-            apply_inverse_settings_path, self.calib_window
-        )
-        apply_inverse_transfer_function_cli(
-            os.path.join(self.latest_out_path, "0", "0", "0"),
+            input_data_path,
+            self.config_path,
             transfer_function_path,
-            apply_inverse_settings_path,
+        )
+
+        apply_inverse_transfer_function_cli(
+            input_data_path,
+            transfer_function_path,
+            self.config_path,
             reconstruction_path,
         )
 
