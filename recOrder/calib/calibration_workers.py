@@ -361,7 +361,9 @@ class BackgroundCaptureWorker(
         )
         model_to_yaml(reconstruction_settings, reconstruction_config_path)
 
-        input_data_path = os.path.join(bg_path, "background.zarr")
+        input_data_path = os.path.join(
+            bg_path, "background.zarr", "0", "0", "0"
+        )
         transfer_function_path = os.path.join(
             bg_path, "transfer_function.zarr"
         )

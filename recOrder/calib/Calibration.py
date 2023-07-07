@@ -1085,17 +1085,18 @@ class QLIPP_Calibration:
         # Save to zarr
         with open_ome_zarr(
             os.path.join(directory, "background.zarr"),
-            layout="fov",
+            layout="hcs",
             mode="w",
             channel_names=[f"State{i}" for i in range(num_states)],
         ) as dataset:
-            dataset.create_zeros(
+            position = dataset.create_position("0", "0", "0")
+            position.create_zeros(
                 name="0",
                 shape=(1, num_states, 1, cyx_data.shape[1], cyx_data.shape[2]),
                 dtype=np.float32,
                 chunks=(1, 1, 1, cyx_data.shape[1], cyx_data.shape[2]),
             )
-            dataset["0"][0, :, 0] = cyx_data  # save to 1C1YX array
+            position["0"][0, :, 0] = cyx_data  # save to 1C1YX array
 
         # self._plot_bg_images(np.asarray(imgs))
         self.reset_shutter()

@@ -121,7 +121,7 @@ def apply_inverse_transfer_function_cli(
         background_path = biref_inverse_dict["background_path"]
         biref_inverse_dict.pop("background_path")
         if background_path != "":
-            cyx_no_sample_data = utils.new_load_background(background_path)
+            cyx_no_sample_data = utils.load_background(background_path)
             _check_background_consistency(
                 cyx_no_sample_data.shape, input_dataset.data.shape
             )
