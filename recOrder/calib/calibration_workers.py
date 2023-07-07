@@ -357,7 +357,7 @@ class BackgroundCaptureWorker(
         )
 
         reconstruction_config_path = os.path.join(
-            bg_path, "background_reconstruction.yml"
+            bg_path, "reconstruction_settings.yml"
         )
         model_to_yaml(reconstruction_settings, reconstruction_config_path)
 
@@ -406,54 +406,12 @@ class BackgroundCaptureWorker(
 
         self._check_abort()
 
-        self._save_bg_recon(bg_path)
-        self._check_abort()
-
         # Emit background images + background birefringence
         self.bg_image_emitter.emit(imgs)
         self.bire_image_emitter.emit((self.retardance, self.birefringence[1]))
 
         # Emit bg path
         self.bg_path_update_emitter.emit(bg_path)
-
-    def _save_bg_recon(self, bg_path: StrOrBytesPath):
-        bg_recon_path = os.path.join(bg_path, "reconstruction")
-        # create the reconstruction directory
-        if os.path.isdir(bg_recon_path):
-            shutil.rmtree(bg_recon_path)
-        elif os.path.isfile(bg_recon_path):
-            os.remove(bg_recon_path)
-        else:
-            os.mkdir(bg_recon_path)
-        # save raw reconstruction to zarr store
-        with open_ome_zarr(
-            os.path.join(bg_recon_path, "reconstruction"),
-            layout="fov",
-            mode="w-",
-            channel_names=[
-                "Retardance",
-                "Orientation",
-                "BF - computed",
-                "DoP",
-            ],
-        ) as dataset:
-            dataset["0"] = self.birefringence[np.newaxis, :, np.newaxis, ...]
-
-        # save intensity trace visualization
-        import matplotlib.pyplot as plt
-
-        plt.imsave(
-            os.path.join(bg_recon_path, "retardance.png"),
-            self.retardance,
-            cmap="gray",
-        )
-        plt.imsave(
-            os.path.join(bg_recon_path, "orientation.png"),
-            self.birefringence[1],
-            cmap="hsv",
-            vmin=0,
-            vmax=np.pi,
-        )
 
 
 @thread_worker
