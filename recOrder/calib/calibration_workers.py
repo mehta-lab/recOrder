@@ -4,10 +4,17 @@ from __future__ import annotations
 from qtpy.QtCore import Signal
 from iohub import open_ome_zarr
 from napari.qt.threading import WorkerBaseSignals, WorkerBase, thread_worker
+from recOrder.cli import settings
 from recOrder.io.core_functions import set_lc_state, snap_and_average
-from recOrder.io.utils import MockEmitter
+from recOrder.io.utils import MockEmitter, model_to_yaml
 from recOrder.calib.Calibration import LC_DEVICE_NAME
 from recOrder.io.metadata_reader import MetadataReader, get_last_metadata_file
+from recOrder.cli.compute_transfer_function import (
+    compute_transfer_function_cli,
+)
+from recOrder.cli.apply_inverse_transfer_function import (
+    apply_inverse_transfer_function_cli,
+)
 import os
 import shutil
 import numpy as np
@@ -326,35 +333,57 @@ class BackgroundCaptureWorker(
 
         # capture and return background images
         imgs = self.calib.capture_bg(self.calib_window.n_avg, bg_path)
-        img_dim = (imgs.shape[-2], imgs.shape[-1])
-
         self.calib_window._dump_gui_state(bg_path)
 
-        # initialize reconstructor
-        recon = initialize_reconstructor(
-            "birefringence",
-            image_dim=img_dim,
-            calibration_scheme=self.calib.calib_scheme,
-            wavelength_nm=self.calib.wavelength,
-            swing=self.calib.swing,
-            bg_correction="None",
+        # build background-specific reconstruction settings
+        reconstruction_settings = settings.ReconstructionSettings(
+            input_channel_names=[
+                f"State{i}"
+                for i in range(int(self.calib_window.calib_scheme[0]))
+            ],
+            reconstruction_dimension=2,
+            birefringence=settings.BirefringenceSettings(
+                transfer_function=settings.BirefringenceTransferFunctionSettings(
+                    swing=self.calib_window.swing
+                ),
+                apply_inverse=settings.BirefringenceApplyInverseSettings(
+                    wavelength_illumination=self.calib_window.recon_wavelength
+                    / 1000,
+                    background_path="",
+                    remove_estimated_background=False,
+                    orientation_flip=False,
+                ),
+            ),
         )
 
-        self._check_abort()
-
-        # Reconstruct birefringence from BG images
-        stokes = reconstruct_qlipp_stokes(imgs, recon, None)
-
-        self._check_abort()
-
-        self.birefringence = reconstruct_qlipp_birefringence(stokes, recon)
-
-        self._check_abort()
-
-        # Convert retardance to nm
-        self.retardance = (
-            self.birefringence[0] / (2 * np.pi) * self.calib.wavelength
+        reconstruction_config_path = os.path.join(
+            bg_path, "background_reconstruction.yml"
         )
+        model_to_yaml(reconstruction_settings, reconstruction_config_path)
+
+        input_data_path = os.path.join(bg_path, "background.zarr")
+        transfer_function_path = os.path.join(
+            bg_path, "transfer_function.zarr"
+        )
+        reconstruction_path = os.path.join(bg_path, "reconstruction.zarr")
+
+        compute_transfer_function_cli(
+            input_data_path,
+            reconstruction_config_path,
+            transfer_function_path,
+        )
+
+        apply_inverse_transfer_function_cli(
+            input_data_path,
+            transfer_function_path,
+            reconstruction_config_path,
+            reconstruction_path,
+        )
+
+        # Load reconstructions from file for layers
+        with open_ome_zarr(reconstruction_path, mode="r") as dataset:
+            self.retardance = dataset["0"][0, 0, 0]
+            self.birefringence = dataset["0"][0, :, 0]
 
         # Save metadata file and emit imgs
         meta_file = os.path.join(bg_path, "calibration_metadata.txt")
