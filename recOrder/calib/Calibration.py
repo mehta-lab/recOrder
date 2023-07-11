@@ -1,8 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
-import matplotlib.patches as patches
-import tifffile as tiff
 import time
+from iohub import open_ome_zarr
 from recOrder.io.core_functions import *
 from recOrder.calib.Optimization import BrentOptimizer, MinScalarOptimizer
 from mpl_toolkits.axes_grid1.axes_divider import make_axes_locatable
@@ -294,7 +293,6 @@ class QLIPP_Calibration:
             )
 
     def opt_lc(self, x, device_property, reference, normalize=False):
-
         if isinstance(x, list) or isinstance(x, tuple):
             x = x[0]
 
@@ -321,7 +319,6 @@ class QLIPP_Calibration:
             return np.abs(mean - reference)
 
     def opt_lc_cons(self, x, device_property, reference, mode):
-
         self.set_lc(x, device_property)
         swing = (self.lca_ext - x) * self.ratio
 
@@ -374,7 +371,6 @@ class QLIPP_Calibration:
         # coarse search
         for lca in np.arange(a_min, a_max, step):
             for lcb in np.arange(b_min, b_max, step):
-
                 self.set_lc(lca, "LCA")
                 self.set_lc(lcb, "LCB")
 
@@ -832,7 +828,6 @@ class QLIPP_Calibration:
         )
 
     def calc_inst_matrix(self):
-
         if self.calib_scheme == "4-State":
             chi = self.swing
             inst_mat = np.array(
@@ -872,7 +867,6 @@ class QLIPP_Calibration:
             return inst_mat
 
     def write_metadata(self, notes=None):
-
         inst_mat = self.calc_inst_matrix()
         inst_mat = np.around(inst_mat, decimals=5).tolist()
 
@@ -990,7 +984,6 @@ class QLIPP_Calibration:
         return np.mean(imgs, axis=0)
 
     def _plot_bg_images(self, imgs):
-
         img_names = (
             ["Extinction", "0", "60", "120"]
             if len(imgs) == 4
@@ -1079,39 +1072,36 @@ class QLIPP_Calibration:
         self.mmc.setAutoShutter(False)
         self.open_shutter()
 
-        logging.debug("Capturing Background State0")
-        state0 = self._capture_state("State0", n_avg)
-        logging.debug("Saving Background State0")
-        tiff.imsave(os.path.join(directory, "State0.tif"), state0)
+        num_states = int(self.calib_scheme[0])
 
-        logging.debug("Capturing Background State1")
-        state1 = self._capture_state("State1", n_avg)
-        logging.debug("Saving Background State1")
-        tiff.imsave(os.path.join(directory, "State1.tif"), state1)
+        # Acquire background data
+        yx_list = []
+        for channel in range(num_states):
+            logging.debug(f"Capturing Background State{channel}")
+            yx_list.append(self._capture_state(f"State{channel}", n_avg))
+            logging.debug(f"Saving Background State{channel}")
+        cyx_data = np.array(yx_list)
 
-        logging.debug("Capturing Background State2")
-        state2 = self._capture_state("State2", n_avg)
-        logging.debug("Saving Background State2")
-        tiff.imsave(os.path.join(directory, "State2.tif"), state2)
-
-        logging.debug("Capturing Background State3")
-        state3 = self._capture_state("State3", n_avg)
-        logging.debug("Saving Background State3")
-        tiff.imsave(os.path.join(directory, "State3.tif"), state3)
-
-        imgs = [state0, state1, state2, state3]
-
-        if self.calib_scheme == "5-State":
-            logging.debug("Capturing Background State4")
-            state4 = self._capture_state("State4", n_avg)
-            logging.debug("Saving Background State4")
-            tiff.imsave(os.path.join(directory, "State4.tif"), state4)
-            imgs.append(state4)
+        # Save to zarr
+        with open_ome_zarr(
+            os.path.join(directory, "background.zarr"),
+            layout="hcs",
+            mode="w",
+            channel_names=[f"State{i}" for i in range(num_states)],
+        ) as dataset:
+            position = dataset.create_position("0", "0", "0")
+            position.create_zeros(
+                name="0",
+                shape=(1, num_states, 1, cyx_data.shape[1], cyx_data.shape[2]),
+                dtype=np.float32,
+                chunks=(1, 1, 1, cyx_data.shape[1], cyx_data.shape[2]),
+            )
+            position["0"][0, :, 0] = cyx_data  # save to 1C1YX array
 
         # self._plot_bg_images(np.asarray(imgs))
         self.reset_shutter()
 
-        return np.asarray(imgs)
+        return cyx_data
 
 
 class CalibrationData:
@@ -1377,7 +1367,6 @@ class CalibrationData:
             self.curve = self.spline(x_range)
 
         elif self.wavelength > 630:
-
             new_a1_y = np.interp(x_range, x_range, spline546(x_range))
             new_a2_y = np.interp(x_range, x_range, spline630(x_range))
 
@@ -1399,7 +1388,6 @@ class CalibrationData:
             self.curve = self.spline(x_range)
 
         elif 490 < self.wavelength < 546:
-
             new_a1_y = np.interp(x_range, x_range, spline490(x_range))
             new_a2_y = np.interp(x_range, x_range, spline546(x_range))
 
@@ -1416,7 +1404,6 @@ class CalibrationData:
             self.curve = self.spline(x_range)
 
         elif 546 < self.wavelength < 630:
-
             new_a1_y = np.interp(x_range, x_range, spline546(x_range))
             new_a2_y = np.interp(x_range, x_range, spline630(x_range))
 

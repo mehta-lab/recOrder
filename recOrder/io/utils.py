@@ -7,9 +7,12 @@ import torch
 import textwrap
 import tifffile as tiff
 import numpy as np
+import yaml
 from colorspacious import cspace_convert
+from iohub import open_ome_zarr
 from matplotlib.colors import hsv_to_rgb
 from waveorder.waveorder_reconstructor import waveorder_microscopy
+from recOrder.cli import settings
 
 
 # TO BE DEPRECATED
@@ -56,61 +59,12 @@ def extract_reconstruction_parameters(reconstructor, magnification=None):
     return attr_dict
 
 
-# TO BE DEPRECATED
-def load_bg(bg_path, height, width, ROI=None):
-    """
-    Parameters
-    ----------
-    bg_path         : (str) path to the folder containing background images
-    height          : (int) height of image in pixels # Remove for 1.0.0
-    width           : (int) width of image in pixels # Remove for 1.0.0
-    ROI             : (tuple)  ROI of the background images to use, if None, full FOV will be used # Remove for 1.0.0
-
-    Returns
-    -------
-    bg_data   : (ndarray) Array of background data w/ dimensions (N_channel, Y, X)
-    """
-
-    bg_paths = glob.glob(os.path.join(bg_path, "*.tif"))
-    bg_paths.sort()
-
-    # Backwards compatibility warning
-    if ROI is not None and ROI != (
-        0,
-        0,
-        width,
-        height,
-    ):  # TODO: Remove for 1.0.0
-        warning_msg = """
-        Earlier versions of recOrder (0.1.2 and earlier) would have averaged over the background ROI. 
-        This behavior is now considered a bug, and future versions of recOrder (0.2.0 and later) 
-        will not average over the background. 
-        """
-        logging.warning(warning_msg)
-
-    # Load background images
-    bg_img_list = []
-    for bg_path in bg_paths:
-        bg_img_list.append(tiff.imread(bg_path))
-    bg_img_arr = np.array(bg_img_list)  # CYX
-
-    # Error if shapes do not match
-    # TODO: 1.0.0 move these validation check to waveorder's Polscope_bg_correction
-    if bg_img_arr.shape[1:] != (height, width):
-        error_msg = "The background image has a different X/Y size than the acquired image."
-        raise ValueError(error_msg)
-
-    return bg_img_arr  # CYX
-
-
-# NEW VERSION TO BE DOCUMENTED AND/OR MOVED TO IOHUB
-def new_load_background(background_path):
-    tiff_path_list = glob.glob(os.path.join(background_path, "*.tif"))
-    tiff_path_list.sort()
-    background_image_list = []
-    for tiff_path in tiff_path_list:
-        background_image_list.append(tiff.imread(tiff_path))
-    return torch.tensor(background_image_list, dtype=torch.float32)  # CYX
+def load_background(background_path):
+    with open_ome_zarr(
+        os.path.join(background_path, "background.zarr", "0", "0", "0")
+    ) as dataset:
+        cyx_data = dataset["0"][0, :, 0]
+        return torch.tensor(cyx_data, dtype=torch.float32)
 
 
 class MockEmitter:
@@ -325,3 +279,96 @@ def ret_ori_overlay(
         raise ValueError(f"Colormap {cmap} not understood")
 
     return overlay_final
+
+
+def model_to_yaml(model, yaml_path):
+    """
+    Save a model's dictionary representation to a YAML file.
+
+    Parameters
+    ----------
+    model : object
+        The model object to convert to YAML.
+    yaml_path : str
+        The path to the output YAML file.
+
+    Raises
+    ------
+    TypeError
+        If the `model` object does not have a `dict()` method.
+
+    Notes
+    -----
+    This function converts a model object into a dictionary representation
+    using the `dict()` method. It removes any fields with None values before
+    writing the dictionary to a YAML file.
+
+    Examples
+    --------
+    >>> from my_model import MyModel
+    >>> model = MyModel()
+    >>> model_to_yaml(model, 'model.yaml')
+
+    """
+    if not hasattr(model, "dict"):
+        raise TypeError("The 'model' object does not have a 'dict()' method.")
+
+    model_dict = model.dict()
+
+    # Remove None-valued fields
+    clean_model_dict = {
+        key: value for key, value in model_dict.items() if value is not None
+    }
+
+    with open(yaml_path, "w+") as f:
+        yaml.dump(
+            clean_model_dict, f, default_flow_style=False, sort_keys=False
+        )
+
+
+def yaml_to_model(yaml_path, model):
+    """
+    Load model settings from a YAML file and create a model instance.
+
+    Parameters
+    ----------
+    yaml_path : str
+        The path to the YAML file containing the model settings.
+    model : class
+        The model class used to create an instance with the loaded settings.
+
+    Returns
+    -------
+    object
+        An instance of the model class with the loaded settings.
+
+    Raises
+    ------
+    TypeError
+        If the provided model is not a class or does not have a callable constructor.
+    FileNotFoundError
+        If the YAML file specified by `yaml_path` does not exist.
+
+    Notes
+    -----
+    This function loads model settings from a YAML file using `yaml.safe_load()`.
+    It then creates an instance of the provided `model` class using the loaded settings.
+
+    Examples
+    --------
+    >>> from my_model import MyModel
+    >>> model = yaml_to_model('model.yaml', MyModel)
+
+    """
+    if not callable(getattr(model, "__init__", None)):
+        raise TypeError(
+            "The provided model must be a class with a callable constructor."
+        )
+
+    try:
+        with open(yaml_path, "r") as file:
+            raw_settings = yaml.safe_load(file)
+    except FileNotFoundError:
+        raise FileNotFoundError(f"The YAML file '{yaml_path}' does not exist.")
+
+    return model(**raw_settings)

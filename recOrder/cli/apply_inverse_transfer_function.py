@@ -1,52 +1,21 @@
 import click
 import numpy as np
 import torch
-import yaml
 from iohub import open_ome_zarr
 from recOrder.cli.printing import echo_headline, echo_settings
-from recOrder.cli.settings import (
-    TransferFunctionSettings,
-    ApplyInverseSettings,
-)
+from recOrder.cli.settings import ReconstructionSettings
 from recOrder.cli.parsing import (
     input_data_path_argument,
     config_path_option,
-    output_dataset_options,
+    output_dataset_option,
 )
 from recOrder.io import utils
 from waveorder.models import (
     inplane_oriented_thick_pol3d,
     isotropic_thin_3d,
     phase_thick_3d,
+    isotropic_fluorescent_thick_3d,
 )
-
-
-def _check_shape_consistency(settings, data_shape):
-    c_shape = data_shape[1]
-    zyx_shape = data_shape[2:]
-
-    # Check zyx dimensions for phase
-    if settings.universal_settings.reconstruct_phase:
-        if settings.phase_transfer_function_settings.zyx_shape != list(
-            zyx_shape
-        ):
-            raise (
-                ValueError(
-                    f"Transfer function shape = {settings.phase_transfer_function_settings.zyx_shape} is not the same as the data shape = {zyx_shape}. Consider regenerating the transfer function."
-                )
-            )
-
-    # Check c dimensions for birefringence
-    if settings.universal_settings.reconstruct_birefringence:
-        if (
-            int(settings.birefringence_transfer_function_settings.scheme[0])
-            != c_shape
-        ):
-            raise (
-                ValueError(
-                    f"scheme = {settings.birefringence_transfer_function_settings.scheme} is not the same as the data's channel shape = {c_shape}. Consider regenerating the transfer function or finding compatible data."
-                )
-            )
 
 
 def _check_background_consistency(background_shape, data_shape):
@@ -67,29 +36,31 @@ def apply_inverse_transfer_function_cli(
     input_dataset = open_ome_zarr(input_data_path)
 
     # Load config file
-    if config_path is None:
-        inverse_settings = ApplyInverseSettings()
-    else:
-        with open(config_path) as file:
-            raw_settings = yaml.safe_load(file)
-        inverse_settings = ApplyInverseSettings(**raw_settings)
+    settings = utils.yaml_to_model(config_path, ReconstructionSettings)
 
-    # Load transfer settings
-    settings = TransferFunctionSettings(
-        **transfer_function_dataset.zattrs["transfer_function_settings"]
-    )
+    # Check input channel names
+    if not set(settings.input_channel_names).issubset(
+        input_dataset.channel_names
+    ):
+        raise ValueError(
+            f"Each of the input_channel_names = {settings.input_channel_names} in {config_path} must appear in the dataset {input_data_path} which currently contains channel_names = {input_dataset.channel_names}."
+        )
 
-    # Load dataset shape and check for consistency
-    _check_shape_consistency(
-        settings, input_dataset.data.shape  # only loads a single position "0"
-    )
+    # Find channel indices
+    channel_indices = []
+    for input_channel_name in settings.input_channel_names:
+        channel_indices.append(
+            input_dataset.channel_names.index(input_channel_name)
+        )
+
+    # Load dataset shape
     t_shape = input_dataset.data.shape[0]
 
     # Simplify important settings names
-    recon_biref = settings.universal_settings.reconstruct_birefringence
-    recon_phase = settings.universal_settings.reconstruct_phase
-    recon_dim = settings.universal_settings.reconstruction_dimension
-    wavelength = settings.universal_settings.wavelength_illumination
+    recon_biref = settings.birefringence is not None
+    recon_phase = settings.phase is not None
+    recon_fluo = settings.fluorescence is not None
+    recon_dim = settings.reconstruction_dimension
 
     # Prepare output dataset
     channel_names = []
@@ -103,6 +74,12 @@ def apply_inverse_transfer_function_cli(
             channel_names.append("Phase2D")
         elif recon_dim == 3:
             channel_names.append("Phase3D")
+    if recon_fluo:
+        fluor_name = settings.input_channel_names[0]
+        if recon_dim == 2:
+            channel_names.append(fluor_name + "2D")
+        elif recon_dim == 3:
+            channel_names.append(fluor_name + "3D")
 
     if recon_dim == 2:
         output_z_shape = 1
@@ -132,19 +109,19 @@ def apply_inverse_transfer_function_cli(
     )
 
     # Load data
-    tczyx_data = torch.tensor(input_dataset.data, dtype=torch.float32)
+    tczyx_data = torch.tensor(
+        input_dataset.data.oindex[:, channel_indices], dtype=torch.float32
+    )
 
     # Prepare background dataset
-    if recon_biref:
-        biref_inverse_dict = (
-            inverse_settings.birefringence_apply_inverse_settings.dict()
-        )
+    if settings.birefringence is not None:
+        biref_inverse_dict = settings.birefringence.apply_inverse.dict()
 
         # Resolve background path into array
         background_path = biref_inverse_dict["background_path"]
         biref_inverse_dict.pop("background_path")
         if background_path != "":
-            cyx_no_sample_data = utils.new_load_background(background_path)
+            cyx_no_sample_data = utils.load_background(background_path)
             _check_background_consistency(
                 cyx_no_sample_data.shape, input_dataset.data.shape
             )
@@ -152,12 +129,12 @@ def apply_inverse_transfer_function_cli(
             cyx_no_sample_data = None
 
     # Main reconstruction logic
-    # Six different cases [2, 3] x [biref only, phase only, both]
+    # Eight different cases [2, 3] x [biref only, phase only, biref and phase, fluorescence]
 
     # [biref only] [2 or 3]
     if recon_biref and (not recon_phase):
         echo_headline("Reconstructing birefringence with settings:")
-        echo_settings(inverse_settings.birefringence_apply_inverse_settings)
+        echo_settings(settings.birefringence.apply_inverse)
         echo_headline("Reconstructing birefringence...")
 
         # Load transfer function
@@ -171,9 +148,8 @@ def apply_inverse_transfer_function_cli(
                 inplane_oriented_thick_pol3d.apply_inverse_transfer_function(
                     tczyx_data[time_index],
                     intensity_to_stokes_matrix,
-                    wavelength,
-                    cyx_no_sample_data,
-                    project_stokes_to_2d=False,
+                    cyx_no_sample_data=cyx_no_sample_data,
+                    project_stokes_to_2d=(recon_dim == 2),
                     **biref_inverse_dict,
                 )
             )
@@ -184,7 +160,7 @@ def apply_inverse_transfer_function_cli(
     # [phase only]
     if recon_phase and (not recon_biref):
         echo_headline("Reconstructing phase with settings:")
-        echo_settings(inverse_settings.phase_apply_inverse_settings)
+        echo_settings(settings.phase.apply_inverse)
         echo_headline("Reconstructing phase...")
 
         # check data shapes
@@ -212,10 +188,7 @@ def apply_inverse_transfer_function_cli(
                     tczyx_data[time_index, 0],
                     absorption_transfer_function,
                     phase_transfer_function,
-                    method=inverse_settings.phase_apply_inverse_settings.reconstruction_algorithm,
-                    reg_p=inverse_settings.phase_apply_inverse_settings.strength,
-                    rho=inverse_settings.phase_apply_inverse_settings.TV_rho_strength,
-                    itr=inverse_settings.phase_apply_inverse_settings.TV_iterations,
+                    **settings.phase.apply_inverse.dict(),
                 )
 
                 # Save
@@ -241,13 +214,10 @@ def apply_inverse_transfer_function_cli(
                     tczyx_data[time_index, 0],
                     real_potential_transfer_function,
                     imaginary_potential_transfer_function,
-                    z_padding=settings.phase_transfer_function_settings.z_padding,
-                    z_pixel_size=settings.phase_transfer_function_settings.z_pixel_size,
-                    wavelength_illumination=wavelength,
-                    method=inverse_settings.phase_apply_inverse_settings.reconstruction_algorithm,
-                    reg_re=inverse_settings.phase_apply_inverse_settings.strength,
-                    rho=inverse_settings.phase_apply_inverse_settings.TV_rho_strength,
-                    itr=inverse_settings.phase_apply_inverse_settings.TV_iterations,
+                    z_padding=settings.phase.transfer_function.z_padding,
+                    z_pixel_size=settings.phase.transfer_function.z_pixel_size,
+                    wavelength_illumination=settings.phase.transfer_function.wavelength_illumination,
+                    **settings.phase.apply_inverse.dict(),
                 )
                 # Save
                 output_array[time_index, -1] = zyx_phase
@@ -255,9 +225,9 @@ def apply_inverse_transfer_function_cli(
     # [biref and phase]
     if recon_biref and recon_phase:
         echo_headline("Reconstructing phase with settings:")
-        echo_settings(inverse_settings.phase_apply_inverse_settings)
+        echo_settings(settings.phase.apply_inverse)
         echo_headline("Reconstructing birefringence with settings:")
-        echo_settings(inverse_settings.birefringence_apply_inverse_settings)
+        echo_settings(settings.birefringence.apply_inverse)
         echo_headline("Reconstructing...")
 
         # Load birefringence transfer function
@@ -280,8 +250,7 @@ def apply_inverse_transfer_function_cli(
                 reconstructed_parameters_2d = inplane_oriented_thick_pol3d.apply_inverse_transfer_function(
                     tczyx_data[time_index],
                     intensity_to_stokes_matrix,
-                    wavelength,
-                    cyx_no_sample_data,
+                    cyx_no_sample_data=cyx_no_sample_data,
                     project_stokes_to_2d=True,
                     **biref_inverse_dict,
                 )
@@ -289,8 +258,7 @@ def apply_inverse_transfer_function_cli(
                 reconstructed_parameters_3d = inplane_oriented_thick_pol3d.apply_inverse_transfer_function(
                     tczyx_data[time_index],
                     intensity_to_stokes_matrix,
-                    wavelength,
-                    cyx_no_sample_data,
+                    cyx_no_sample_data=cyx_no_sample_data,
                     project_stokes_to_2d=False,
                     **biref_inverse_dict,
                 )
@@ -304,10 +272,7 @@ def apply_inverse_transfer_function_cli(
                     brightfield_3d,
                     absorption_transfer_function,
                     phase_transfer_function,
-                    method=inverse_settings.phase_apply_inverse_settings.reconstruction_algorithm,
-                    reg_p=inverse_settings.phase_apply_inverse_settings.strength,
-                    rho=inverse_settings.phase_apply_inverse_settings.TV_rho_strength,
-                    itr=inverse_settings.phase_apply_inverse_settings.TV_iterations,
+                    **settings.phase.apply_inverse.dict(),
                 )
 
                 # Save
@@ -342,8 +307,7 @@ def apply_inverse_transfer_function_cli(
                 reconstructed_parameters_3d = inplane_oriented_thick_pol3d.apply_inverse_transfer_function(
                     tczyx_data[time_index],
                     intensity_to_stokes_matrix,
-                    wavelength,
-                    cyx_no_sample_data,
+                    cyx_no_sample_data=cyx_no_sample_data,
                     project_stokes_to_2d=False,
                     **biref_inverse_dict,
                 )
@@ -354,13 +318,10 @@ def apply_inverse_transfer_function_cli(
                     brightfield_3d,
                     real_potential_transfer_function,
                     imaginary_potential_transfer_function,
-                    z_padding=settings.phase_transfer_function_settings.z_padding,
-                    z_pixel_size=settings.phase_transfer_function_settings.z_pixel_size,
-                    wavelength_illumination=wavelength,
-                    method=inverse_settings.phase_apply_inverse_settings.reconstruction_algorithm,
-                    reg_re=inverse_settings.phase_apply_inverse_settings.strength,
-                    rho=inverse_settings.phase_apply_inverse_settings.TV_rho_strength,
-                    itr=inverse_settings.phase_apply_inverse_settings.TV_iterations,
+                    z_padding=settings.phase.transfer_function.z_padding,
+                    z_pixel_size=settings.phase.transfer_function.z_pixel_size,
+                    wavelength_illumination=settings.phase.transfer_function.wavelength_illumination,
+                    **settings.phase.apply_inverse.dict(),
                 )
                 # Save
                 for param_index, parameter in enumerate(
@@ -369,8 +330,35 @@ def apply_inverse_transfer_function_cli(
                     output_array[time_index, param_index] = parameter
                 output_array[time_index, -1] = zyx_phase
 
-    output_dataset.zattrs["transfer_function_settings"] = settings.dict()
-    output_dataset.zattrs["apply_inverse_settings"] = inverse_settings.dict()
+    # [fluo]
+    if recon_fluo:
+        echo_headline("Reconstructing fluorescence with settings:")
+        echo_settings(settings.fluorescence.apply_inverse)
+        echo_headline("Reconstructing...")
+
+        # [fluo, 2]
+        if recon_dim == 2:
+            raise NotImplementedError
+        # [fluo, 3]
+        elif recon_dim == 3:
+            # Load transfer functions
+            optical_transfer_function = torch.tensor(
+                transfer_function_dataset["optical_transfer_function"][0, 0]
+            )
+
+            # Apply
+            for time_index in range(t_shape):
+                zyx_recon = isotropic_fluorescent_thick_3d.apply_inverse_transfer_function(
+                    tczyx_data[time_index, 0],
+                    optical_transfer_function,
+                    settings.fluorescence.transfer_function.z_padding,
+                    **settings.fluorescence.apply_inverse.dict(),
+                )
+
+                # Save
+                output_array[time_index, 0] = zyx_recon
+
+    output_dataset.zattrs["settings"] = settings.dict()
 
     echo_headline(f"Closing {output_path}\n")
     output_dataset.close()
@@ -378,22 +366,30 @@ def apply_inverse_transfer_function_cli(
     input_dataset.close()
 
     echo_headline(
-        f"Recreate this reconstruction with:\n>> recorder apply-inverse-transfer-function {input_data_path} {transfer_function_path} -c {config_path} -o {output_path}"
+        f"Recreate this reconstruction with:\n$ recorder apply-inv-tf {input_data_path} {transfer_function_path} -c {config_path} -o {output_path}"
     )
 
 
 @click.command()
+@click.help_option("-h", "--help")
 @input_data_path_argument()
 @click.argument(
     "transfer_function_path",
     type=click.Path(exists=True),
 )
 @config_path_option()
-@output_dataset_options(default="./reconstruction.zarr")
-def apply_inverse_transfer_function(
+@output_dataset_option(default="./reconstruction.zarr")
+def apply_inv_tf(
     input_data_path, transfer_function_path, config_path, output_path
 ):
-    "Invert and apply a transfer function"
+    """
+    Apply an inverse transfer function to a dataset using a configuration file.
+
+    See /examples/settings/ for example configuration files.
+
+    Example usage:\n
+    $ recorder apply-inv-tf input.zarr/0/0/0 transfer-function.zarr -c /examples/settings/birefringence.yml -o output.zarr
+    """
     apply_inverse_transfer_function_cli(
         input_data_path, transfer_function_path, config_path, output_path
     )
