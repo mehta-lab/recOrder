@@ -26,7 +26,7 @@ def reconstruct(input_data_path, config_path, output_path):
     See /examples/settings/ for example configuration files.
 
     Example usage:\n
-    $ recorder reconstruct input.zarr -c /examples/settings/birefringence.yml -o output.zarr
+    $ recorder reconstruct input.zarr/0/0/0 -c /examples/settings/birefringence.yml -o output.zarr
     """
 
     # Handle transfer function path

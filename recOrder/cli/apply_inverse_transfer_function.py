@@ -388,7 +388,7 @@ def apply_inv_tf(
     See /examples/settings/ for example configuration files.
 
     Example usage:\n
-    $ recorder apply-inv-tf input.zarr transfer-function.zarr -c /examples/settings/birefringence.yml -o output.zarr
+    $ recorder apply-inv-tf input.zarr/0/0/0 transfer-function.zarr -c /examples/settings/birefringence.yml -o output.zarr
     """
     apply_inverse_transfer_function_cli(
         input_data_path, transfer_function_path, config_path, output_path
