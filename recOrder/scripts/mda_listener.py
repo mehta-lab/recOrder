@@ -166,14 +166,9 @@ while datastore:
                 czyx_array = np.zeros((c_max + 1, z_max + 1, height, width), dtype=np.uint16)
             initialize = False
 
-        if acq_mode == "TPCZ" or acq_mode == "PTCZ":
-            z_array[curr_z] = image
-        elif acq_mode == "TPZC" or acq_mode == "PTZC":
-            czyx_array[curr_c, curr_z] = image
-            print(czyx_array)
-
         # Want to continuously update the zarr store with z-stacks
         if acq_mode == "TPCZ" or acq_mode == "PTCZ":
+            z_array[curr_z] = image
             if curr_z == z_max:
                 with open_ome_zarr(
                     zarr_path,
@@ -183,6 +178,7 @@ while datastore:
                     img["0"][curr_t, curr_c] = z_array
                 z_array = np.zeros((z_max + 1, height, width), dtype=np.uint16)
         elif acq_mode == "TPZC" or acq_mode == "PTZC":
+            czyx_array[curr_c, curr_z] = image
             if curr_c == c_max and curr_z == z_max:
                 with open_ome_zarr(
                     zarr_path,
