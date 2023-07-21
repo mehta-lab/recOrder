@@ -12,12 +12,18 @@ import numpy as np
 from napari.qt import thread_worker
 import time
 import napari
+from skimage import data as dummy_data
+from matplotlib import pyplot as plt
+
+brain_data = dummy_data.brain()
+print(brain_data.shape)
+print(brain_data[0])
 
 viewer = napari.Viewer()
 # Set path here
 path = "/Applications/Micro-Manager-2.0.1-20220920/prac_folder/napari_test/example.zarr"
 
-channel_names = ["DAPI", "GFP"]
+channel_names = ["DAPI"]
 
 # Dummy function to write to a zarr store
 def write_to_zarr(max_position, initialize, write_to_position):
@@ -58,7 +64,7 @@ def update_layers(info_name_tuple):
     layer_name = info_name_tuple[1]
     if layer_name in viewer.layers:
         viewer.layers[layer_name].data = data
-        viewer.layers[layer_name].refresh()
+        # viewer.layers[layer_name].refresh()
     else:
         viewer.add_image(data, name=layer_name)
 
@@ -75,16 +81,16 @@ def check_zarr_store():
         curr_time = time.time()
         max_position = 5
         # print(last_exec_time)
-        if write_to_position == max_position:
-            break
-        if initialize == True:
-            write_to_zarr(max_position, True, write_to_position)
-            last_exec_time = curr_time
-            initialize = False
-        if curr_time - last_exec_time > 5:
-            write_to_zarr(max_position, False, write_to_position)
-            last_exec_time = curr_time
-            write_to_position += 1
+        # if write_to_position == max_position:
+        #     break
+        # if initialize == True:
+        #     write_to_zarr(max_position, True, write_to_position)
+        #     last_exec_time = curr_time
+        #     initialize = False
+        # if curr_time - last_exec_time > 5:
+        #     write_to_zarr(max_position, False, write_to_position)
+        #     last_exec_time = curr_time
+        #     write_to_position += 1
         with open_ome_zarr(
             store_path=path,
             layout="hcs",
@@ -92,78 +98,31 @@ def check_zarr_store():
             channel_names=channel_names
         ) as dataset:
             for name, position in dataset.positions():
-                # print(name, position)
-                # print(position.data.shape)
+                print(name, position)
+                print(position.data.shape)
                 yield (position.data, name)
 
         # yield data
 
-def update_dimensions(acq_mode, curr_p, curr_t, curr_c, curr_z,
-                      p_max, t_max, c_max, z_max):
-    if acq_mode == "TPZC":
-        if curr_c < c_max:
-            curr_c += 1
-        else:
-            curr_c = 0
-            if curr_z < z_max:
-                curr_z += 1
-            else:
-                curr_z = 0
-                if curr_p < p_max:
-                    curr_p += 1
-                else:
-                    if curr_t < t_max:
-                        curr_t += 1
-                        curr_p = 0
+@thread_worker
+def continuous_write_to_zarr():
+    with open_ome_zarr(
+        path,
+        layout="hcs",
+        mode="w",
+        channel_names=channel_names
+    ) as dataset:
+        for index in range(brain_data.shape[0]):
+            position = dataset.create_position("0", index, "0")
+            position["0"] = brain_data[np.new_axis, np.new_axis, ...]
+            # plt.imshow(brain_data)
+            # plt.show()
+            # print(brain_data[index])
+            # time.sleep(5)
 
-    if acq_mode == "TPCZ":
-        if curr_z < z_max:
-            curr_z += 1
-        else:
-            curr_z = 0
-            if curr_c < c_max:
-                curr_c += 1
-            else:
-                curr_c = 0
-                if curr_p < p_max:
-                    curr_p += 1
-                else:
-                    if curr_t < t_max:
-                        curr_t += 1
-                        curr_p = 0
+# plt.imshow(brain_data[0])
+# plt.show()
 
-    if acq_mode == "PTZC":
-        if curr_c < c_max:
-            curr_c += 1
-        else:
-            curr_c = 0
-            if curr_z < z_max:
-                curr_z += 1
-            else:
-                curr_z = 0
-                if curr_t < t_max:
-                    curr_t += 1
-                else:
-                    if curr_p < p_max:
-                        curr_p += 1
-                        curr_t = 0
-
-    if acq_mode == "PTCZ":
-        if curr_z < z_max:
-            curr_z += 1
-        else:
-            curr_z = 0
-            if curr_c < c_max:
-                curr_c += 1
-            else:
-                curr_c = 0
-                if curr_t < t_max:
-                    curr_t += 1
-                else:
-                    if curr_p < p_max:
-                        curr_p += 1
-                        curr_t = 0
-    return curr_p, curr_t, curr_c, curr_z
-
-check_zarr_store()
-napari.run()
+# continuous_write_to_zarr()
+# check_zarr_store()
+# napari.run()

@@ -122,9 +122,8 @@ max_images = (p_max + 1) * (t_max + 1) * (c_max + 1) * (z_max + 1)
 
 path = datastore.getSavePath()
 initialize = True
-refresh_p = False
 while datastore:
-    if engine.isFinished():
+    if engine.isFinished() and img_count == max_images:
         print(zarr_path)
         assert img_count == max_images, f"Found {img_count} images but should be {max_images}"
         if curr_p < p_max:
