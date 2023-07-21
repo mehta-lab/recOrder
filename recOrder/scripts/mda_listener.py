@@ -9,7 +9,7 @@ import tempfile
 # Test diff orders
 # Can display those into napari
 # 0=TPZC, 1=TPCZ, 2=PTZC, 3=PTCZ
-def update_dimensions(acq_mode, curr_p, curr_t, curr_c, curr_z):
+def update_dimensions(acq_mode, curr_p, curr_t, curr_c, curr_z, p_max, t_max, c_max, z_max):
     if acq_mode == "TPZC":
         if curr_c < c_max:
             curr_c += 1
@@ -77,7 +77,7 @@ def update_dimensions(acq_mode, curr_p, curr_t, curr_c, curr_z):
 
 studio = Studio(convert_camel_case=False)
 manager = studio.getAcquisitionManager()
-manager.runAcquisitionNonblocking()
+# manager.runAcquisitionNonblocking()
 # look for acq run non-blocking
 
 engine = studio.getAcquisitionEngine()
@@ -208,7 +208,7 @@ while datastore:
             img["0"][curr_t, curr_c, curr_z] = image
 
         # Update the dimensions
-        curr_p, curr_t, curr_c, curr_z = update_dimensions(acq_mode, curr_p, curr_t, curr_c, curr_z)
+        curr_p, curr_t, curr_c, curr_z = update_dimensions(acq_mode, curr_p, curr_t, curr_c, curr_z, p_max, t_max, c_max, z_max)
 
     print("Waiting..")
     # time.sleep(0.1)
