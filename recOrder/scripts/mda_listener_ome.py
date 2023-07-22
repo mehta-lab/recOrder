@@ -14,7 +14,9 @@ datastore = engine.getAcquisitionDatastore()
 mode = datastore.getPreferredSaveMode(studio).toString()
 data_manager = studio.data()
 
-channel_names_string = datastore.getSummaryMetadata().getChannelNameList().toString()
+channel_names_string = (
+    datastore.getSummaryMetadata().getChannelNameList().toString()
+)
 channel_names = channel_names_string.strip("][").split(", ")
 
 intended_dims = datastore.getSummaryMetadata().getIntendedDimensions()
@@ -122,7 +124,12 @@ while datastore:
         break
     # Get coords of current image
     required_coord = (
-        intended_dims.copyBuilder().p(curr_p).t(curr_t).c(curr_c).z(curr_z).build()
+        intended_dims.copyBuilder()
+        .p(curr_p)
+        .t(curr_t)
+        .c(curr_c)
+        .z(curr_z)
+        .build()
     )
     found = False
     # Check if the storage has the Image coords
@@ -132,7 +139,9 @@ while datastore:
         found = True
     if found:
         # Current OME-TIFF file that is being written to
-        curr_file = os.path.join(path, f"{file_header}_MMStack_Pos{curr_p}.ome.tif")
+        curr_file = os.path.join(
+            path, f"{file_header}_MMStack_Pos{curr_p}.ome.tif"
+        )
         print(
             f"Current p: {curr_p}\t Current t: {curr_t}\t Current c: {curr_c}\t Current z: {curr_z}"
         )
@@ -183,34 +192,48 @@ while datastore:
 
         # Based on the acq_mode, update the zarr store
         # Write every z-stack or every channel finish
-        if acq_mode == "TPCZ" or acq_mode == "PTCZ":
-            z_array[curr_z] = data
-            if curr_z == z_max:
-                with open_ome_zarr(zarr_path, mode="a") as dataset:
-                    img = dataset[f"0/{curr_p}/0"]
-                    img["0"][curr_t, curr_c] = z_array
-                z_array = np.zeros((z_max + 1, height, width), dtype=np.uint16)
-        elif acq_mode == "TPZC" or acq_mode == "PTZC":
-            czyx_array[curr_c, curr_z] = data
-            if curr_c == c_max and curr_z == z_max:
-                with open_ome_zarr(zarr_path, mode="a") as dataset:
-                    img = dataset[f"0/{curr_p}/0"]
-                    for c in range(c_max + 1):
-                        img["0"][curr_t, c] = czyx_array[c]
-                czyx_array = np.zeros((c_max + 1, z_max + 1, height, width))
+        # if acq_mode == "TPCZ" or acq_mode == "PTCZ":
+        #     z_array[curr_z] = data
+        #     if curr_z == z_max:
+        #         with open_ome_zarr(zarr_path, mode="a") as dataset:
+        #             img = dataset[f"0/{curr_p}/0"]
+        #             img["0"][curr_t, curr_c] = z_array
+        #         z_array = np.zeros((z_max + 1, height, width), dtype=np.uint16)
+        # elif acq_mode == "TPZC" or acq_mode == "PTZC":
+        #     czyx_array[curr_c, curr_z] = data
+        #     if curr_c == c_max and curr_z == z_max:
+        #         with open_ome_zarr(zarr_path, mode="a") as dataset:
+        #             img = dataset[f"0/{curr_p}/0"]
+        #             for c in range(c_max + 1):
+        #                 img["0"][curr_t, c] = czyx_array[c]
+        #         czyx_array = np.zeros((c_max + 1, z_max + 1, height, width))
 
         # # Write every image
-        # with open_ome_zarr(zarr_path, mode="a") as dataset:
-        #     img = dataset[f"0/{curr_p}/0"]
-        #     img["0"][curr_t, curr_c, curr_z] = data
+        with open_ome_zarr(zarr_path, mode="a") as dataset:
+            print(f"Writing to 0/{curr_p}/0 at {zarr_path}")
+            img = dataset[f"0/{curr_p}/0"]
+            img["0"][curr_t, curr_c, curr_z] = data
 
         # If last dimension, it should finish
-        if curr_p == p_max and curr_t == t_max and curr_c == c_max and curr_z == z_max:
+        if (
+            curr_p == p_max
+            and curr_t == t_max
+            and curr_c == c_max
+            and curr_z == z_max
+        ):
             print(f"Reached max images {img_count}")
             break
 
         # Update the dimensions
         curr_p, curr_t, curr_c, curr_z = update_dimensions(
-            acq_mode, curr_p, curr_t, curr_c, curr_z, p_max, t_max, c_max, z_max
+            acq_mode,
+            curr_p,
+            curr_t,
+            curr_c,
+            curr_z,
+            p_max,
+            t_max,
+            c_max,
+            z_max,
         )
     # print("Waiting...")
