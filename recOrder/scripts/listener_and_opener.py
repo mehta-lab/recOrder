@@ -97,9 +97,9 @@ channel_names = ""
 
 # Reads the zarr files and yields the image data to update_layers
 @thread_worker(connect={"yielded": update_layers})
-def read_zarr(path_and_coord_tuple):
-    path = path_and_coord_tuple[0]
-    curr_p = path_and_coord_tuple[1]
+def read_zarr(path_and_position_tuple):
+    path = path_and_position_tuple[0]
+    curr_p = path_and_position_tuple[1]
     # while True:
     with open_ome_zarr(
         path, layout="hcs", mode="r", channel_names=channel_names
@@ -158,6 +158,7 @@ def mda_to_zarr():
             .build()
         )
         found = False
+        # Check if the storage has the Image coords (NDTIFF)
         if save_mode == "ND_TIFF":
             if datastore.hasImage(required_coord):
                 img_count += 1
@@ -170,9 +171,12 @@ def mda_to_zarr():
                 print(f"Found {img_count}")
                 found = True
         if found:
-            curr_file = os.path.join(
-                path, f"{file_header}_MMStack_Pos{curr_p}.ome.tif"
-            )
+            if save_mode == "ND_TIFF":
+                curr_file = path
+            elif save_mode == "MULTIPAGE_TIFF":
+                curr_file = os.path.join(
+                    path, f"{file_header}_MMStack_Pos{curr_p}.ome.tif"
+                )
             print(curr_file)
             # Wait for file to exist before reading
             while not os.path.exists(curr_file):
@@ -210,6 +214,7 @@ def mda_to_zarr():
                     )
                 initialize = False
 
+            # Get the image data
             if save_mode == "ND_TIFF":
                 data = Dataset(path)
                 image = data.read_image(curr_c, curr_z, curr_t, curr_p)
@@ -259,7 +264,7 @@ def mda_to_zarr():
                 f"Current p: {curr_p}\t Current t: {curr_t}\t Current c: {curr_c}\t Current z: {curr_z}"
             )
 
-            yield (zarr_path, curr_p, curr_t, curr_c, curr_z)
+            yield (zarr_path, curr_p)
 
             if (
                 curr_p == p_max
