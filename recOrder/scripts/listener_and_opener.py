@@ -85,7 +85,6 @@ def update_dimensions(
 def update_layers(data_name_tuple):
     img_data = data_name_tuple[0]
     layer_name = data_name_tuple[1]
-    print(layer_name in viewer.layers)
     if layer_name in viewer.layers:
         viewer.layers[layer_name].data = img_data
     else:
@@ -105,7 +104,6 @@ def read_zarr(path_and_position_tuple):
         path, layout="hcs", mode="r", channel_names=channel_names
     ) as dataset:
         position_data = dataset[f"0/{curr_p}/0"]["0"]
-        print(curr_p)
         yield position_data, f"Position {curr_p}"
 
 
@@ -177,7 +175,6 @@ def mda_to_zarr():
                 curr_file = os.path.join(
                     path, f"{file_header}_MMStack_Pos{curr_p}.ome.tif"
                 )
-            print(curr_file)
             # Wait for file to exist before reading
             while not os.path.exists(curr_file):
                 print(f"Waiting for file... {curr_file}")
