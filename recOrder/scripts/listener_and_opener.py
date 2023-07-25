@@ -96,10 +96,12 @@ channel_names = ""
 
 # Reads the zarr files and yields the image data to update_layers
 @thread_worker(connect={"yielded": update_layers})
-def read_zarr(path_and_position_tuple):
-    path = path_and_position_tuple[0]
-    curr_p = path_and_position_tuple[1]
-    # while True:
+def read_zarr(path_and_position_and_z_tuple):
+    path = path_and_position_and_z_tuple[0]
+    curr_p = path_and_position_and_z_tuple[1]
+    z_done = path_and_position_and_z_tuple[2]
+    if z_done:
+        print(f"\nZ-stack is done!\n")
     with open_ome_zarr(
         path, layout="hcs", mode="r", channel_names=channel_names
     ) as dataset:
@@ -270,8 +272,17 @@ def mda_to_zarr():
             print(
                 f"Current p: {curr_p}\t Current t: {curr_t}\t Current c: {curr_c}\t Current z: {curr_z}"
             )
+            
+            z_done = False
+            if acq_mode == "TPCZ" or acq_mode == "PTCZ":
+                if curr_z == z_max:
+                    z_done = True
+            elif acq_mode == "TPZC" or acq_mode == "PTZC":
+                if curr_z == z_max and curr_c == c_max:
+                    z_done = True
 
-            yield (zarr_path, curr_p)
+
+            yield (zarr_path, curr_p, z_done)
 
             if (
                 curr_p == p_max
