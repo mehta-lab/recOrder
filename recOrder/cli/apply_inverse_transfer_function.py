@@ -109,9 +109,10 @@ def apply_inverse_transfer_function_cli(
     )
 
     # Load data
+    tczyx_uint16_numpy = input_dataset.data.oindex[:, channel_indices]
     tczyx_data = torch.tensor(
-        input_dataset.data.oindex[:, channel_indices], dtype=torch.float32
-    )
+        np.int32(tczyx_uint16_numpy), dtype=torch.float32
+    )  # convert to np.int32 (torch doesn't accept np.uint16), then convert to tensor float32
 
     # Prepare background dataset
     if settings.birefringence is not None:
