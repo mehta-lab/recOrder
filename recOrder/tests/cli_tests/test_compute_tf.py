@@ -47,7 +47,7 @@ def test_compute_transfer_blank_output():
 
 def test_compute_transfer_output_file(tmp_path, input_zarr):
     recon_settings = settings.ReconstructionSettings(
-        input_channel_names=["TEST"],
+        input_channel_names=["BF"],
         reconstruction_dimension=3,
         phase=settings.PhaseSettings(),
     )
