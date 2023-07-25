@@ -21,7 +21,9 @@ def test_compute_transfer(tmp_path, input_zarr):
 
     path, _ = input_zarr
     runner = CliRunner()
-    result = runner.invoke(cli, ["compute-tf", str(path), "-c", str(config_path)])
+    result = runner.invoke(
+        cli, ["compute-tf", str(path), "-c", str(config_path)]
+    )
     assert result.exit_code == 0
 
 
@@ -45,10 +47,10 @@ def test_compute_transfer_blank_output():
 
 def test_compute_transfer_output_file(tmp_path, input_zarr):
     recon_settings = settings.ReconstructionSettings(
-            input_channel_names=["TEST"],
-            reconstruction_dimension=3,
-            phase=settings.PhaseSettings(),
-        )
+        input_channel_names=["TEST"],
+        reconstruction_dimension=3,
+        phase=settings.PhaseSettings(),
+    )
     config_path = tmp_path / "test.yml"
     utils.model_to_yaml(recon_settings, config_path)
 
