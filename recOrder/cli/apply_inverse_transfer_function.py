@@ -166,9 +166,9 @@ def apply_inverse_transfer_function_cli(
 
         # check data shapes
         if tczyx_data.shape[1] != 1:
-           raise ValueError(
-               "You have requested a phase-only reconstruction, but the input dataset has more than one channel."
-           )
+            raise ValueError(
+                "You have requested a phase-only reconstruction, but the input dataset has more than one channel."
+            )
 
         # [phase only, 2]
         if recon_dim == 2:
