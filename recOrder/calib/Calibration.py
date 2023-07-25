@@ -106,17 +106,18 @@ class QLIPP_Calibration:
         # Set Mode
         # TODO: make sure LC or TriggerScope are loaded in the respective modes
         allowed_modes = ["MM-Retardance", "MM-Voltage", "DAC"]
-        assert (
-            lc_control_mode in allowed_modes
-        ), f"LC control mode must be one of {allowed_modes}"
+        if lc_control_mode not in allowed_modes:
+            raise ValueError(f"LC control mode must be one of {allowed_modes}")
         self.mode = lc_control_mode
         self.LC_DAC_conversion = 4  # convert between the input range of LCs (0-20V) and the output range of the DAC (0-5V)
 
         # Initialize calibration class
         allowed_interp_methods = ["schnoor_fit", "linear"]
-        assert (
-            interp_method in allowed_interp_methods
-        ), f"LC calibration data interpolation method must be one of {allowed_interp_methods}"
+        if interp_method not in allowed_interp_methods:
+            raise ValueError(
+                "LC calibration data interpolation method must be one of "
+                f"{allowed_interp_methods}"
+            )
         dir_path = mmc.getDeviceAdapterSearchPaths().get(
             0
         )  # MM device adapter directory
