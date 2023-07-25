@@ -14,7 +14,7 @@ def input_zarr(tmp_path):
         mode="w",
         channel_names=[f"State{i}" for i in range(4)] + ["BF"],
     )
-    dataset.create_zeros("0", (2, 5, 4, 5, 6), dtype=np.float32)
+    dataset.create_zeros("0", (2, 5, 4, 5, 6), dtype=np.uint16)
     yield path, dataset
 
 
