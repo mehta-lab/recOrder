@@ -23,10 +23,10 @@ def reconstruct(input_data_path, config_path, output_path):
     convenience function for a `compute-tf` call followed by a `apply-inv-tf`
     call.
 
-    See /examples/settings/ for example configuration files.
+    See /examples for example configuration files.
 
     Example usage:\n
-    $ recorder reconstruct input.zarr/0/0/0 -c /examples/settings/birefringence.yml -o output.zarr
+    $ recorder reconstruct input.zarr/0/0/0 -c /examples/birefringence.yml -o output.zarr
     """
 
     # Handle transfer function path

@@ -109,9 +109,10 @@ def apply_inverse_transfer_function_cli(
     )
 
     # Load data
+    tczyx_uint16_numpy = input_dataset.data.oindex[:, channel_indices]
     tczyx_data = torch.tensor(
-        input_dataset.data.oindex[:, channel_indices], dtype=torch.float32
-    )
+        np.int32(tczyx_uint16_numpy), dtype=torch.float32
+    )  # convert to np.int32 (torch doesn't accept np.uint16), then convert to tensor float32
 
     # Prepare background dataset
     if settings.birefringence is not None:
@@ -164,7 +165,7 @@ def apply_inverse_transfer_function_cli(
         echo_headline("Reconstructing phase...")
 
         # check data shapes
-        if input_dataset.data.shape[1] != 1:
+        if tczyx_data.shape[1] != 1:
             raise ValueError(
                 "You have requested a phase-only reconstruction, but the input dataset has more than one channel."
             )
@@ -385,10 +386,10 @@ def apply_inv_tf(
     """
     Apply an inverse transfer function to a dataset using a configuration file.
 
-    See /examples/settings/ for example configuration files.
+    See /examples for example configuration files.
 
     Example usage:\n
-    $ recorder apply-inv-tf input.zarr/0/0/0 transfer-function.zarr -c /examples/settings/birefringence.yml -o output.zarr
+    $ recorder apply-inv-tf input.zarr/0/0/0 transfer-function.zarr -c /examples/birefringence.yml -o output.zarr
     """
     apply_inverse_transfer_function_cli(
         input_data_path, transfer_function_path, config_path, output_path

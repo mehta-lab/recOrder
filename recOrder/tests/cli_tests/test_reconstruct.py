@@ -49,12 +49,14 @@ def test_reconstruct(tmp_path):
         tf_path = input_path.with_name("tf.zarr")
         runner.invoke(
             cli,
-            "compute-tf "
-            + str(input_path)
-            + " -c "
-            + str(config_path)
-            + " -o "
-            + str(tf_path),
+            [
+                "compute-tf",
+                str(input_path),
+                "-c",
+                str(config_path),
+                "-o",
+                str(tf_path),
+            ],
         )
         assert tf_path.exists()
 
@@ -63,14 +65,15 @@ def test_reconstruct(tmp_path):
 
         result_inv = runner.invoke(
             cli,
-            "apply-inv-tf "
-            + str(input_path)
-            + " "
-            + str(tf_path)
-            + " -c "
-            + str(config_path)
-            + " -o "
-            + str(result_path),
+            [
+                "apply-inv-tf",
+                str(input_path),
+                str(tf_path),
+                "-c",
+                str(config_path),
+                "-o",
+                str(result_path),
+            ],
         )
         assert result_path.exists()
         assert result_inv.exit_code == 0
