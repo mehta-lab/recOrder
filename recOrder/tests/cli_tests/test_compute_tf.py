@@ -11,11 +11,11 @@ from recOrder.cli.compute_transfer_function import (
 
 def test_compute_transfer(tmp_path, input_zarr):
     recon_settings = settings.ReconstructionSettings(
-            input_channel_names=[f"State{i}" for i in range(5)],
-            reconstruction_dimension=3,
-            birefringence=settings.BirefringenceSettings(),
-            phase=settings.PhaseSettings(),
-        )
+        input_channel_names=[f"State{i}" for i in range(4)],
+        reconstruction_dimension=3,
+        birefringence=settings.BirefringenceSettings(),
+        phase=settings.PhaseSettings(),
+    )
     config_path = tmp_path / "test.yml"
     utils.model_to_yaml(recon_settings, config_path)
 
