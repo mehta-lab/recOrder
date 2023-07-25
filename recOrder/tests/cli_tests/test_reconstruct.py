@@ -55,6 +55,7 @@ def test_reconstruct(tmp_path):
             + str(config_path)
             + " -o "
             + str(tf_path),
+            catch_exceptions=False,
         )
         assert tf_path.exists()
 
@@ -71,6 +72,7 @@ def test_reconstruct(tmp_path):
             + str(config_path)
             + " -o "
             + str(result_path),
+            catch_exceptions=False,
         )
         assert result_path.exists()
         assert result_inv.exit_code == 0
