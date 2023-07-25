@@ -164,10 +164,10 @@ def apply_inverse_transfer_function_cli(
         echo_headline("Reconstructing phase...")
 
         # check data shapes
-        if input_dataset.data.shape[1] != 1:
-            raise ValueError(
-                "You have requested a phase-only reconstruction, but the input dataset has more than one channel."
-            )
+        if tczyx_data.shape[1] != 1:
+           raise ValueError(
+               "You have requested a phase-only reconstruction, but the input dataset has more than one channel."
+           )
 
         # [phase only, 2]
         if recon_dim == 2:
@@ -385,10 +385,10 @@ def apply_inv_tf(
     """
     Apply an inverse transfer function to a dataset using a configuration file.
 
-    See /examples/settings/ for example configuration files.
+    See /examples for example configuration files.
 
     Example usage:\n
-    $ recorder apply-inv-tf input.zarr/0/0/0 transfer-function.zarr -c /examples/settings/birefringence.yml -o output.zarr
+    $ recorder apply-inv-tf input.zarr/0/0/0 transfer-function.zarr -c /examples/birefringence.yml -o output.zarr
     """
     apply_inverse_transfer_function_cli(
         input_data_path, transfer_function_path, config_path, output_path
