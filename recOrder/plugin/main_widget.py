@@ -799,7 +799,7 @@ class MainWidget(QWidget):
 
         """
         # check if a QLIPP_Calibration object has been initialized
-        if not self.calib:
+        if mode != "phase" and not self.calib:
             raise RuntimeError("Please run or load calibration first.")
 
         # initialize the variable to keep track of the success of the requirement check
@@ -1195,6 +1195,7 @@ class MainWidget(QWidget):
 
         def _draw(overlay):
             self._add_or_update_image_layer(overlay, overlay_name, cmap="rgb")
+
         orientation_name, retardance_name = sorted(source_names)
         retardance = _layer_data(retardance_name)
         orientation = _layer_data(orientation_name)

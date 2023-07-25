@@ -1,41 +1,36 @@
 import os
-from pydantic import BaseModel, DirectoryPath, validator
-from typing import Literal, List
+from pydantic import (
+    BaseModel,
+    Extra,
+    NonNegativeInt,
+    NonNegativeFloat,
+    PositiveInt,
+    PositiveFloat,
+    root_validator,
+    validator,
+)
+from typing import Literal, List, Optional
+
+# This file defines the configuration settings for the CLI.
+
+# Example settings files in `/examples/settings/` are autmatically generated
+# by the tests in `/tests/cli_tests/test_settings.py` - `test_generate_example_settings`.
+
+# To keep the example settings up to date, run `pytest` locally when this file changes.
 
 
-class _UniversalSettings(BaseModel):
-    # these parameters for needed for each step:
-    #  - compute-transfer-function
-    #  - apply-inverse-transfer-function
-    #  - reconstruct
-    reconstruct_birefringence: bool = True
-    reconstruct_phase: bool = True
-    reconstruction_dimension: Literal[2, 3] = 2
-    wavelength_illumination: float = 0.532
-
-    @validator("reconstruct_phase")
-    def either_birefringence_or_phase(cls, v, values):
-        if (not v) and (not values["reconstruct_birefringence"]):
-            raise ValueError(
-                "either reconstruct_birefringence or reconstruct_phase must be True"
-            )
-        return v
-
-    @validator("wavelength_illumination")
-    def wavelength(cls, v):
-        if v < 0:
-            raise ValueError(
-                f"wavelength_illumination = {v} cannot be negative"
-            )
-        return v
+# All settings classes inherit from MyBaseModel, which forbids extra parameters to guard against typos
+class MyBaseModel(BaseModel, extra=Extra.forbid):
+    pass
 
 
-########## transfer function settings ##########
+# Bottom level settings
+class WavelengthIllumination(MyBaseModel):
+    wavelength_illumination: PositiveFloat = 0.532
 
 
-class _BirefringenceTransferFunctionSettings(BaseModel):
+class BirefringenceTransferFunctionSettings(MyBaseModel):
     swing: float = 0.1
-    scheme: Literal["4-State", "5-State"] = "4-State"
 
     @validator("swing")
     def swing_range(cls, v):
@@ -44,73 +39,7 @@ class _BirefringenceTransferFunctionSettings(BaseModel):
         return v
 
 
-class _PhaseTransferFunctionSettings(BaseModel):
-    zyx_shape: List[int] = [16, 128, 256]
-    yx_pixel_size: float = 6.5 / 20
-    z_pixel_size: float = 2.0
-    z_padding: int = 0
-    index_of_refraction_media: float = 1.3
-    numerical_aperture_illumination: float = 0.5
-    numerical_aperture_detection: float = 1.2
-
-    @validator("zyx_shape")
-    def zyx_shape_has_three_elements(cls, v):
-        if len(v) != 3:
-            raise ValueError(
-                f"zyx_shape must has three elements instead of {len(v)}"
-            )
-        return v
-
-    @validator("z_padding")
-    def z_pad(cls, v):
-        if v < 0:
-            raise ValueError(f"z_padding = {v} cannot be negative")
-        return v
-
-    @validator("numerical_aperture_illumination")
-    def na_ill(cls, v, values):
-        n = values["index_of_refraction_media"]
-        if v > n:
-            raise ValueError(
-                f"numerical_aperture_illumination = {v} must be less than or equal to index_of_refraction_media = {n}"
-            )
-        return v
-
-    @validator("numerical_aperture_detection")
-    def na_det(cls, v, values):
-        n = values["index_of_refraction_media"]
-        if v > n:
-            raise ValueError(
-                f"numerical_aperture_detection = {v} must be less than or equal to index_of_refraction_media = {n}"
-            )
-        return v
-
-
-class TransferFunctionSettings(BaseModel):
-    universal_settings: _UniversalSettings = _UniversalSettings()
-    birefringence_transfer_function_settings: _BirefringenceTransferFunctionSettings = (
-        _BirefringenceTransferFunctionSettings()
-    )
-    phase_transfer_function_settings: _PhaseTransferFunctionSettings = (
-        _PhaseTransferFunctionSettings()
-    )
-
-    # FIXME - how can I validate across settings classes?
-    # See also: test_settings.py
-    # @validator("yx_pixel_size")
-    # def warn_unit_consistency(cls, v, values):
-    #     lamb = values["wavelength_illumination"]
-    #     ratio = v / lamb
-    #     if ratio < 1.0 / 20 or ratio > 20:
-    #         raise Warning(
-    #             f"yx_pixel_size ({v}) / wavelength_illumination ({lamb}) = {ratio}. Did you use consistent units?"
-    #         )
-
-
-########## apply inverse transfer function settings ##########
-
-
-class _BirefringenceApplyInverseSettings(BaseModel):
+class BirefringenceApplyInverseSettings(WavelengthIllumination):
     background_path: str = ""
     remove_estimated_background: bool = False
     orientation_flip: bool = False
@@ -127,42 +56,123 @@ class _BirefringenceApplyInverseSettings(BaseModel):
         return raw_dir
 
 
-class _PhaseApplyInverseSettings(BaseModel):
+class FourierTransferFunctionSettings(MyBaseModel):
+    yx_pixel_size: PositiveFloat = 6.5 / 20
+    z_pixel_size: PositiveFloat = 2.0
+    z_padding: NonNegativeInt = 0
+    index_of_refraction_media: PositiveFloat = 1.3
+    numerical_aperture_detection: PositiveFloat = 1.2
+
+    @validator("numerical_aperture_detection")
+    def na_det(cls, v, values):
+        n = values["index_of_refraction_media"]
+        if v > n:
+            raise ValueError(
+                f"numerical_aperture_detection = {v} must be less than or equal to index_of_refraction_media = {n}"
+            )
+        return v
+
+    @validator("z_pixel_size")
+    def warn_unit_consistency(cls, v, values):
+        yx_pixel_size = values["yx_pixel_size"]
+        ratio = yx_pixel_size / v
+        if ratio < 1.0 / 20 or ratio > 20:
+            raise Warning(
+                f"yx_pixel_size ({yx_pixel_size}) / z_pixel_size ({v}) = {ratio}. Did you use consistent units?"
+            )
+        return v
+
+
+class FourierApplyInverseSettings(MyBaseModel):
     reconstruction_algorithm: Literal["Tikhonov", "TV"] = "Tikhonov"
-    strength: float = 1e-3
-    TV_rho_strength: float = 1e-3 
-    TV_iterations: int = 1
+    regularization_strength: NonNegativeFloat = 1e-3
+    TV_rho_strength: PositiveFloat = 1e-3
+    TV_iterations: NonNegativeInt = 1
 
-    @validator("strength")
-    def check_strength(cls, v):
-        if v < 0:
-            raise ValueError(f"strength = {v} cannot be negative")
+
+class PhaseTransferFunctionSettings(
+    FourierTransferFunctionSettings,
+    WavelengthIllumination,
+):
+    numerical_aperture_illumination: NonNegativeFloat = 0.5
+    axial_flip: bool = False
+
+    @validator("numerical_aperture_illumination")
+    def na_ill(cls, v, values):
+        n = values.get("index_of_refraction_media")
+        if v > n:
+            raise ValueError(
+                f"numerical_aperture_illumination = {v} must be less than or equal to index_of_refraction_media = {n}"
+            )
         return v
 
-    @validator("TV_rho_strength")
-    def check_TV_rho_strength(cls, v, values):
-        if v < 0 and values["reconstruction_algorithm"] == "TV":
-            raise ValueError(f"TV_rho_strength = {v} cannot be negative")
-        return v
-    
-    @validator("TV_iterations")
-    def check_TV_iterations(cls, v, values):
-        if v < 1 and values["reconstruction_algorithm"] == "TV":
-            raise ValueError(f"TV_iteration = {v} cannot be less than 1.")
+
+class FluorescenceTransferFunctionSettings(FourierTransferFunctionSettings):
+    wavelength_emission: PositiveFloat = 0.507
+
+    @validator("wavelength_emission")
+    def warn_unit_consistency(cls, v, values):
+        yx_pixel_size = values.get("yx_pixel_size")
+        ratio = yx_pixel_size / v
+        if ratio < 1.0 / 20 or ratio > 20:
+            raise Warning(
+                f"yx_pixel_size ({yx_pixel_size}) / wavelength_illumination ({v}) = {ratio}. Did you use consistent units?"
+            )
         return v
 
 
-class ApplyInverseSettings(BaseModel):
-    birefringence_apply_inverse_settings: _BirefringenceApplyInverseSettings = (
-        _BirefringenceApplyInverseSettings()
+# Second level settings
+class BirefringenceSettings(MyBaseModel):
+    transfer_function: BirefringenceTransferFunctionSettings = (
+        BirefringenceTransferFunctionSettings()
     )
-    phase_apply_inverse_settings: _PhaseApplyInverseSettings = (
-        _PhaseApplyInverseSettings()
+    apply_inverse: BirefringenceApplyInverseSettings = (
+        BirefringenceApplyInverseSettings()
     )
 
 
-########## reconstruction settings ##########
+class PhaseSettings(MyBaseModel):
+    transfer_function: PhaseTransferFunctionSettings = (
+        PhaseTransferFunctionSettings()
+    )
+    apply_inverse: FourierApplyInverseSettings = FourierApplyInverseSettings()
 
 
-class ReconstructionSettings(TransferFunctionSettings, ApplyInverseSettings):
-    pass
+class FluorescenceSettings(MyBaseModel):
+    transfer_function: FluorescenceTransferFunctionSettings = (
+        FluorescenceTransferFunctionSettings()
+    )
+    apply_inverse: FourierApplyInverseSettings = FourierApplyInverseSettings()
+
+
+# Top level settings
+class ReconstructionSettings(MyBaseModel):
+    input_channel_names: List[str] = [f"State{i}" for i in range(4)]
+    reconstruction_dimension: Literal[2, 3] = 3
+    birefringence: Optional[BirefringenceSettings]
+    phase: Optional[PhaseSettings]
+    fluorescence: Optional[FluorescenceSettings]
+
+    @root_validator(pre=False)
+    def validate_reconstruction_types(cls, values):
+        if (values.get("birefringence") or values.get("phase")) and values.get(
+            "fluorescence"
+        ) is not None:
+            raise ValueError(
+                '"fluorescence" cannot be present alongside "birefringence" or "phase". Please use one configuration file for a "fluorescence" reconstruction and another configuration file for a "birefringence" and/or "phase" reconstructions.'
+            )
+        num_channel_names = len(values.get("input_channel_names"))
+        if values.get("birefringence") is None:
+            if (
+                values.get("phase") is None
+                and values.get("fluorescence") is None
+            ):
+                raise ValueError(
+                    "Provide settings for either birefringence, phase, birefringence + phase, or fluorescence."
+                )
+            if num_channel_names != 1:
+                raise ValueError(
+                    f"{num_channel_names} channels names provided. Please provide a single channel for fluorescence/phase reconstructions."
+                )
+
+        return values
