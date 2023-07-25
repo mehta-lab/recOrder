@@ -198,8 +198,18 @@ def mda_to_zarr():
                 ) as dataset:
                     for p in range(p_max + 1):
                         position = dataset.create_position("0", p, "0")
-                        position["0"] = np.zeros(
-                            (t_max + 1, c_max + 1, z_max + 1, height, width)
+                        # position.create_zeros
+                        position.create_zeros(
+                            name="0",
+                            shape=(
+                                t_max + 1,
+                                c_max + 1,
+                                z_max + 1,
+                                height,
+                                width,
+                            ),
+                            dtype=np.uint16,
+                            chunks=(1, 1, 1, height, width),
                         )
                 if acq_mode == "TPCZ" or acq_mode == "PTCZ":
                     zyx_array = np.zeros(
