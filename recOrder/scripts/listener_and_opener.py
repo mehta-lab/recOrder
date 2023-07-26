@@ -7,6 +7,13 @@ from iohub.ngff import open_ome_zarr
 import time
 from napari.qt import thread_worker
 from pycromanager import Studio
+from recOrder.plugin.main_widget import MainWidget
+from recOrder.cli.compute_transfer_function import (
+    compute_transfer_function_cli,
+)
+from recOrder.cli.apply_inverse_transfer_function import (
+    apply_inverse_transfer_function_cli,
+)
 
 viewer = napari.Viewer()
 
@@ -15,6 +22,36 @@ viewer = napari.Viewer()
 def update_dimensions(
     acq_mode, curr_p, curr_t, curr_c, curr_z, p_max, t_max, c_max, z_max
 ):
+    """
+    Helper function to update the dimensions of the Multi-Dimensional Acquisition (MDA),
+    based on the acquisition mode.
+
+    Parameters
+    ----------
+    acq_mode : string
+        The current acquisition mode of the MDA
+    curr_p : int
+        Current position
+    curr_t : int
+        Current time
+    curr_c : int
+        Current channel
+    curr_z : int
+        Current z
+    p_max : int
+        Max position
+    t_max : int
+        Max time
+    c_max : int
+        Max channel
+    z_max : int
+        Max z
+
+    Returns
+    -------
+    tuple(int, int, int, int)
+    Returns the current position, time, channel, and z as ints in a tuple (in that order).
+    """
     if acq_mode == "TPZC":
         if curr_c < c_max:
             curr_c += 1
@@ -83,6 +120,14 @@ def update_dimensions(
 
 # Update the napari layers given image data
 def update_layers(data_name_tuple):
+    """
+    Updates the napari layers at the given layer name and with the given data.
+
+    Parameters
+    ----------
+    data_name_tuple : tuple(numpy array, string)
+        A tuple containing image data as a numpy array and the layer name, to update, as a string.
+    """
     img_data = data_name_tuple[0]
     layer_name = data_name_tuple[1]
     if layer_name in viewer.layers:
@@ -94,24 +139,105 @@ def update_layers(data_name_tuple):
 channel_names = ""
 
 
+def reconstruct_zarr(path_position_initialize_signal_tuple):
+    zarr_path = path_position_initialize_signal_tuple[0]
+    curr_position = path_position_initialize_signal_tuple[1]
+    initialize_transfer_function = path_position_initialize_signal_tuple[2]
+    z_done = path_position_initialize_signal_tuple[3]
+
+    # Input data path should be where the zarr store is and accessing each position
+    input_data_path = os.path.join(zarr_path, "0", str(curr_position), "0")
+    # Config path is given -> will be changed to a pydantic model
+    config_path = ...
+    transfer_function_path = os.path.join(
+        os.getcwd(), "transfer_function.zarr"
+    )
+
+    if initialize_transfer_function and z_done:
+        compute_transfer_function_cli(
+            input_data_path, config_path, transfer_function_path
+        )
+
+
 # Reads the zarr files and yields the image data to update_layers
 @thread_worker(connect={"yielded": update_layers})
 def read_zarr(path_and_position_and_z_tuple):
+    """
+    Given a zarr path, position, and boolean, read the zarr store at the current position
+    and yield the data and layer name to update_layers.
+
+    Parameters
+    ----------
+    path_and_position_and_z_tuple : tuple(string, int, boolean)
+        A tuple containing a zarr path as a string, current position int, and whether or not
+        a z-stack is done.
+
+    Yields
+    ------
+    tuple(numpy array, string)
+    Yields the image data as a numpy array, and layer name as a string in a tuple.
+    """
     path = path_and_position_and_z_tuple[0]
     curr_p = path_and_position_and_z_tuple[1]
     z_done = path_and_position_and_z_tuple[2]
+    input_data_path = os.path.join(path, "0", str(curr_p), "0")
+    initialize_transfer_function = path_and_position_and_z_tuple[3]
+    transfer_function_path = os.path.join(
+        os.getcwd(), "transfer_function.zarr"
+    )
+    config_path = os.path.join(
+        os.getcwd(), os.pardir, os.pardir, "examples", "phase.yml"
+    )
+    output_path = os.path.join(os.getcwd(), "reconstruction.zarr")
     if z_done:
-        print(f"\nZ-stack is done!\n")
+        if initialize_transfer_function:
+            # Initialize the transfer function on the first z-stack
+            # Apply the transfer function to the data
+            # Yield it
+            print(
+                f"Initializing transfer function at {transfer_function_path}"
+            )
+            # compute_transfer_function_cli(
+            #     input_data_path, config_path, transfer_function_path
+            # )
+            # apply_inverse_transfer_function_cli(
+            #     input_data_path,
+            #     transfer_function_path,
+            #     config_path,
+            #     output_path,
+            # )
+        else:
+            # Apply the transfer function to the data
+            # Yield it
+            print(f"Apply inverse transfer function")
+            # apply_inverse_transfer_function_cli(
+            #     input_data_path,
+            #     transfer_function_path,
+            #     config_path,
+            #     output_path,
+            # )
     with open_ome_zarr(
         path, layout="hcs", mode="r", channel_names=channel_names
     ) as dataset:
+        dataset.print_tree()
         position_data = dataset[f"0/{curr_p}/0"]["0"]
         yield position_data, f"Position {curr_p}"
+        # yield None, None
 
 
 # Runs the MDA and converts the data to ome-zarr, yielding the zarr path to read_zarr
 @thread_worker(connect={"yielded": read_zarr})
 def mda_to_zarr():
+    """
+    Runs an Multi-Dimensional Acquisition (MDA) and writes the image data (OME-TIFF or ND-TIFF)
+    to zarr.
+
+    Yields
+    ------
+    tuple(string, int, boolean)
+    Yields the zarr path as a string, current position as an int, and whether or not a z-stack
+    is done in a tuple.
+    """
     studio = Studio(convert_camel_case=False)
     manager = studio.getAcquisitionManager()
     # Run non blocking acquisition
@@ -143,6 +269,7 @@ def mda_to_zarr():
     acq_mode = acq_dictionary[sequence_settings.acqOrderMode()]
     curr_p, curr_t, curr_c, curr_z, img_count = 0, 0, 0, 0, 0
     initialize = True
+    initialize_transfer_function = True
 
     while datastore:
         if engine.isFinished() and img_count == max_images:
@@ -210,17 +337,9 @@ def mda_to_zarr():
                                 height,
                                 width,
                             ),
-                            dtype=np.uint16,
+                            dtype=np.int16,
                             chunks=(1, 1, 1, height, width),
                         )
-                if acq_mode == "TPCZ" or acq_mode == "PTCZ":
-                    zyx_array = np.zeros(
-                        (z_max + 1, height, width), dtype=np.uint16
-                    )
-                elif acq_mode == "TPZC" or acq_mode == "PTZC":
-                    czyx_array = np.zeros(
-                        (c_max + 1, z_max + 1, height, width), dtype=np.uint16
-                    )
                 initialize = False
 
             # Get the image data
@@ -240,29 +359,11 @@ def mda_to_zarr():
                 # Access the data with the current offset
                 image = np.memmap(
                     filename=curr_file,
-                    dtype=np.uint16,
+                    dtype=np.int16,
                     mode="r",
                     offset=offset,
                     shape=(height, width),
                 )
-
-            # Based on the acq_mode, update the zarr store
-            # Write every z-stack of every channel finish
-            # if acq_mode == "TPCZ" or acq_mode == "PTCZ":
-            #     zyx_array[curr_z] = image
-            #     if curr_z == z_max:
-            #         with open_ome_zarr(zarr_path, mode="a") as dataset:
-            #             img = dataset[f"0/{curr_p}/0"]
-            #             img["0"][curr_t, curr_c] = zyx_array
-            #         zyx_array = np.zeros((z_max + 1, height, width), dtype=np.uint16)
-            # elif acq_mode == "TPZC" or acq_mode == "PTZC":
-            #     czyx_array[curr_c, curr_z] = image
-            #     if curr_c == c_max and curr_z == z_max:
-            #         with open_ome_zarr(zarr_path, mode="a") as dataset:
-            #             img = dataset[f"0/{curr_p}/0"]
-            #             for c in range(c_max + 1):
-            #                 img["0"][curr_t, c] = czyx_array[c]
-            #         czyx_array = np.zeros((c_max + 1, z_max + 1, height, width))
 
             # Write every image
             with open_ome_zarr(zarr_path, mode="a") as dataset:
@@ -272,7 +373,8 @@ def mda_to_zarr():
             print(
                 f"Current p: {curr_p}\t Current t: {curr_t}\t Current c: {curr_c}\t Current z: {curr_z}"
             )
-            
+
+            # Check if the z-stack is finished
             z_done = False
             if acq_mode == "TPCZ" or acq_mode == "PTCZ":
                 if curr_z == z_max:
@@ -281,8 +383,10 @@ def mda_to_zarr():
                 if curr_z == z_max and curr_c == c_max:
                     z_done = True
 
+            yield (zarr_path, curr_p, z_done, initialize_transfer_function)
 
-            yield (zarr_path, curr_p, z_done)
+            if z_done and initialize_transfer_function:
+                initialize_transfer_function = False
 
             if (
                 curr_p == p_max
