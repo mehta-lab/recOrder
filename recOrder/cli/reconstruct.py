@@ -23,10 +23,17 @@ def reconstruct(input_data_path, config_path, output_path):
     convenience function for a `compute-tf` call followed by a `apply-inv-tf`
     call.
 
+<<<<<<< HEAD
     See /examples for example configuration files.
 
     Example usage:\n
     $ recorder reconstruct input.zarr/0/0/0 -c /examples/birefringence.yml -o output.zarr
+=======
+    See /examples/settings/ for example configuration files.
+
+    Example usage:\n
+    $ recorder reconstruct input.zarr/0/0/0 -c /examples/settings/birefringence.yml -o output.zarr
+>>>>>>> new-mda-listener
     """
 
     # Handle transfer function path

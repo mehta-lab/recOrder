@@ -9,7 +9,11 @@ def test_reconstruction_settings():
     s = settings.ReconstructionSettings(
         birefringence=settings.BirefringenceSettings()
     )
+<<<<<<< HEAD
     assert len(s.input_channel_names) == 4
+=======
+    assert len(s.input_channel_names) == 5
+>>>>>>> new-mda-listener
     assert s.birefringence.apply_inverse.background_path == ""
     assert s.phase == None
     assert s.fluorescence == None

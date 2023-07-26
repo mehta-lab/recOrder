@@ -11,19 +11,31 @@ from recOrder.cli.compute_transfer_function import (
 
 def test_compute_transfer(tmp_path, input_zarr):
     recon_settings = settings.ReconstructionSettings(
+<<<<<<< HEAD
         input_channel_names=[f"State{i}" for i in range(4)],
         reconstruction_dimension=3,
         birefringence=settings.BirefringenceSettings(),
         phase=settings.PhaseSettings(),
     )
+=======
+            input_channel_names=[f"State{i}" for i in range(5)],
+            reconstruction_dimension=3,
+            birefringence=settings.BirefringenceSettings(),
+            phase=settings.PhaseSettings(),
+        )
+>>>>>>> new-mda-listener
     config_path = tmp_path / "test.yml"
     utils.model_to_yaml(recon_settings, config_path)
 
     path, _ = input_zarr
     runner = CliRunner()
+<<<<<<< HEAD
     result = runner.invoke(
         cli, ["compute-tf", str(path), "-c", str(config_path)]
     )
+=======
+    result = runner.invoke(cli, ["compute-tf", str(path), "-c", str(config_path)])
+>>>>>>> new-mda-listener
     assert result.exit_code == 0
 
 
@@ -47,10 +59,17 @@ def test_compute_transfer_blank_output():
 
 def test_compute_transfer_output_file(tmp_path, input_zarr):
     recon_settings = settings.ReconstructionSettings(
+<<<<<<< HEAD
         input_channel_names=["BF"],
         reconstruction_dimension=3,
         phase=settings.PhaseSettings(),
     )
+=======
+            input_channel_names=["TEST"],
+            reconstruction_dimension=3,
+            phase=settings.PhaseSettings(),
+        )
+>>>>>>> new-mda-listener
     config_path = tmp_path / "test.yml"
     utils.model_to_yaml(recon_settings, config_path)
 

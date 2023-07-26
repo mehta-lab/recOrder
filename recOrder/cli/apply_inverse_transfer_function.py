@@ -165,7 +165,11 @@ def apply_inverse_transfer_function_cli(
         echo_headline("Reconstructing phase...")
 
         # check data shapes
+<<<<<<< HEAD
         if tczyx_data.shape[1] != 1:
+=======
+        if input_dataset.data.shape[1] != 1:
+>>>>>>> new-mda-listener
             raise ValueError(
                 "You have requested a phase-only reconstruction, but the input dataset has more than one channel."
             )
@@ -386,10 +390,17 @@ def apply_inv_tf(
     """
     Apply an inverse transfer function to a dataset using a configuration file.
 
+<<<<<<< HEAD
     See /examples for example configuration files.
 
     Example usage:\n
     $ recorder apply-inv-tf input.zarr/0/0/0 transfer-function.zarr -c /examples/birefringence.yml -o output.zarr
+=======
+    See /examples/settings/ for example configuration files.
+
+    Example usage:\n
+    $ recorder apply-inv-tf input.zarr/0/0/0 transfer-function.zarr -c /examples/settings/birefringence.yml -o output.zarr
+>>>>>>> new-mda-listener
     """
     apply_inverse_transfer_function_cli(
         input_data_path, transfer_function_path, config_path, output_path
