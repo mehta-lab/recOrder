@@ -53,8 +53,20 @@ def apply_inverse_transfer_function_cli(
             input_dataset.channel_names.index(input_channel_name)
         )
 
-    # Load dataset shape
-    t_shape = input_dataset.data.shape[0]
+    # Find time indices
+    if settings.time_indices == "all":
+        time_indices = range(input_dataset.data.shape[0])
+        t_shape = input_dataset.data.shape[0]
+    elif isinstance(settings.time_indices, list):
+        time_indices = settings.time_indices
+        t_shape = len(time_indices)
+    elif isinstance(settings.time_indices, int):
+        time_indices = [settings.time_indices]
+        t_shape = 1
+    else:
+        ValueError(
+            f"time_indices = {time_indices} should be `all`, a list of integers, or an integer."
+        )
 
     # Simplify important settings names
     recon_biref = settings.birefringence is not None
@@ -143,7 +155,7 @@ def apply_inverse_transfer_function_cli(
             transfer_function_dataset["intensity_to_stokes_matrix"][0, 0, 0]
         )
 
-        for time_index in range(t_shape):
+        for time_index in time_indices:
             # Apply
             reconstructed_parameters = (
                 inplane_oriented_thick_pol3d.apply_inverse_transfer_function(
@@ -180,7 +192,7 @@ def apply_inverse_transfer_function_cli(
                 transfer_function_dataset["phase_transfer_function"][0, 0]
             )
 
-            for time_index in range(t_shape):
+            for time_index in time_indices:
                 # Apply
                 (
                     _,
@@ -210,7 +222,7 @@ def apply_inverse_transfer_function_cli(
             )
 
             # Apply
-            for time_index in range(t_shape):
+            for time_index in time_indices:
                 zyx_phase = phase_thick_3d.apply_inverse_transfer_function(
                     tczyx_data[time_index, 0],
                     real_potential_transfer_function,
@@ -246,7 +258,7 @@ def apply_inverse_transfer_function_cli(
                 transfer_function_dataset["phase_transfer_function"][0, 0]
             )
 
-            for time_index in range(t_shape):
+            for time_index in time_indices:
                 # Apply
                 reconstructed_parameters_2d = inplane_oriented_thick_pol3d.apply_inverse_transfer_function(
                     tczyx_data[time_index],
@@ -304,7 +316,7 @@ def apply_inverse_transfer_function_cli(
             )
 
             # Apply
-            for time_index in range(t_shape):
+            for time_index in time_indices:
                 reconstructed_parameters_3d = inplane_oriented_thick_pol3d.apply_inverse_transfer_function(
                     tczyx_data[time_index],
                     intensity_to_stokes_matrix,
@@ -348,7 +360,7 @@ def apply_inverse_transfer_function_cli(
             )
 
             # Apply
-            for time_index in range(t_shape):
+            for time_index in time_indices:
                 zyx_recon = isotropic_fluorescent_thick_3d.apply_inverse_transfer_function(
                     tczyx_data[time_index, 0],
                     optical_transfer_function,
