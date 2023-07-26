@@ -139,29 +139,9 @@ def update_layers(data_name_tuple):
 channel_names = ""
 
 
-def reconstruct_zarr(path_position_initialize_signal_tuple):
-    zarr_path = path_position_initialize_signal_tuple[0]
-    curr_position = path_position_initialize_signal_tuple[1]
-    initialize_transfer_function = path_position_initialize_signal_tuple[2]
-    z_done = path_position_initialize_signal_tuple[3]
-
-    # Input data path should be where the zarr store is and accessing each position
-    input_data_path = os.path.join(zarr_path, "0", str(curr_position), "0")
-    # Config path is given -> will be changed to a pydantic model
-    config_path = ...
-    transfer_function_path = os.path.join(
-        os.getcwd(), "transfer_function.zarr"
-    )
-
-    if initialize_transfer_function and z_done:
-        compute_transfer_function_cli(
-            input_data_path, config_path, transfer_function_path
-        )
-
-
 # Reads the zarr files and yields the image data to update_layers
 @thread_worker(connect={"yielded": update_layers})
-def read_zarr(path_and_position_and_z_tuple):
+def read_zarr(path_and_position_tuple):
     """
     Given a zarr path, position, and boolean, read the zarr store at the current position
     and yield the data and layer name to update_layers.
@@ -177,56 +157,52 @@ def read_zarr(path_and_position_and_z_tuple):
     tuple(numpy array, string)
     Yields the image data as a numpy array, and layer name as a string in a tuple.
     """
-    path = path_and_position_and_z_tuple[0]
-    curr_p = path_and_position_and_z_tuple[1]
-    z_done = path_and_position_and_z_tuple[2]
-    input_data_path = os.path.join(path, "0", str(curr_p), "0")
-    initialize_transfer_function = path_and_position_and_z_tuple[3]
-    transfer_function_path = os.path.join(
-        os.getcwd(), "transfer_function.zarr"
-    )
-    config_path = os.path.join(
-        os.getcwd(), os.pardir, os.pardir, "examples", "phase.yml"
-    )
-    output_path = os.path.join(os.getcwd(), "reconstruction.zarr")
-    if z_done:
-        if initialize_transfer_function:
-            # Initialize the transfer function on the first z-stack
-            # Apply the transfer function to the data
-            # Yield it
-            print(
-                f"Initializing transfer function at {transfer_function_path}"
-            )
-            # compute_transfer_function_cli(
-            #     input_data_path, config_path, transfer_function_path
-            # )
-            # apply_inverse_transfer_function_cli(
-            #     input_data_path,
-            #     transfer_function_path,
-            #     config_path,
-            #     output_path,
-            # )
-        else:
-            # Apply the transfer function to the data
-            # Yield it
-            print(f"Apply inverse transfer function")
-            # apply_inverse_transfer_function_cli(
-            #     input_data_path,
-            #     transfer_function_path,
-            #     config_path,
-            #     output_path,
-            # )
-    with open_ome_zarr(
-        path, layout="hcs", mode="r", channel_names=channel_names
-    ) as dataset:
+    path = path_and_position_tuple[0]
+    curr_p = path_and_position_tuple[1]
+    with open_ome_zarr(path, layout="fov", mode="r") as dataset:
         dataset.print_tree()
-        position_data = dataset[f"0/{curr_p}/0"]["0"]
+        position_data = dataset[0]
         yield position_data, f"Position {curr_p}"
         # yield None, None
 
 
-# Runs the MDA and converts the data to ome-zarr, yielding the zarr path to read_zarr
 @thread_worker(connect={"yielded": read_zarr})
+def reconstruct_zarr(path_position_initialize_signal_tuple):
+    zarr_path = path_position_initialize_signal_tuple[0]
+    curr_position = path_position_initialize_signal_tuple[1]
+    initialize_transfer_function = path_position_initialize_signal_tuple[2]
+    z_done = path_position_initialize_signal_tuple[3]
+
+    # Input data path should be where the zarr store is and accessing each position
+    input_data_path = os.path.join(zarr_path, "0", str(curr_position), "0")
+    # Config path is given -> will be changed to a pydantic model
+    config_path = os.path.join(
+        os.getcwd(), os.pardir, os.pardir, "examples", "phase.yml"
+    )
+    transfer_function_path = os.path.join(
+        os.getcwd(), "transfer_function.zarr"
+    )
+    output_path = os.path.join(os.getcwd(), "reconstruction.zarr")
+
+    if z_done:
+        if initialize_transfer_function:
+            print(
+                f"\nComputing transfer function at {transfer_function_path}\n"
+            )
+            compute_transfer_function_cli(
+                input_data_path, config_path, transfer_function_path
+            )
+        print(f"Applying inverse transfer function")
+        apply_inverse_transfer_function_cli(
+            input_data_path, transfer_function_path, config_path, output_path
+        )
+
+    # Yield the reconstruction path and curr position
+    yield output_path, curr_position
+
+
+# Runs the MDA and converts the data to ome-zarr, yielding the zarr path to read_zarr
+@thread_worker(connect={"yielded": reconstruct_zarr})
 def mda_to_zarr():
     """
     Runs an Multi-Dimensional Acquisition (MDA) and writes the image data (OME-TIFF or ND-TIFF)
@@ -337,7 +313,7 @@ def mda_to_zarr():
                                 height,
                                 width,
                             ),
-                            dtype=np.int16,
+                            dtype=np.uint16,
                             chunks=(1, 1, 1, height, width),
                         )
                 initialize = False
@@ -359,7 +335,7 @@ def mda_to_zarr():
                 # Access the data with the current offset
                 image = np.memmap(
                     filename=curr_file,
-                    dtype=np.int16,
+                    dtype=np.uint16,
                     mode="r",
                     offset=offset,
                     shape=(height, width),
@@ -383,7 +359,7 @@ def mda_to_zarr():
                 if curr_z == z_max and curr_c == c_max:
                     z_done = True
 
-            yield (zarr_path, curr_p, z_done, initialize_transfer_function)
+            yield (zarr_path, curr_p, initialize_transfer_function, z_done)
 
             if z_done and initialize_transfer_function:
                 initialize_transfer_function = False

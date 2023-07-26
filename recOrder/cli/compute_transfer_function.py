@@ -211,16 +211,9 @@ def compute_tf(input_data_path, config_path, output_path):
     """
     Compute a transfer function using a dataset and configuration file.
 
-<<<<<<< HEAD
     See /examples/ for example configuration files.
 
     Example usage:\n
     $ recorder compute-tf input.zarr/0/0/0 -c /examples/birefringence.yml -o transfer_function.zarr
-=======
-    See /examples/settings/ for example configuration files.
-
-    Example usage:\n
-    $ recorder compute-tf input.zarr/0/0/0 -c /examples/settings/birefringence.yml -o transfer_function.zarr
->>>>>>> new-mda-listener
     """
     compute_transfer_function_cli(input_data_path, config_path, output_path)
