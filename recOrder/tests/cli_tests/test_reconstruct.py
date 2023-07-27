@@ -1,6 +1,6 @@
 import numpy as np
 from recOrder.cli.main import cli
-from recOrder.cli import settings
+from recOrder.cli import settings, apply_inverse_transfer_function
 from recOrder.io import utils
 from click.testing import CliRunner
 from iohub.ngff import open_ome_zarr
@@ -67,7 +67,7 @@ def test_reconstruct(tmp_path):
         )
         assert tf_path.exists()
 
-        # Apply the tf
+        # Apply the tf via CLI
         result_path = input_path.with_name("result.zarr")
 
         result_inv = runner.invoke(
@@ -86,6 +86,16 @@ def test_reconstruct(tmp_path):
         assert result_path.exists()
         assert result_inv.exit_code == 0
         assert "Reconstructing" in result_inv.output
+
+        # Apply the tf function call directly
+        result_path_direct = input_path.with_name("result.zarr")
+        apply_inverse_transfer_function.apply_inverse_transfer_function_cli(
+            str(input_path),
+            str(tf_path),
+            recon_settings,
+            str(result_path_direct),
+        )
+        assert result_path_direct.exists()
 
         # Check output
         result_dataset = open_ome_zarr(result_path)

@@ -2,6 +2,7 @@ import click
 import numpy as np
 import torch
 from iohub import open_ome_zarr
+from typing import Union
 from recOrder.cli.printing import echo_headline, echo_settings
 from recOrder.cli.settings import ReconstructionSettings
 from recOrder.cli.parsing import (
@@ -27,23 +28,55 @@ def _check_background_consistency(background_shape, data_shape):
 
 
 def apply_inverse_transfer_function_cli(
-    input_data_path, transfer_function_path, config_path, output_path
+    input_data_path: str,
+    transfer_function_path: str,
+    configuration_settings: Union[str, ReconstructionSettings],
+    output_path: str,
 ):
+    """
+    1) Reads an input dataset and transfer function from zarr stores,
+    2) Applies the inverse transfer function using settings from a configuration yaml file, then
+    3) Saves the result to an output zarr store.
+
+    This method also supports configuration settings passed directly from a
+    ReconstructionSettings object for live reconstruction purposes.
+
+    Parameters
+    ----------
+    input_data_path : str
+        Path to position-level input zarr store
+    transfer_function_path : str
+        Path to transfer function zarr store
+    configuration_settings : Union[str, ReconstructionSettings]
+        Path to configuration settings yaml file, or
+        directly from a ReconstructionSettings object
+    output_path : str
+        Path to output zarr store
+    """
     echo_headline("Starting reconstruction...")
 
     # Load datasets
     transfer_function_dataset = open_ome_zarr(transfer_function_path)
     input_dataset = open_ome_zarr(input_data_path)
 
-    # Load config file
-    settings = utils.yaml_to_model(config_path, ReconstructionSettings)
+    # Load configuration settings file
+    if isinstance(configuration_settings, str):
+        settings = utils.yaml_to_model(
+            configuration_settings, ReconstructionSettings
+        )
+    elif isinstance(configuration_settings, ReconstructionSettings):
+        settings = configuration_settings
+    else:
+        raise ValueError(
+            f"configuration_settings = {configuration_settings} must be a string or a ReconstructionSettings object."
+        )
 
     # Check input channel names
     if not set(settings.input_channel_names).issubset(
         input_dataset.channel_names
     ):
         raise ValueError(
-            f"Each of the input_channel_names = {settings.input_channel_names} in {config_path} must appear in the dataset {input_data_path} which currently contains channel_names = {input_dataset.channel_names}."
+            f"Each of the input_channel_names = {settings.input_channel_names} in {configuration_settings} must appear in the dataset {input_data_path} which currently contains channel_names = {input_dataset.channel_names}."
         )
 
     # Find channel indices
@@ -73,7 +106,6 @@ def apply_inverse_transfer_function_cli(
         ValueError(
             f"time_indices = {time_indices} includes a time index beyond the size the of the dataset = {input_dataset.data.shape[0]}"
         )
-
 
     # Simplify important settings names
     recon_biref = settings.birefringence is not None
@@ -386,7 +418,7 @@ def apply_inverse_transfer_function_cli(
     input_dataset.close()
 
     echo_headline(
-        f"Recreate this reconstruction with:\n$ recorder apply-inv-tf {input_data_path} {transfer_function_path} -c {config_path} -o {output_path}"
+        f"Recreate this reconstruction with:\n$ recorder apply-inv-tf {input_data_path} {transfer_function_path} -c {configuration_settings} -o {output_path}"
     )
 
 
