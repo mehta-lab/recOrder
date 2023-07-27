@@ -99,7 +99,9 @@ def test_reconstruct(tmp_path):
 
         # Check output
         result_dataset = open_ome_zarr(result_path)
-        assert result_dataset["0"].shape[0] in {1, 2}
+        t_opt = len(list(time_indices))
+        time_dim = t_opt if t_opt >= 2 else 1
+        assert result_dataset["0"].shape[0] == time_dim
         assert result_dataset["0"].shape[3:] == (5, 6)
 
         # Test direct recon
