@@ -7,7 +7,6 @@ from iohub.ngff import open_ome_zarr
 import time
 from napari.qt import thread_worker
 from pycromanager import Studio
-from recOrder.plugin.main_widget import MainWidget
 from recOrder.cli.compute_transfer_function import (
     compute_transfer_function_cli,
 )
@@ -67,8 +66,7 @@ def update_dimensions(
                     if curr_t < t_max:
                         curr_t += 1
                         curr_p = 0
-
-    if acq_mode == "TPCZ":
+    elif acq_mode == "TPCZ":
         if curr_z < z_max:
             curr_z += 1
         else:
@@ -83,8 +81,7 @@ def update_dimensions(
                     if curr_t < t_max:
                         curr_t += 1
                         curr_p = 0
-
-    if acq_mode == "PTZC":
+    elif acq_mode == "PTZC":
         if curr_c < c_max:
             curr_c += 1
         else:
@@ -99,8 +96,7 @@ def update_dimensions(
                     if curr_p < p_max:
                         curr_p += 1
                         curr_t = 0
-
-    if acq_mode == "PTCZ":
+    elif acq_mode == "PTCZ":
         if curr_z < z_max:
             curr_z += 1
         else:
@@ -115,6 +111,7 @@ def update_dimensions(
                     if curr_p < p_max:
                         curr_p += 1
                         curr_t = 0
+
     return curr_p, curr_t, curr_c, curr_z
 
 
@@ -128,8 +125,9 @@ def update_layers(data_name_tuple):
     data_name_tuple : tuple(numpy array, string)
         A tuple containing image data as a numpy array and the layer name, to update, as a string.
     """
-    img_data = data_name_tuple[0]
-    layer_name = data_name_tuple[1]
+    img_data: np.ndarray = data_name_tuple[0]
+    layer_name: str = data_name_tuple[1]
+    print(f"Updating napari layer {layer_name}")
     if layer_name in viewer.layers:
         viewer.layers[layer_name].data = img_data
     else:
@@ -157,38 +155,48 @@ def read_zarr(path_and_position_tuple):
     tuple(numpy array, string)
     Yields the image data as a numpy array, and layer name as a string in a tuple.
     """
-    path = path_and_position_tuple[0]
-    curr_p = path_and_position_tuple[1]
+    path: str = path_and_position_tuple[0]
+    curr_p: int = path_and_position_tuple[1]
     with open_ome_zarr(path, layout="fov", mode="r") as dataset:
+        print(f"Getting data from position {curr_p}")
         dataset.print_tree()
         position_data = dataset[0]
         yield position_data, f"Position {curr_p}"
 
 
 @thread_worker(connect={"yielded": read_zarr})
-def reconstruct_zarr(path_position_initialize_tuple):
-    zarr_path: str = path_position_initialize_tuple[0]
-    curr_position: int = path_position_initialize_tuple[1]
-    transfer_function_path: str = path_position_initialize_tuple[2]
+def reconstruct_zarr(path_position_tfpath_tuple):
+    """
+    Reconstructs the imaging data.
+
+    Parameters
+    ----------
+    path_position_tfpath_tuple : tuple(string, int, string)
+        A tuple containing a zarr path as a string, current position int, and the path
+        of the transfer function as a string.
+
+    Yields
+    ------
+    _type_
+        _description_
+    """
+    zarr_path: str = path_position_tfpath_tuple[0]
+    curr_position: int = path_position_tfpath_tuple[1]
+    transfer_function_path: str = path_position_tfpath_tuple[2]
 
     # Input data path should be where the zarr store is and accessing each position
     input_data_path = os.path.join(zarr_path, "0", str(curr_position), "0")
-    with open_ome_zarr(input_data_path, layout="fov", mode="r") as dataset:
-        pass
     # Config path is given -> will be changed to a pydantic model
     config_path = os.path.join(
         os.path.dirname(os.path.dirname(zarr_path)), "phase.yml"
     )
-    print(config_path)
     transfer_function_path = os.path.join(
         os.path.dirname(zarr_path), "transfer_function.zarr"
     )
-    print(transfer_function_path)
     output_path = os.path.join(
         os.path.dirname(zarr_path), f"reconstruction{curr_position}.zarr"
     )
-    print(output_path)
-    print(f"Applying inverse transfer function")
+    print(f"\nApplying inverse transfer function\n")
     apply_inverse_transfer_function_cli(
         input_data_path, transfer_function_path, config_path, output_path
     )
@@ -197,13 +205,29 @@ def reconstruct_zarr(path_position_initialize_tuple):
     yield output_path, curr_position
 
 
-def initialize_transfer_function_call(zarr_path, curr_p):
+def initialize_transfer_function_call(zarr_path: str, curr_p: int):
+    """
+    Once the first z-stack is finished, initialize the transfer function that will be used
+    for future reconstructions.
+
+    Parameters
+    ----------
+    zarr_path : string
+        The path of the zarr store that contains imaging data.
+    curr_p : int
+        The current position.
+
+    Returns
+    -------
+    string
+        The path of the transfer function.
+    """
     input_data_path = os.path.join(zarr_path, "0", str(curr_p), "0")
     config_path = os.path.join(zarr_path, os.pardir, os.pardir, "phase.yml")
     transfer_function_path = os.path.join(
         zarr_path, os.pardir, "transfer_function.zarr"
     )
-    print(f"Initializing transfer function at {transfer_function_path}")
+    print(f"\nInitializing transfer function at {transfer_function_path}\n")
     compute_transfer_function_cli(
         input_data_path, config_path, transfer_function_path
     )
@@ -227,6 +251,7 @@ def mda_to_zarr():
     manager = studio.getAcquisitionManager()
     # Run non blocking acquisition
     manager.runAcquisitionNonblocking()
+    start_time = time.time()
     engine = studio.getAcquisitionEngine()
     datastore = engine.getAcquisitionDatastore()
     save_mode = datastore.getPreferredSaveMode(studio).toString()
@@ -385,6 +410,9 @@ def mda_to_zarr():
                 and curr_z == z_max
             ):
                 print(f"Reached max images {img_count}/{max_images}")
+                print(
+                    f"Wrote all images to zarr in {time.time() - start_time} seconds."
+                )
                 break
 
             curr_p, curr_t, curr_c, curr_z = update_dimensions(
