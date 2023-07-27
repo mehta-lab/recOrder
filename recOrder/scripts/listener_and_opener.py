@@ -280,6 +280,8 @@ def mda_to_zarr():
     curr_p, curr_t, curr_c, curr_z, img_count = 0, 0, 0, 0, 0
     initialize = True
     initialize_transfer_function = True
+    new_page = True
+    last_file = None
 
     while datastore:
         if engine.isFinished() and img_count == max_images:
@@ -314,6 +316,8 @@ def mda_to_zarr():
                 curr_file = os.path.join(
                     path, f"{file_header}_MMStack_Pos{curr_p}.ome.tif"
                 )
+                if last_file != curr_file:
+                    new_page = True
             # Wait for file to exist before reading
             while not os.path.exists(curr_file):
                 print(f"Waiting for file... {curr_file}")
@@ -361,8 +365,9 @@ def mda_to_zarr():
                 curr_reader = reader_map.get(required_coord)
                 offset = curr_reader.getCoordsToOffset().get(required_coord)
                 # Add an offset, based on if the image is the first of the file
-                if curr_t == 0 and curr_c == 0 and curr_z == 0:
+                if new_page:
                     offset += 210
+                    new_page = False
                 else:
                     offset += 162
 
