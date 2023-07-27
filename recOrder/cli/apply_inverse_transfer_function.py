@@ -19,6 +19,21 @@ from waveorder.models import (
 )
 
 
+def _load_configuration_settings(
+    configuration_settings: Union[str, ReconstructionSettings]
+) -> ReconstructionSettings:
+    if isinstance(configuration_settings, str):
+        return utils.yaml_to_model(
+            configuration_settings, ReconstructionSettings
+        )
+    elif isinstance(configuration_settings, ReconstructionSettings):
+        return configuration_settings
+    else:
+        raise ValueError(
+            f"configuration_settings = {configuration_settings} must be a string or a ReconstructionSettings object."
+        )
+
+
 def _check_background_consistency(background_shape, data_shape):
     data_cyx_shape = (data_shape[1],) + data_shape[3:]
     if background_shape != data_cyx_shape:
@@ -60,16 +75,7 @@ def apply_inverse_transfer_function_cli(
     input_dataset = open_ome_zarr(input_data_path)
 
     # Load configuration settings file
-    if isinstance(configuration_settings, str):
-        settings = utils.yaml_to_model(
-            configuration_settings, ReconstructionSettings
-        )
-    elif isinstance(configuration_settings, ReconstructionSettings):
-        settings = configuration_settings
-    else:
-        raise ValueError(
-            f"configuration_settings = {configuration_settings} must be a string or a ReconstructionSettings object."
-        )
+    settings = _load_configuration_settings(configuration_settings)
 
     # Check input channel names
     if not set(settings.input_channel_names).issubset(
