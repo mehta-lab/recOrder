@@ -68,6 +68,13 @@ def apply_inverse_transfer_function_cli(
             f"time_indices = {time_indices} should be `all`, a list of integers, or an integer."
         )
 
+    # Check for invalid times
+    if np.max(time_indices) > input_dataset.data.shape[0]:
+        ValueError(
+            f"time_indices = {time_indices} includes a time index beyond the size the of the dataset = {input_dataset.data.shape[0]}"
+        )
+
+
     # Simplify important settings names
     recon_biref = settings.birefringence is not None
     recon_phase = settings.phase is not None
