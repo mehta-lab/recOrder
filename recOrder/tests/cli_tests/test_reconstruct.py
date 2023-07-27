@@ -1,9 +1,10 @@
 import numpy as np
-from recOrder.cli.main import cli
-from recOrder.cli import settings
-from recOrder.io import utils
 from click.testing import CliRunner
 from iohub.ngff import open_ome_zarr
+
+from recOrder.cli import settings
+from recOrder.cli.main import cli
+from recOrder.io import utils
 
 
 def test_reconstruct(tmp_path):
@@ -23,11 +24,13 @@ def test_reconstruct(tmp_path):
     birefringence_settings = settings.BirefringenceSettings(
         transfer_function=settings.BirefringenceTransferFunctionSettings()
     )
+
+    # birefringence_option, time_indices, phase_option, dimension_option, time_length_target
     all_options = [
-        (birefringence_settings, [0], None, 2),
-        (birefringence_settings, 0, settings.PhaseSettings(), 2),
-        (birefringence_settings, [0, 1], None, 3),
-        (birefringence_settings, "all", settings.PhaseSettings(), 3),
+        (birefringence_settings, [0], None, 2, 1),
+        (birefringence_settings, 0, settings.PhaseSettings(), 2, 1),
+        (birefringence_settings, [0, 1], None, 3, 2),
+        (birefringence_settings, "all", settings.PhaseSettings(), 3, 2),
     ]
 
     for (
@@ -35,6 +38,7 @@ def test_reconstruct(tmp_path):
         time_indices,
         phase_option,
         dimension_option,
+        time_length_target,
     ) in all_options:
         if (birefringence_option is None) and (phase_option is None):
             continue
@@ -89,7 +93,7 @@ def test_reconstruct(tmp_path):
 
         # Check output
         result_dataset = open_ome_zarr(result_path)
-        assert result_dataset["0"].shape[0] in {1, 2}
+        assert result_dataset["0"].shape[0] == time_length_target
         assert result_dataset["0"].shape[3:] == (5, 6)
 
         # Test direct recon
@@ -106,4 +110,5 @@ def test_reconstruct(tmp_path):
         )
         assert result_path.exists()
         assert result_inv.exit_code == 0
+        assert "Reconstructing" in result_inv.output
         assert "Reconstructing" in result_inv.output
