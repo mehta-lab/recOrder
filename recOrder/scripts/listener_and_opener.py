@@ -3,7 +3,7 @@ import napari
 import os
 import sys
 from ndtiff import Dataset
-from iohub.ngff import open_ome_zarr
+from iohub.ngff import open_ome_zarr, ImageArray
 import time
 from napari.qt import thread_worker
 from pycromanager import Studio
@@ -12,7 +12,10 @@ from recOrder.cli.compute_transfer_function import (
 )
 from recOrder.cli.apply_inverse_transfer_function import (
     apply_inverse_transfer_function_cli,
+    _load_configuration_settings,
 )
+from recOrder.cli.settings import ReconstructionSettings
+from queue import Queue
 
 viewer = napari.Viewer()
 
@@ -125,24 +128,24 @@ def update_layers(data_name_tuple):
     data_name_tuple : tuple(numpy array, string)
         A tuple containing image data as a numpy array and the layer name, to update, as a string.
     """
-    img_data: np.ndarray = data_name_tuple[0]
+    position_data: ImageArray = data_name_tuple[0]
     layer_name: str = data_name_tuple[1]
     print(f"Updating napari layer {layer_name}")
     if layer_name in viewer.layers:
-        viewer.layers[layer_name].data = img_data
+        viewer.layers[layer_name].data = position_data
     else:
-        viewer.add_image(img_data, name=layer_name)
+        viewer.add_image(position_data, name=layer_name)
 
 
 channel_names = ""
 
 
-# Reads the zarr files and yields the image data to update_layers
+# Reads the zarr files and yields the position data to update_layers
 @thread_worker(connect={"yielded": update_layers})
 def read_zarr(path_and_position_tuple):
     """
     Given a zarr path, position, and boolean, read the zarr store at the current position
-    and yield the data and layer name to update_layers.
+    and yield the position data and layer name to update_layers.
 
     Parameters
     ----------
@@ -153,7 +156,7 @@ def read_zarr(path_and_position_tuple):
     Yields
     ------
     tuple(numpy array, string)
-    Yields the image data as a numpy array, and layer name as a string in a tuple.
+    Yields the position data as a numpy array, and layer name as a string in a tuple.
     """
     path: str = path_and_position_tuple[0]
     curr_p: int = path_and_position_tuple[1]
@@ -165,7 +168,7 @@ def read_zarr(path_and_position_tuple):
 
 
 @thread_worker(connect={"yielded": read_zarr})
-def reconstruct_zarr(path_position_tfpath_tuple):
+def reconstruct_zarr(queue):
     """
     Reconstructs the imaging data.
 
@@ -179,30 +182,43 @@ def reconstruct_zarr(path_position_tfpath_tuple):
     ------
     _type_
         _description_
-    """
-    zarr_path: str = path_position_tfpath_tuple[0]
-    curr_position: int = path_position_tfpath_tuple[1]
-    transfer_function_path: str = path_position_tfpath_tuple[2]
+    #"""
+    while True:
+        path_position_tfpath_tuple = queue.get()
+        if path_position_tfpath_tuple:
+            zarr_path: str = path_position_tfpath_tuple[0]
+            curr_position: int = path_position_tfpath_tuple[1]
+            transfer_function_path: str = path_position_tfpath_tuple[2]
+            curr_time: int = path_position_tfpath_tuple[3]
 
-    # Input data path should be where the zarr store is and accessing each position
-    input_data_path = os.path.join(zarr_path, "0", str(curr_position), "0")
-    # Config path is given -> will be changed to a pydantic model
-    config_path = os.path.join(
-        os.path.dirname(os.path.dirname(zarr_path)), "phase.yml"
-    )
-    transfer_function_path = os.path.join(
-        os.path.dirname(zarr_path), "transfer_function.zarr"
-    )
-    output_path = os.path.join(
-        os.path.dirname(zarr_path), f"reconstruction{curr_position}.zarr"
-    )
-    print(f"\nApplying inverse transfer function\n")
-    apply_inverse_transfer_function_cli(
-        input_data_path, transfer_function_path, config_path, output_path
-    )
+            # Input data path should be where the zarr store is and accessing each position
+            input_data_path = os.path.join(
+                zarr_path, "0", str(curr_position), "0"
+            )
+            # Config path is given -> will be changed to a pydantic model
+            config_path = os.path.join(
+                os.path.dirname(os.path.dirname(zarr_path)), "phase.yml"
+            )
+            config_settings = _load_configuration_settings(config_path)
+            config_settings.time_indices = curr_time
+            transfer_function_path = os.path.join(
+                os.path.dirname(zarr_path), "transfer_function.zarr"
+            )
+            output_path = os.path.join(
+                os.path.dirname(zarr_path),
+                f"reconstruction{curr_position}.zarr",
+            )
+            print(f"\nApplying inverse transfer function\n")
+            apply_inverse_transfer_function_cli(
+                input_data_path,
+                transfer_function_path,
+                config_settings,
+                output_path,
+            )
 
-    # Yield the reconstruction path and curr position
-    yield output_path, curr_position
+            # Yield the reconstruction path and curr position
+            yield output_path, curr_position
+            # break
 
 
 def initialize_transfer_function_call(zarr_path: str, curr_p: int):
@@ -222,6 +238,7 @@ def initialize_transfer_function_call(zarr_path: str, curr_p: int):
     string
         The path of the transfer function.
     """
+    start_time = time.time()
     input_data_path = os.path.join(zarr_path, "0", str(curr_p), "0")
     config_path = os.path.join(zarr_path, os.pardir, os.pardir, "phase.yml")
     transfer_function_path = os.path.join(
@@ -230,6 +247,9 @@ def initialize_transfer_function_call(zarr_path: str, curr_p: int):
     print(f"\nInitializing transfer function at {transfer_function_path}\n")
     compute_transfer_function_cli(
         input_data_path, config_path, transfer_function_path
+    )
+    print(
+        f"\nInitialize transfer function in {time.time() - start_time} seconds\n"
     )
     return transfer_function_path
 
@@ -282,6 +302,8 @@ def mda_to_zarr():
     initialize_transfer_function = True
     new_page = True
     last_file = None
+    queue = Queue()
+    yield queue
 
     while datastore:
         if engine.isFinished() and img_count == max_images:
@@ -318,6 +340,7 @@ def mda_to_zarr():
                 )
                 if last_file != curr_file:
                     new_page = True
+                    last_file = curr_file
             # Wait for file to exist before reading
             while not os.path.exists(curr_file):
                 print(f"Waiting for file... {curr_file}")
@@ -406,7 +429,15 @@ def mda_to_zarr():
 
             # Yield
             if z_done:
-                yield (zarr_path, curr_p, transfer_function_path)
+                send_tuple = (
+                    zarr_path,
+                    curr_p,
+                    transfer_function_path,
+                    curr_t,
+                )
+                queue.put(send_tuple)
+                # # recon_generator._next_value()
+                # recon_generator.send(send_tuple)
 
             if (
                 curr_p == p_max
@@ -418,6 +449,8 @@ def mda_to_zarr():
                 print(
                     f"Wrote all images to zarr in {time.time() - start_time} seconds."
                 )
+                # recon_generator.quit()
+                queue.join()
                 break
 
             curr_p, curr_t, curr_c, curr_z = update_dimensions(
@@ -431,6 +464,7 @@ def mda_to_zarr():
                 c_max,
                 z_max,
             )
+    # queue.join()
 
 
 mda_to_zarr()
