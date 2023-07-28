@@ -106,26 +106,29 @@ def apply_inverse_transfer_function_cli(
         output_z_shape = input_dataset.data.shape[2]
 
     output_shape = (
-        t_shape,
+        input_dataset.data.shape[0],
         len(channel_names),
         output_z_shape,
     ) + input_dataset.data.shape[3:]
 
     # Create output dataset
     output_dataset = open_ome_zarr(
-        output_path, layout="fov", mode="w", channel_names=channel_names
+        output_path, layout="fov", mode="a", channel_names=channel_names
     )
-    output_array = output_dataset.create_zeros(
-        name="0",
-        shape=output_shape,
-        dtype=np.float32,
-        chunks=(
-            1,
-            1,
-            1,
+    if 0 in time_indices:
+        output_array = output_dataset.create_zeros(
+            name="0",
+            shape=output_shape,
+            dtype=np.float32,
+            chunks=(
+                1,
+                1,
+                1,
+            )
+            + input_dataset.data.shape[3:],  # chunk by YX
         )
-        + input_dataset.data.shape[3:],  # chunk by YX
-    )
+    else:
+        output_array = output_dataset[0]
 
     # Load data
     tczyx_uint16_numpy = input_dataset.data.oindex[:, channel_indices]
