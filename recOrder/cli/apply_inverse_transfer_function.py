@@ -2,6 +2,7 @@ import click
 import numpy as np
 import torch
 from iohub import open_ome_zarr
+from typing import Union
 from recOrder.cli.printing import echo_headline, echo_settings
 from recOrder.cli.settings import ReconstructionSettings
 from recOrder.cli.parsing import (
@@ -18,6 +19,21 @@ from waveorder.models import (
 )
 
 
+def _load_configuration_settings(
+    configuration_settings: Union[str, ReconstructionSettings]
+) -> ReconstructionSettings:
+    if isinstance(configuration_settings, str):
+        return utils.yaml_to_model(
+            configuration_settings, ReconstructionSettings
+        )
+    elif isinstance(configuration_settings, ReconstructionSettings):
+        return configuration_settings
+    else:
+        raise ValueError(
+            f"configuration_settings = {configuration_settings} must be a string or a ReconstructionSettings object."
+        )
+
+
 def _check_background_consistency(background_shape, data_shape):
     data_cyx_shape = (data_shape[1],) + data_shape[3:]
     if background_shape != data_cyx_shape:
@@ -27,23 +43,46 @@ def _check_background_consistency(background_shape, data_shape):
 
 
 def apply_inverse_transfer_function_cli(
-    input_data_path, transfer_function_path, config_path, output_path
+    input_data_path: str,
+    transfer_function_path: str,
+    configuration_settings: Union[str, ReconstructionSettings],
+    output_path: str,
 ):
+    """
+    1) Reads an input dataset and transfer function from zarr stores,
+    2) Applies the inverse transfer function using settings from a configuration yaml file, then
+    3) Saves the result to an output zarr store.
+
+    This method also supports configuration settings passed directly from a
+    ReconstructionSettings object for live reconstruction purposes.
+
+    Parameters
+    ----------
+    input_data_path : str
+        Path to position-level input zarr store
+    transfer_function_path : str
+        Path to transfer function zarr store
+    configuration_settings : Union[str, ReconstructionSettings]
+        Path to configuration settings yaml file, or
+        directly from a ReconstructionSettings object
+    output_path : str
+        Path to output zarr store
+    """
     echo_headline("Starting reconstruction...")
 
     # Load datasets
     transfer_function_dataset = open_ome_zarr(transfer_function_path)
     input_dataset = open_ome_zarr(input_data_path)
 
-    # Load config file
-    settings = utils.yaml_to_model(config_path, ReconstructionSettings)
+    # Load configuration settings file
+    settings = _load_configuration_settings(configuration_settings)
 
     # Check input channel names
     if not set(settings.input_channel_names).issubset(
         input_dataset.channel_names
     ):
         raise ValueError(
-            f"Each of the input_channel_names = {settings.input_channel_names} in {config_path} must appear in the dataset {input_data_path} which currently contains channel_names = {input_dataset.channel_names}."
+            f"Each of the input_channel_names = {settings.input_channel_names} in {configuration_settings} must appear in the dataset {input_data_path} which currently contains channel_names = {input_dataset.channel_names}."
         )
 
     # Find channel indices
@@ -53,8 +92,26 @@ def apply_inverse_transfer_function_cli(
             input_dataset.channel_names.index(input_channel_name)
         )
 
-    # Load dataset shape
-    t_shape = input_dataset.data.shape[0]
+    # Find time indices
+    if settings.time_indices == "all":
+        time_indices = range(input_dataset.data.shape[0])
+        t_shape = input_dataset.data.shape[0]
+    elif isinstance(settings.time_indices, list):
+        time_indices = settings.time_indices
+        t_shape = len(time_indices)
+    elif isinstance(settings.time_indices, int):
+        time_indices = [settings.time_indices]
+        t_shape = 1
+    else:
+        ValueError(
+            f"time_indices = {time_indices} should be `all`, a list of integers, or an integer."
+        )
+
+    # Check for invalid times
+    if np.max(time_indices) > input_dataset.data.shape[0]:
+        ValueError(
+            f"time_indices = {time_indices} includes a time index beyond the size the of the dataset = {input_dataset.data.shape[0]}"
+        )
 
     # Simplify important settings names
     recon_biref = settings.birefringence is not None
@@ -143,7 +200,7 @@ def apply_inverse_transfer_function_cli(
             transfer_function_dataset["intensity_to_stokes_matrix"][0, 0, 0]
         )
 
-        for time_index in range(t_shape):
+        for time_index in time_indices:
             # Apply
             reconstructed_parameters = (
                 inplane_oriented_thick_pol3d.apply_inverse_transfer_function(
@@ -180,7 +237,7 @@ def apply_inverse_transfer_function_cli(
                 transfer_function_dataset["phase_transfer_function"][0, 0]
             )
 
-            for time_index in range(t_shape):
+            for time_index in time_indices:
                 # Apply
                 (
                     _,
@@ -210,7 +267,7 @@ def apply_inverse_transfer_function_cli(
             )
 
             # Apply
-            for time_index in range(t_shape):
+            for time_index in time_indices:
                 zyx_phase = phase_thick_3d.apply_inverse_transfer_function(
                     tczyx_data[time_index, 0],
                     real_potential_transfer_function,
@@ -246,7 +303,7 @@ def apply_inverse_transfer_function_cli(
                 transfer_function_dataset["phase_transfer_function"][0, 0]
             )
 
-            for time_index in range(t_shape):
+            for time_index in time_indices:
                 # Apply
                 reconstructed_parameters_2d = inplane_oriented_thick_pol3d.apply_inverse_transfer_function(
                     tczyx_data[time_index],
@@ -304,7 +361,7 @@ def apply_inverse_transfer_function_cli(
             )
 
             # Apply
-            for time_index in range(t_shape):
+            for time_index in time_indices:
                 reconstructed_parameters_3d = inplane_oriented_thick_pol3d.apply_inverse_transfer_function(
                     tczyx_data[time_index],
                     intensity_to_stokes_matrix,
@@ -348,7 +405,7 @@ def apply_inverse_transfer_function_cli(
             )
 
             # Apply
-            for time_index in range(t_shape):
+            for time_index in time_indices:
                 zyx_recon = isotropic_fluorescent_thick_3d.apply_inverse_transfer_function(
                     tczyx_data[time_index, 0],
                     optical_transfer_function,
@@ -367,7 +424,7 @@ def apply_inverse_transfer_function_cli(
     input_dataset.close()
 
     echo_headline(
-        f"Recreate this reconstruction with:\n$ recorder apply-inv-tf {input_data_path} {transfer_function_path} -c {config_path} -o {output_path}"
+        f"Recreate this reconstruction with:\n$ recorder apply-inv-tf {input_data_path} {transfer_function_path} -c {configuration_settings} -o {output_path}"
     )
 
 

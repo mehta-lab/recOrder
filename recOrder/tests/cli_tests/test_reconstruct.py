@@ -1,6 +1,6 @@
 import numpy as np
 from recOrder.cli.main import cli
-from recOrder.cli import settings
+from recOrder.cli import settings, apply_inverse_transfer_function
 from recOrder.io import utils
 from click.testing import CliRunner
 from iohub.ngff import open_ome_zarr
@@ -23,20 +23,29 @@ def test_reconstruct(tmp_path):
     birefringence_settings = settings.BirefringenceSettings(
         transfer_function=settings.BirefringenceTransferFunctionSettings()
     )
+
+    # birefringence_option, time_indices, phase_option, dimension_option, time_length_target
     all_options = [
-        (birefringence_settings, None, 2),
-        (birefringence_settings, settings.PhaseSettings(), 2),
-        (birefringence_settings, None, 3),
-        (birefringence_settings, settings.PhaseSettings(), 3),
+        (birefringence_settings, [0], None, 2, 1),
+        (birefringence_settings, 0, settings.PhaseSettings(), 2, 1),
+        (birefringence_settings, [0, 1], None, 3, 2),
+        (birefringence_settings, "all", settings.PhaseSettings(), 3, 2),
     ]
 
-    for birefringence_option, phase_option, dimension_option in all_options:
+    for (
+        birefringence_option,
+        time_indices,
+        phase_option,
+        dimension_option,
+        time_length_target,
+    ) in all_options:
         if (birefringence_option is None) and (phase_option is None):
             continue
 
         # Generate recon settings
         recon_settings = settings.ReconstructionSettings(
             input_channel_names=channel_names,
+            time_indices=time_indices,
             reconstruction_dimension=dimension_option,
             birefringence=birefringence_option,
             phase=phase_option,
@@ -58,18 +67,11 @@ def test_reconstruct(tmp_path):
                 "-o",
                 str(tf_path),
             ],
-=======
-            "compute-tf "
-            + str(input_path)
-            + " -c "
-            + str(config_path)
-            + " -o "
-            + str(tf_path),
->>>>>>> new-mda-listener
+            catch_exceptions=False,
         )
         assert tf_path.exists()
 
-        # Apply the tf
+        # Apply the tf via CLI
         result_path = input_path.with_name("result.zarr")
 
         result_inv = runner.invoke(
@@ -84,24 +86,25 @@ def test_reconstruct(tmp_path):
                 "-o",
                 str(result_path),
             ],
-=======
-            "apply-inv-tf "
-            + str(input_path)
-            + " "
-            + str(tf_path)
-            + " -c "
-            + str(config_path)
-            + " -o "
-            + str(result_path),
->>>>>>> new-mda-listener
+            catch_exceptions=False,
         )
         assert result_path.exists()
         assert result_inv.exit_code == 0
         assert "Reconstructing" in result_inv.output
 
+        # Apply the tf function call directly
+        result_path_direct = input_path.with_name("result.zarr")
+        apply_inverse_transfer_function.apply_inverse_transfer_function_cli(
+            str(input_path),
+            str(tf_path),
+            recon_settings,
+            str(result_path_direct),
+        )
+        assert result_path_direct.exists()
+
         # Check output
         result_dataset = open_ome_zarr(result_path)
-        assert result_dataset["0"].shape[0] == 2
+        assert result_dataset["0"].shape[0] == time_length_target
         assert result_dataset["0"].shape[3:] == (5, 6)
 
         # Test direct recon
