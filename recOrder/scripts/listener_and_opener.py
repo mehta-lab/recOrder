@@ -186,6 +186,8 @@ def reconstruct_zarr(queue):
     while True:
         path_position_tfpath_tuple = queue.get()
         if path_position_tfpath_tuple:
+            recon_start_time = time.time()
+            print(time.localtime())
             zarr_path: str = path_position_tfpath_tuple[0]
             curr_position: int = path_position_tfpath_tuple[1]
             transfer_function_path: str = path_position_tfpath_tuple[2]
@@ -215,9 +217,13 @@ def reconstruct_zarr(queue):
                 config_settings,
                 output_path,
             )
+            print(
+                f"Reconstruction finished in {time.time() - recon_start_time}"
+            )
 
             # Yield the reconstruction path and curr position
             yield output_path, curr_position
+            queue.task_done()
             # break
 
 
@@ -238,7 +244,7 @@ def initialize_transfer_function_call(zarr_path: str, curr_p: int):
     string
         The path of the transfer function.
     """
-    start_time = time.time()
+    tf_start_time = time.time()
     input_data_path = os.path.join(zarr_path, "0", str(curr_p), "0")
     config_path = os.path.join(zarr_path, os.pardir, os.pardir, "phase.yml")
     transfer_function_path = os.path.join(
@@ -248,9 +254,8 @@ def initialize_transfer_function_call(zarr_path: str, curr_p: int):
     compute_transfer_function_cli(
         input_data_path, config_path, transfer_function_path
     )
-    print(
-        f"\nInitialize transfer function in {time.time() - start_time} seconds\n"
-    )
+    initialize_tf_time = time.time() - tf_start_time
+    print(f"\nInitialize transfer function in {initialize_tf_time} seconds\n")
     return transfer_function_path
 
 
@@ -451,6 +456,8 @@ def mda_to_zarr():
                 )
                 # recon_generator.quit()
                 queue.join()
+                # This is when the queue finishes all jobs -> finish time
+                print(f"Finished all reconstructions at {time.localtime()}!")
                 break
 
             curr_p, curr_t, curr_c, curr_z = update_dimensions(
