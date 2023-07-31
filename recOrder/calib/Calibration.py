@@ -74,8 +74,8 @@ class QLIPP_Calibration:
             "LCB": (LC_DEVICE_NAME, "Retardance LC-B [in waves]"),
             "LCA-Voltage": (LC_DEVICE_NAME, "Voltage (V) LC-A"),
             "LCB-Voltage": (LC_DEVICE_NAME, "Voltage (V) LC-B"),
-            "LCA-DAC": ("TS_DAC01", "Volts"),
-            "LCB-DAC": ("TS_DAC02", "Volts"),
+            "LCA-DAC": ("TS1_DAC01", "Volts"),
+            "LCB-DAC": ("TS1_DAC02", "Volts"),
             "State0": (
                 LC_DEVICE_NAME,
                 "Pal. elem. 00; enter 0 to define; 1 to activate",
@@ -182,8 +182,8 @@ class QLIPP_Calibration:
         self._shutter_state = None
 
     def set_dacs(self, lca_dac, lcb_dac):
-        self.PROPERTIES["LCA-DAC"] = (f"TS_{lca_dac}", "Volts")
-        self.PROPERTIES["LCB-DAC"] = (f"TS_{lcb_dac}", "Volts")
+        self.PROPERTIES["LCA-DAC"] = (f"TS1_{lca_dac}", "Volts")
+        self.PROPERTIES["LCB-DAC"] = (f"TS1_{lcb_dac}", "Volts")
 
     def set_wavelength(self, wavelength):
         self.calib.set_wavelength(wavelength)
