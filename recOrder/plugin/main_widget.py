@@ -1378,16 +1378,17 @@ class MainWidget(QWidget):
             self.ui.cb_lcb.show()
             self.ui.label_lca.show()
             self.ui.label_lcb.show()
-
             cfg = self.mmc.getConfigData(self.config_group, "State0")
-
             # Update the DAC combo boxes with available DAC's from the config.  Necessary for the user
             # to specify which DAC output corresponds to which LC for voltage-space calibration
             memory = set()
             for i in range(cfg.size()):
                 prop = cfg.getSetting(i)
+                print(f'properties {str(prop.getDeviceLabel())}')
                 if "TS" in prop.getDeviceLabel() and "DAC" in prop.getDeviceLabel():
                     dac = prop.getDeviceLabel()[-2:]
+                    # print(f' device type {self.mmc.getDeviceType()}')
+
                     if dac not in memory:
                         self.ui.cb_lca.addItem("DAC" + dac)
                         self.ui.cb_lcb.addItem("DAC" + dac)
