@@ -124,7 +124,7 @@ def update_layers(data_name_tuple):
 
     Parameters
     ----------
-    data_name_tuple : tuple(numpy array, string)
+    data_name_tuple : tuple(ImageArray or numpy array, string)
         A tuple containing image data as a numpy array and the layer name, to update, as a string.
     """
     position_data: ImageArray or np.ndarray = data_name_tuple[0]
@@ -178,8 +178,8 @@ def reconstruct_zarr(queue):
 
     Yields
     ------
-    tuple(string, int)
-        A tuple of the zarr path of the reconstructed data as a string and the position it wrote to as an int.
+    tuple(ImageArray or numpy array, string)
+        A tuple of the position data as an array and the layer name as a string.
     #"""
     last_pos = None
     while True:
@@ -319,13 +319,12 @@ def initialize_transfer_function_call(zarr_path: str, curr_p: int):
 def mda_to_zarr():
     """
     Runs an Multi-Dimensional Acquisition (MDA) and writes the image data (OME-TIFF or ND-TIFF)
-    to zarr.
+    to zarr. Constantly updates a job queue with the next reconstruction job.
 
     Yields
     ------
-    tuple(string, int, boolean)
-    Yields the zarr path as a string, current position as an int, and whether or not a z-stack
-    is done in a tuple.
+    Queue
+        A FIFO queue that has information for reconstructions.
     """
     studio = Studio(convert_camel_case=False)
     manager = studio.getAcquisitionManager()
