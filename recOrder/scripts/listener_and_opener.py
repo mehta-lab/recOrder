@@ -14,13 +14,13 @@ from recOrder.cli.apply_inverse_transfer_function import (
     apply_inverse_transfer_function_cli,
     _load_configuration_settings,
 )
-from recOrder.cli.settings import ReconstructionSettings
+from recOrder.io.utils import ret_ori_overlay
 from queue import Queue
+import zarr
 
 viewer = napari.Viewer()
 
 
-# Helper function to update the dimensions
 def update_dimensions(
     acq_mode, curr_p, curr_t, curr_c, curr_z, p_max, t_max, c_max, z_max
 ):
@@ -118,7 +118,6 @@ def update_dimensions(
     return curr_p, curr_t, curr_c, curr_z
 
 
-# Update the napari layers given image data
 def update_layers(data_name_tuple):
     """
     Updates the napari layers at the given layer name and with the given data.
@@ -128,8 +127,9 @@ def update_layers(data_name_tuple):
     data_name_tuple : tuple(numpy array, string)
         A tuple containing image data as a numpy array and the layer name, to update, as a string.
     """
-    position_data: ImageArray = data_name_tuple[0]
+    position_data: ImageArray or np.ndarray = data_name_tuple[0]
     layer_name: str = data_name_tuple[1]
+    print(position_data.shape)
     print(f"Updating napari layer {layer_name}")
     if layer_name in viewer.layers:
         viewer.layers[layer_name].data = position_data
@@ -140,54 +140,52 @@ def update_layers(data_name_tuple):
 channel_names = ""
 
 
-# Reads the zarr files and yields the position data to update_layers
+# @thread_worker(connect={"yielded": update_layers})
+# def read_zarr(path_and_position_tuple):
+#     """
+#     Given a zarr path, position, read the zarr store at the current position
+#     and yield the position data and layer name to update_layers.
+
+#     Parameters
+#     ----------
+#     path_and_position_and_z_tuple : tuple(string, int, boolean)
+#         A tuple containing a zarr path as a string, current position int, and whether or not
+#         a z-stack is done.
+
+#     Yields
+#     ------
+#     tuple(numpy array, string)
+#     Yields the position data as a numpy array, and layer name as a string in a tuple.
+#     """
+#     path: str = path_and_position_tuple[0]
+#     curr_p: int = path_and_position_tuple[1]
+#     with open_ome_zarr(path, layout="fov", mode="r") as dataset:
+#         print(f"Getting data from position {curr_p}")
+#         dataset.print_tree()
+#         position_data = dataset[0]
+#         yield position_data, f"Position {curr_p}"
+
+
 @thread_worker(connect={"yielded": update_layers})
-def read_zarr(path_and_position_tuple):
-    """
-    Given a zarr path, position, and boolean, read the zarr store at the current position
-    and yield the position data and layer name to update_layers.
-
-    Parameters
-    ----------
-    path_and_position_and_z_tuple : tuple(string, int, boolean)
-        A tuple containing a zarr path as a string, current position int, and whether or not
-        a z-stack is done.
-
-    Yields
-    ------
-    tuple(numpy array, string)
-    Yields the position data as a numpy array, and layer name as a string in a tuple.
-    """
-    path: str = path_and_position_tuple[0]
-    curr_p: int = path_and_position_tuple[1]
-    with open_ome_zarr(path, layout="fov", mode="r") as dataset:
-        print(f"Getting data from position {curr_p}")
-        dataset.print_tree()
-        position_data = dataset[0]
-        yield position_data, f"Position {curr_p}"
-
-
-@thread_worker(connect={"yielded": read_zarr})
 def reconstruct_zarr(queue):
     """
-    Reconstructs the imaging data.
+    Reconstructs the imaging data in the queue.
 
     Parameters
     ----------
-    path_position_tfpath_tuple : tuple(string, int, string)
-        A tuple containing a zarr path as a string, current position int, and the path
-        of the transfer function as a string.
+    queue: Queue
+        A FIFO queue that has information for the reconstructions to happen.
 
     Yields
     ------
-    _type_
-        _description_
+    tuple(string, int)
+        A tuple of the zarr path of the reconstructed data as a string and the position it wrote to as an int.
     #"""
+    last_pos = None
     while True:
         path_position_tfpath_tuple = queue.get()
         if path_position_tfpath_tuple:
             recon_start_time = time.time()
-            print(time.localtime())
             zarr_path: str = path_position_tfpath_tuple[0]
             curr_position: int = path_position_tfpath_tuple[1]
             transfer_function_path: str = path_position_tfpath_tuple[2]
@@ -197,34 +195,87 @@ def reconstruct_zarr(queue):
             input_data_path = os.path.join(
                 zarr_path, "0", str(curr_position), "0"
             )
-            # Config path is given -> will be changed to a pydantic model
+            # Find a way to customize this config path
             config_path = os.path.join(
-                os.path.dirname(os.path.dirname(zarr_path)), "phase.yml"
+                os.path.dirname(os.path.dirname(zarr_path)),
+                "birefringence.yml",
             )
             config_settings = _load_configuration_settings(config_path)
             config_settings.time_indices = curr_time
+
+            # Find a way to customize this transfer function path
             transfer_function_path = os.path.join(
                 os.path.dirname(zarr_path), "transfer_function.zarr"
             )
+            # Find a way to customize this output path of the reconstructions
             output_path = os.path.join(
                 os.path.dirname(zarr_path),
                 f"reconstruction{curr_position}.zarr",
             )
-            print(f"\nApplying inverse transfer function\n")
-            apply_inverse_transfer_function_cli(
-                input_data_path,
-                transfer_function_path,
-                config_settings,
-                output_path,
-            )
-            print(
-                f"Reconstruction finished in {time.time() - recon_start_time}"
-            )
+            if (config_settings.birefringence is not None) and (
+                not config_settings.phase
+            ):
+                print(f"\nApplying birefringence inverse transfer function\n")
+                # Apply inverse transfer function on czyx stack and then apply the ret_ori_overlay
+                apply_inverse_transfer_function_cli(
+                    input_data_path,
+                    transfer_function_path,
+                    config_settings,
+                    output_path,
+                )
+                with open_ome_zarr(
+                    output_path, layout="fov", mode="r"
+                ) as dataset:
+                    position_data = dataset[0]
+                    retardance = position_data[curr_time, 0]
+                    orientation = position_data[curr_time, 1]
+                    data = ret_ori_overlay(
+                        retardance,
+                        orientation,
+                        ret_max=np.percentile(np.ravel(retardance), 89.99),
+                        cmap="HSV",
+                    )
+                if curr_position != last_pos:
+                    # Find a way to customize this temp zarr path
+                    zarr_array = zarr.open_array(
+                        store=os.path.join(
+                            os.path.dirname(zarr_path),
+                            f"temp_zarr{curr_position}",
+                        ),
+                        mode="w",
+                        shape=data.shape,
+                    )
+                    zarr_array[:] = data
+                    last_pos = curr_position
+                else:
+                    zarr_array.append(data)
+                print(
+                    f"Reconstruction finished in {time.time() - recon_start_time}"
+                )
+                yield zarr_array, f"Overlay{curr_position}"
+                queue.task_done()
+            elif (config_settings.phase is not None) and (
+                not config_settings.birefringence
+            ):
+                print(f"\nApplying phase inverse transfer function\n")
+                apply_inverse_transfer_function_cli(
+                    input_data_path,
+                    transfer_function_path,
+                    config_settings,
+                    output_path,
+                )
+                print(
+                    f"Reconstruction finished in {time.time() - recon_start_time}"
+                )
+                with open_ome_zarr(
+                    output_path, layout="fov", mode="r"
+                ) as dataset:
+                    print(f"Getting data from position {curr_position}")
+                    dataset.print_tree()
+                    position_data = dataset[0]
+                    yield position_data, f"Position {curr_position}"
 
-            # Yield the reconstruction path and curr position
-            yield output_path, curr_position
-            queue.task_done()
-            # break
+                queue.task_done()
 
 
 def initialize_transfer_function_call(zarr_path: str, curr_p: int):
@@ -246,7 +297,11 @@ def initialize_transfer_function_call(zarr_path: str, curr_p: int):
     """
     tf_start_time = time.time()
     input_data_path = os.path.join(zarr_path, "0", str(curr_p), "0")
-    config_path = os.path.join(zarr_path, os.pardir, os.pardir, "phase.yml")
+    # Find a way to customize this config path
+    config_path = os.path.join(
+        zarr_path, os.pardir, os.pardir, "birefringence.yml"
+    )
+    # Find a way to customize this transfer function path
     transfer_function_path = os.path.join(
         zarr_path, os.pardir, "transfer_function.zarr"
     )
@@ -292,9 +347,12 @@ def mda_to_zarr():
 
     max_images = (p_max + 1) * (t_max + 1) * (c_max + 1) * (z_max + 1)
     zarr_path = sys.argv[1]
+    reconstruction_type = sys.argv[2]
     # Only for OME TIFF
     storage = datastore.getStorage()
-    reader_map = storage.getCoordsToReader()
+    print(dir(storage))
+    if save_mode == "MULTIPAGE_TIFF":
+        reader_map = storage.getCoordsToReader()
     path = datastore.getSavePath()
     file_header = os.path.basename(path)
     initialize = True
@@ -326,7 +384,7 @@ def mda_to_zarr():
         found = False
         # Check if the storage has the Image coords (NDTIFF)
         if save_mode == "ND_TIFF":
-            if datastore.hasImage(required_coord):
+            if storage.hasImage(required_coord):
                 img_count += 1
                 print(f"Found {img_count}")
                 found = True
@@ -387,6 +445,9 @@ def mda_to_zarr():
             # Get the image data
             if save_mode == "ND_TIFF":
                 data = Dataset(path)
+                while not data.has_image(curr_c, curr_z, curr_t, curr_p):
+                    time.sleep(0.1)
+                    data = Dataset(path)
                 image = data.read_image(curr_c, curr_z, curr_t, curr_p)
             elif save_mode == "MULTIPAGE_TIFF":
                 # # Obtain the reader and get the offset for the current image
@@ -418,31 +479,48 @@ def mda_to_zarr():
             )
 
             # Check if the z-stack is finished
-            z_done = False
-            if acq_mode == "TPCZ" or acq_mode == "PTCZ":
-                if curr_z == z_max:
-                    z_done = True
-            elif acq_mode == "TPZC" or acq_mode == "PTZC":
+            if reconstruction_type == "phase":
+                z_done = False
+                if acq_mode == "TPCZ" or acq_mode == "PTCZ":
+                    if curr_z == z_max:
+                        z_done = True
+                elif acq_mode == "TPZC" or acq_mode == "PTZC":
+                    if curr_z == z_max and curr_c == c_max:
+                        z_done = True
+
+                if z_done and initialize_transfer_function:
+                    transfer_function_path = initialize_transfer_function_call(
+                        zarr_path, curr_p
+                    )
+                    initialize_transfer_function = False
+
+                # Update the queue
+                if z_done:
+                    send_tuple = (
+                        zarr_path,
+                        curr_p,
+                        transfer_function_path,
+                        curr_t,
+                    )
+                    queue.put(send_tuple)
+            elif reconstruction_type == "birefringence":
+                c_done = False
                 if curr_z == z_max and curr_c == c_max:
-                    z_done = True
+                    c_done = True
+                if c_done and initialize_transfer_function:
+                    transfer_function_path = initialize_transfer_function_call(
+                        zarr_path, curr_p
+                    )
+                    initialize_transfer_function = False
 
-            if z_done and initialize_transfer_function:
-                transfer_function_path = initialize_transfer_function_call(
-                    zarr_path, curr_p
-                )
-                initialize_transfer_function = False
-
-            # Yield
-            if z_done:
-                send_tuple = (
-                    zarr_path,
-                    curr_p,
-                    transfer_function_path,
-                    curr_t,
-                )
-                queue.put(send_tuple)
-                # # recon_generator._next_value()
-                # recon_generator.send(send_tuple)
+                if c_done:
+                    send_tuple = (
+                        zarr_path,
+                        curr_p,
+                        transfer_function_path,
+                        curr_t,
+                    )
+                    queue.put(send_tuple)
 
             if (
                 curr_p == p_max
@@ -454,10 +532,11 @@ def mda_to_zarr():
                 print(
                     f"Wrote all images to zarr in {time.time() - start_time} seconds."
                 )
-                # recon_generator.quit()
                 queue.join()
                 # This is when the queue finishes all jobs -> finish time
-                print(f"Finished all reconstructions at {time.localtime()}!")
+                print(
+                    f"Finished all reconstructions in {time.time() - start_time}!"
+                )
                 break
 
             curr_p, curr_t, curr_c, curr_z = update_dimensions(
