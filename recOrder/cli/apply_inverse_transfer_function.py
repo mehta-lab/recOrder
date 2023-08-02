@@ -1,6 +1,7 @@
 import click
 import numpy as np
 import torch
+from typing import List
 from iohub import open_ome_zarr
 from recOrder.cli.printing import echo_headline, echo_settings
 from recOrder.cli.settings import ReconstructionSettings
@@ -8,6 +9,7 @@ from recOrder.cli.parsing import (
     input_data_path_argument,
     config_path_option,
     output_dataset_option,
+    processes_option,
 )
 from recOrder.io import utils
 from waveorder.models import (
@@ -16,6 +18,8 @@ from waveorder.models import (
     phase_thick_3d,
     isotropic_fluorescent_thick_3d,
 )
+import torch.multiprocessing as mp
+from recOrder.cli import utils
 
 
 def _check_background_consistency(background_shape, data_shape):
@@ -27,7 +31,11 @@ def _check_background_consistency(background_shape, data_shape):
 
 
 def apply_inverse_transfer_function_cli(
-    input_data_path, transfer_function_path, config_path, output_path
+    input_data_path,
+    transfer_function_path,
+    config_path,
+    output_path,
+    num_processes,
 ):
     echo_headline("Starting reconstruction...")
 
@@ -380,8 +388,15 @@ def apply_inverse_transfer_function_cli(
 )
 @config_path_option()
 @output_dataset_option(default="./reconstruction.zarr")
+@processes_option(
+    default=mp.cpu_count()
+)  # TODO: this probably is going to change
 def apply_inv_tf(
-    input_data_path, transfer_function_path, config_path, output_path
+    input_paths: List[Path],
+    transfer_function_path: Path,
+    config_path: Path,
+    output_path: Path,
+    num_processes: int,
 ):
     """
     Apply an inverse transfer function to a dataset using a configuration file.
@@ -391,6 +406,25 @@ def apply_inv_tf(
     Example usage:\n
     $ recorder apply-inv-tf input.zarr/0/0/0 transfer-function.zarr -c /examples/birefringence.yml -o output.zarr
     """
+    # Handle single position or wildcard filepath
+    output_paths = utils.get_output_paths(input_paths, output_path)
+    click.echo(f"List of input_pos:{input_paths} output_pos:{output_paths}")
+
+    # Get the reconstruction output shapes, chunk shape and voxel size
+
+    # Create a zarr store output to mirror the input
+    utils.create_empty_zarr(
+        input_paths,
+        output_path,
+        output_zyx_shape=deskewed_shape,
+        chunk_zyx_shape=deskewed_shape,
+        voxel_size=voxel_size,
+    )
+
     apply_inverse_transfer_function_cli(
-        input_data_path, transfer_function_path, config_path, output_path
+        input_data_path,
+        transfer_function_path,
+        config_path,
+        output_path,
+        num_cores,
     )
