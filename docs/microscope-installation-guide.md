@@ -45,7 +45,7 @@ Check your installation:
 ```
 napari -w recOrder-napari
 ```
-should launch napari (may take 15 seconds on a fresh installation) with the recOrder plugin in "Offline" mode. 
+should launch napari with the recOrder plugin (may take 15 seconds on a fresh installation). 
  
 ## Install and configure `Micromanager`
 
