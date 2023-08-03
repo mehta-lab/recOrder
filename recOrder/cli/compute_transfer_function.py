@@ -159,7 +159,7 @@ def compute_transfer_function_cli(input_data_path, config_path, output_path):
     )
 
     # Read shape from input dataset
-    input_dataset = open_ome_zarr(input_data_path, layout="fov", mode="r")
+    input_dataset = open_ome_zarr(input_data_path[0], layout="fov", mode="r")
     zyx_shape = input_dataset.data.shape[
         2:
     ]  # only loads a single position "0"

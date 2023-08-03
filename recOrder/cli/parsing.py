@@ -1,7 +1,7 @@
 import click
 from typing import Callable
 from iohub.ngff import open_ome_zarr, Plate
-from torch.multiprocessing import mp
+import torch.multiprocessing as mp
 from natsort import natsorted
 from pathlib import Path
 
