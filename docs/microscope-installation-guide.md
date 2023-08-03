@@ -1,27 +1,33 @@
 # Microscope Installation Guide
 
 This guide will walk through a complete recOrder installation consisting of:
-1. Installing and launching the latest stable version of `recOrder` via `pip`. 
-2. Installing a compatible version of `MicroManager` and LC device drivers.
-3. Connecting `recOrder` to `MicroManager` via a `pycromanager` connection.
+1. Checking pre-requisites for compatibility.
+2. Installing Meadowlark DS5020 and liquid crystals.
+3. Installing and launching the latest stable version of `recOrder` via `pip`. 
+4. Installing a compatible version of `MicroManager` and LC device drivers.
+5. Connecting `recOrder` to `MicroManager` via a `pycromanager` connection.
 
 Before you start you will need a machine with Windows 10, a Meadowlark DS5020 connected to a liquid crystal device, and a microscope system compatible with `Micromanager`. 
+
+# Compatibility Summary 
+Before you start you will need to confirm that your system is compatible with the following software:
+
+| Software | Version |  
+| :--- | :--- |
+| `recOrder` | 0.4.x |
+| OS | Windows 10 | 
+| Micromanager version | [2023-04-26 (160 MB)](https://download.micro-manager.org/nightly/2.0/Windows/MMSetup_64bit_2.0.1_20230426.exe) | 
+| Meadowlark drivers | TODO [recOrder-0.4.0-device-drivers.zip (XXX kB)]() | 
+| Meadowlark PC software version | 1.08 | 
+| Meadowlark controller firmware version | >=1.04 |
 
 ## Install Meadowlark DS5020 and liquid crystals
 
 Start by installing the Meadowlark DS5020 and liquid crystals using the software on the USB stick provided by Meadowlark. You will need to install the USB drivers and CellDrive5000.
 
-**Check your installation versions** by opening CellDrive5000 and double clicking the Meadowlark Optics logo. **We have tested `recOrder == 0.4.0` with "PC software version 1.08" and "Controller firmware version 1.04",** and you will need to upgrade if your software and firmware versions are older. 
+**Check your installation versions** by opening CellDrive5000 and double clicking the Meadowlark Optics logo. Confirm that **"PC software version = 1.08" and "Controller firmware version = 1.04".**
 
-To upgrade your "PC software version" use these steps:
-
-- From "Add and remove programs", remove CellDrive5000 and "National Instruments Software".
-- From "Device manager", open the "Meadowlark Optics" group, right click `mlousb`, click "Uninstall device", check "Delete the driver software for this device", and click "Uninstall". Uninstall `Meadowlark Optics D5020 LC Driver` following the same steps.
-- Using the USB stick provided by Meadowlark, reinstall the USB drivers and CellDrive5000. 
-- Confirm that "PC software version" == 1.08
-- **Upgrading users:** you will need to reinstall the Meadowlark device to your micromanager configuration file, because the device driver's name has changed to `MeadowlarkLC`. 
-
-To upgrade your DS5020's firmware, use Meadowlark's "Firmware Updater".
+If you need to upgrade your Meadowlark Software, [follow these steps](./meadowlark-software-upgrade.md). 
 
 ## Install recOrder software
 
@@ -47,7 +53,7 @@ Download and install [`Micromanager 2.0` nightly build `20230426` (~150 MB link)
 
 **Note:** We have tested recOrder with `20230426`, but most features will work with newer builds. We recommend testing a minimal installation with `20230426` before testing with a different nightly build or additional device drivers. 
 
-Before launching `Micromanager`, download the USB driver .dll from the [release page](https://github.com/mehta-lab/recOrder/releases/) and place this file into your `Micromanager` folder (likely `C:\Program Files\Micro-Manager` or similar). 
+Before launching `Micromanager`, download the TODO link to [USB driver .dll] and place this file into your `Micromanager` folder (likely `C:\Program Files\Micro-Manager` or similar). 
 
 Launch `Micromanager`, open `Devices > Hardware Configuration Wizard...`, and add the `MeadowlarkLcOpenSource` device to your configuration. Confirm your installation by opening `Devices > Device Property Browser...` and confirming that `MeadowlarkLCOpenSource` properties appear. 
 
