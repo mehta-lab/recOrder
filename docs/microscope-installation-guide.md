@@ -6,8 +6,7 @@ This guide will walk through a complete recOrder installation consisting of:
 3. Installing and launching the latest stable version of `recOrder` via `pip`. 
 4. Installing a compatible version of `MicroManager` and LC device drivers.
 5. Connecting `recOrder` to `MicroManager` via a `pycromanager` connection.
-
-Before you start you will need a machine with Windows 10, a Meadowlark DS5020 connected to a liquid crystal device, and a microscope system compatible with `Micromanager`. 
+ 
 
 # Compatibility Summary 
 Before you start you will need to confirm that your system is compatible with the following software:
