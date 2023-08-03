@@ -58,7 +58,6 @@ def test_reconstruct(tmp_path):
         tf_path = input_path.with_name("tf.zarr")
         runner.invoke(
             cli,
-<<<<<<< HEAD
             [
                 "compute-tf",
                 str(input_path),
@@ -76,7 +75,6 @@ def test_reconstruct(tmp_path):
 
         result_inv = runner.invoke(
             cli,
-<<<<<<< HEAD
             [
                 "apply-inv-tf",
                 str(input_path),
