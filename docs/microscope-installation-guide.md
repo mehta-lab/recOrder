@@ -3,9 +3,9 @@
 This guide will walk through a complete recOrder installation consisting of:
 1. Checking pre-requisites for compatibility. 
 2. Installing Meadowlark DS5020 and liquid crystals.
-1. Installing and launching the latest stable version of `recOrder` via `pip`. 
-2. Installing a compatible version of `MicroManager` and LC device drivers.
-3. Connecting `recOrder` to `MicroManager` via a `pycromanager` connection.
+3. Installing and launching the latest stable version of `recOrder` via `pip`. 
+4. Installing a compatible version of `MicroManager` and LC device drivers.
+5. Connecting `recOrder` to `MicroManager` via a `pycromanager` connection.
 
 # Compatibility Summary 
 Before you start you will need to confirm that your system is compatible with the following software:
