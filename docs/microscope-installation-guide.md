@@ -17,7 +17,7 @@ Before you start you will need to confirm that your system is compatible with th
 | `recOrder` | 0.4.x |
 | OS | Windows 10 | 
 | Micromanager version | [2023-04-26 (160 MB)](https://download.micro-manager.org/nightly/2.0/Windows/MMSetup_64bit_2.0.1_20230426.exe) | 
-| Meadowlark drivers | TODO [recOrder-0.4.0-device-drivers.zip (XXX kB)]() | 
+| Meadowlark drivers | [USB driver (82 kB)](https://github.com/mehta-lab/recOrder/releases/download/0.4.0rc0/usbdrvd.dll) | 
 | Meadowlark PC software version | 1.08 | 
 | Meadowlark controller firmware version | >=1.04 |
 
@@ -53,7 +53,7 @@ Download and install [`Micromanager 2.0` nightly build `20230426` (~150 MB link)
 
 **Note:** We have tested recOrder with `20230426`, but most features will work with newer builds. We recommend testing a minimal installation with `20230426` before testing with a different nightly build or additional device drivers. 
 
-Before launching `Micromanager`, download the TODO link to [USB driver .dll] and place this file into your `Micromanager` folder (likely `C:\Program Files\Micro-Manager` or similar). 
+Before launching `Micromanager`, download the [USB driver](https://github.com/mehta-lab/recOrder/releases/download/0.4.0rc0/usbdrvd.dll) and place this file into your `Micromanager` folder (likely `C:\Program Files\Micro-Manager` or similar). 
 
 Launch `Micromanager`, open `Devices > Hardware Configuration Wizard...`, and add the `MeadowlarkLcOpenSource` device to your configuration. Confirm your installation by opening `Devices > Device Property Browser...` and confirming that `MeadowlarkLCOpenSource` properties appear. 
 
