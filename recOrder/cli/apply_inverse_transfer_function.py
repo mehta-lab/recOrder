@@ -21,12 +21,12 @@ from waveorder.models import (
 import torch.multiprocessing as mp
 from recOrder.cli import mp_utils
 from pathlib import Path
-from functools import partial
 import io
 import contextlib
 import inspect
-import itertools
 from natsort import natsorted
+from functools import partial
+import itertools
 
 # TODO: change the default from mp.count() to a variable that can be spit out by slurm
 
@@ -39,11 +39,31 @@ def _check_background_consistency(background_shape, data_shape):
         )
 
 
+def apply_inverse_biref_phase_3D(czyx, birefringence_args, phase3D_args):
+    reconstruction_birefringence_zyx = (
+        inplane_oriented_thick_pol3d.apply_inverse_transfer_function(
+            czyx, **birefringence_args
+        )
+    )
+
+    brightfield_3d = reconstruction_birefringence_zyx[2]
+
+    reconstruction_phase_zyx = phase_thick_3d.apply_inverse_transfer_function(
+        brightfield_3d, **phase_args
+    )
+
+    reconstruction_bire_phase_3D_zyx = reconstruction_birefringence_zyx + (
+        reconstruction_phase_zyx,
+    )
+
+    return reconstruction_bire_phase_3D_zyx
+
+
 def apply_reconstruction_to_zyx_and_save(
     func,
     position: Position,
     output_path: Path,
-    settings,
+    settings: ReconstructionSettings,
     c_idx: int = 4,
     c_start: int = None,
     c_end: int = None,
@@ -52,6 +72,11 @@ def apply_reconstruction_to_zyx_and_save(
 ) -> None:
     """Load a zyx array from a Position object, apply a transformation and save the result to file"""
     click.echo(f"Reconstructing t={t_idx}")
+
+    # Initialize torch module in each worker process
+    torch.set_num_threads(1)
+    torch.set_num_interop_threads(1)
+    torch.manual_seed(0)
 
     # Find channel indices
     channel_indices = []
@@ -65,10 +90,8 @@ def apply_reconstruction_to_zyx_and_save(
     # tczyx_data = torch.tensor(
     #     np.int32(tczyx_uint16_numpy), dtype=torch.float32
     # )  # convert to np.int32 (torch doesn't accept np.uint16), then convert to tensor float32
-    tczyx_data = torch.tensor(position[0], dtype=torch.float32)
-    print(f"cidx  {c_idx}, start {c_start}, cend {c_end},tidx {t_idx}")
-    czyx_data = tczyx_data[t_idx, slice(c_idx)]
-    print(f"cidx  {c_idx}, start {c_start}, cend {c_end},tidx {t_idx}")
+    c_slice = slice(None) if c_idx == 4 else 0
+    czyx_data = torch.tensor(position[0][t_idx, c_slice], dtype=torch.float32)
 
     # Apply transformation
     click.echo("Applying inv transform...")
@@ -78,12 +101,14 @@ def apply_reconstruction_to_zyx_and_save(
     reconstruction_array = np.array(
         [tensor.numpy() for tensor in reconstruction_zyx]
     )
+    if reconstruction_array.ndim == 3:
+        reconstruction_array = np.expand_dims(reconstruction_array, axis=0)
+
     print(f"recon shape {reconstruction_array.shape}")
     # Write to file
     # for c, recon_zyx in enumerate(reconstruction_zyx):
     with open_ome_zarr(output_path, mode="r+") as output_dataset:
         output_dataset[0][t_idx, slice(c_start, c_end)] = reconstruction_array
-
     click.echo(f"Finished Writing.. t={t_idx}")
 
 
@@ -333,113 +358,109 @@ def apply_inverse_transfer_function_cli(
                     **settings.phase.apply_inverse.dict(),
                 }
 
-        # # [biref and phase]
-        # if recon_biref and recon_phase:
-        #     echo_headline("Reconstructing phase with settings:")
-        #     echo_settings(settings.phase.apply_inverse)
-        #     echo_headline("Reconstructing birefringence with settings:")
-        #     echo_settings(settings.birefringence.apply_inverse)
-        #     echo_headline("Reconstructing...")
+            # # [biref and phase]
+            # if recon_biref and recon_phase:
+            #     echo_headline("Reconstructing phase with settings:")
+            #     echo_settings(settings.phase.apply_inverse)
+            #     echo_headline("Reconstructing birefringence with settings:")
+            #     echo_settings(settings.birefringence.apply_inverse)
+            #     echo_headline("Reconstructing...")
 
-        #     # Load birefringence transfer function
-        #     intensity_to_stokes_matrix = torch.tensor(
-        #         transfer_function_dataset["intensity_to_stokes_matrix"][0, 0, 0]
-        #     )
+            #     # Load birefringence transfer function
+            #     intensity_to_stokes_matrix = torch.tensor(
+            #         transfer_function_dataset["intensity_to_stokes_matrix"][0, 0, 0]
+            #     )
 
-        #     # [biref and phase, 2]
-        #     if recon_dim == 2:
-        #         # Load phase transfer functions
-        #         absorption_transfer_function = torch.tensor(
-        #             transfer_function_dataset["absorption_transfer_function"][0, 0]
-        #         )
-        #         phase_transfer_function = torch.tensor(
-        #             transfer_function_dataset["phase_transfer_function"][0, 0]
-        #         )
+            #     # [biref and phase, 2]
+            #     if recon_dim == 2:
+            #         # Load phase transfer functions
+            #         absorption_transfer_function = torch.tensor(
+            #             transfer_function_dataset["absorption_transfer_function"][0, 0]
+            #         )
+            #         phase_transfer_function = torch.tensor(
+            #             transfer_function_dataset["phase_transfer_function"][0, 0]
+            #         )
 
-        #         for time_index in range(t_shape):
-        #             # Apply
-        #             reconstructed_parameters_2d = inplane_oriented_thick_pol3d.apply_inverse_transfer_function(
-        #                 tczyx_data[time_index],
-        #                 intensity_to_stokes_matrix,
-        #                 cyx_no_sample_data=cyx_no_sample_data,
-        #                 project_stokes_to_2d=True,
-        #                 **biref_inverse_dict,
-        #             )
+            #         for time_index in range(t_shape):
+            #             # Apply
+            #             reconstructed_parameters_2d = inplane_oriented_thick_pol3d.apply_inverse_transfer_function(
+            #                 tczyx_data[time_index],
+            #                 intensity_to_stokes_matrix,
+            #                 cyx_no_sample_data=cyx_no_sample_data,
+            #                 project_stokes_to_2d=True,
+            #                 **biref_inverse_dict,
+            #             )
 
-        #             reconstructed_parameters_3d = inplane_oriented_thick_pol3d.apply_inverse_transfer_function(
-        #                 tczyx_data[time_index],
-        #                 intensity_to_stokes_matrix,
-        #                 cyx_no_sample_data=cyx_no_sample_data,
-        #                 project_stokes_to_2d=False,
-        #                 **biref_inverse_dict,
-        #             )
+            #             reconstructed_parameters_3d = inplane_oriented_thick_pol3d.apply_inverse_transfer_function(
+            #                 tczyx_data[time_index],
+            #                 intensity_to_stokes_matrix,
+            #                 cyx_no_sample_data=cyx_no_sample_data,
+            #                 project_stokes_to_2d=False,
+            #                 **biref_inverse_dict,
+            #             )
 
-        #             brightfield_3d = reconstructed_parameters_3d[2]
+            #             brightfield_3d = reconstructed_parameters_3d[2]
 
-        #             (
-        #                 _,
-        #                 yx_phase,
-        #             ) = isotropic_thin_3d.apply_inverse_transfer_function(
-        #                 brightfield_3d,
-        #                 absorption_transfer_function,
-        #                 phase_transfer_function,
-        #                 **settings.phase.apply_inverse.dict(),
-        #             )
+            #             (
+            #                 _,
+            #                 yx_phase,
+            #             ) = isotropic_thin_3d.apply_inverse_transfer_function(
+            #                 brightfield_3d,
+            #                 absorption_transfer_function,
+            #                 phase_transfer_function,
+            #                 **settings.phase.apply_inverse.dict(),
+            #             )
 
-        #             # Save
-        #             for param_index, parameter in enumerate(
-        #                 reconstructed_parameters_2d
-        #             ):
-        #                 output_array[time_index, param_index] = parameter
-        #             output_array[time_index, -1, 0] = yx_phase
+            #             # Save
+            #             for param_index, parameter in enumerate(
+            #                 reconstructed_parameters_2d
+            #             ):
+            #                 output_array[time_index, param_index] = parameter
+            #             output_array[time_index, -1, 0] = yx_phase
 
-        #     # [biref and phase, 3]
-        #     elif recon_dim == 3:
-        #         # Load phase transfer functions
-        #         intensity_to_stokes_matrix = torch.tensor(
-        #             transfer_function_dataset["intensity_to_stokes_matrix"][
-        #                 0, 0, 0
-        #             ]
-        #         )
-        #         # Load transfer functions
-        #         real_potential_transfer_function = torch.tensor(
-        #             transfer_function_dataset["real_potential_transfer_function"][
-        #                 0, 0
-        #             ]
-        #         )
-        #         imaginary_potential_transfer_function = torch.tensor(
-        #             transfer_function_dataset[
-        #                 "imaginary_potential_transfer_function"
-        #             ][0, 0]
-        #         )
+            # [biref and phase, 3]
+            elif recon_dim == 3:
+                apply_inverse_tf_func = apply_inverse_biref_phase_3D
+                # Load phase transfer functions
+                intensity_to_stokes_matrix = torch.tensor(
+                    transfer_function_dataset["intensity_to_stokes_matrix"][
+                        0, 0, 0
+                    ]
+                )
+                # Load transfer functions
+                real_potential_transfer_function = torch.tensor(
+                    transfer_function_dataset[
+                        "real_potential_transfer_function"
+                    ][0, 0]
+                )
+                imaginary_potential_transfer_function = torch.tensor(
+                    transfer_function_dataset[
+                        "imaginary_potential_transfer_function"
+                    ][0, 0]
+                )
 
-        #         # Apply
-        #         for time_index in range(t_shape):
-        #             reconstructed_parameters_3d = inplane_oriented_thick_pol3d.apply_inverse_transfer_function(
-        #                 tczyx_data[time_index],
-        #                 intensity_to_stokes_matrix,
-        #                 cyx_no_sample_data=cyx_no_sample_data,
-        #                 project_stokes_to_2d=False,
-        #                 **biref_inverse_dict,
-        #             )
+                birefringence_args = {
+                    "intensity_to_stokes_matrix": intensity_to_stokes_matrix,
+                    "cyx_no_sample_data": cyx_no_sample_data,
+                    "project_stokes_to_2d": (recon_dim == 2),
+                    **biref_inverse_dict,
+                }
 
-        #             brightfield_3d = reconstructed_parameters_3d[2]
+                phase3D_args = {
+                    "real_potential_transfer_function": real_potential_transfer_function,
+                    "imaginary_potential_transfer_function": imaginary_potential_transfer_function,
+                    "z_padding": settings.phase.transfer_function.z_padding,
+                    "z_pixel_size": settings.phase.transfer_function.z_pixel_size,
+                    "wavelength_illumination": settings.phase.transfer_function.wavelength_illumination,
+                    **settings.phase.apply_inverse.dict(),
+                }
 
-        #             zyx_phase = phase_thick_3d.apply_inverse_transfer_function(
-        #                 brightfield_3d,
-        #                 real_potential_transfer_function,
-        #                 imaginary_potential_transfer_function,
-        #                 z_padding=settings.phase.transfer_function.z_padding,
-        #                 z_pixel_size=settings.phase.transfer_function.z_pixel_size,
-        #                 wavelength_illumination=settings.phase.transfer_function.wavelength_illumination,
-        #                 **settings.phase.apply_inverse.dict(),
-        #             )
-        #             # Save
-        #             for param_index, parameter in enumerate(
-        #                 reconstructed_parameters_3d
-        #             ):
-        #                 output_array[time_index, param_index] = parameter
-        #             output_array[time_index, -1] = zyx_phase
+                reconstructor_args = {
+                    "birefringence_args": birefringence_args,
+                    "phase3D_args": phase3D_args,
+                    "c_end": 5,
+                    "settings": settings,
+                }
 
         # # [fluo]
         # if recon_fluo:
@@ -518,4 +539,22 @@ def apply_inv_tf(
         config_path=config_path,
         output_path=output_path,
         num_processes=num_processes,
+    )
+
+
+if __name__ == "__main__":
+    import os
+
+    print(os.getcwd())
+    os.chdir("/home/eduardo.hirata/repos/recOrder/recOrder/tests/cli_tests")
+    print(os.getcwd())
+    apply_inv_tf(
+        [
+            "/home/eduardo.hirata/repos/recOrder/recOrder/tests/cli_tests/data_temp/2022_08_04_20x_04NA_BF.zarr/0/0/0",
+            "./phase3d_TF.zarr",
+            "-c",
+            "./phase.yml",
+            "-o",
+            "./phase3d_test.zarr",
+        ]
     )
