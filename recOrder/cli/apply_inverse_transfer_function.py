@@ -39,6 +39,34 @@ def _check_background_consistency(background_shape, data_shape):
         )
 
 
+def apply_inverse_biref_phase_2D(
+    czyx, birefringence_2D_args, birefringence_3D_args, phase2D_args
+):
+    reconstruction_birefringence_2D = (
+        inplane_oriented_thick_pol3d.apply_inverse_transfer_function(
+            czyx, **birefringence_2D_args
+        )
+    )
+    reconstruction_birefringence_3D = (
+        inplane_oriented_thick_pol3d.apply_inverse_transfer_function(
+            czyx, **birefringence_3D_args
+        )
+    )
+    brightfield_3d = reconstruction_birefringence_3D[2]
+    (
+        _,
+        yx_phase,
+    ) = isotropic_thin_3d.apply_inverse_transfer_function(
+        brightfield_3d, **phase2D_args
+    )
+    zyx_phase = yx_phase.unsqueeze(0)
+
+    reconstruction_bire_phase_2D = reconstruction_birefringence_2D + (
+        zyx_phase,
+    )
+    return reconstruction_bire_phase_2D
+
+
 def apply_inverse_biref_phase_3D(czyx, birefringence_args, phase3D_args):
     reconstruction_birefringence_zyx = (
         inplane_oriented_thick_pol3d.apply_inverse_transfer_function(
@@ -67,6 +95,7 @@ def apply_reconstruction_to_zyx_and_save(
     c_idx: int = 4,
     c_start: int = None,
     c_end: int = None,
+    z_2D: int = None,
     t_idx: int = 0,
     **kwargs,
 ) -> None:
@@ -108,7 +137,9 @@ def apply_reconstruction_to_zyx_and_save(
     # Write to file
     # for c, recon_zyx in enumerate(reconstruction_zyx):
     with open_ome_zarr(output_path, mode="r+") as output_dataset:
-        output_dataset[0][t_idx, slice(c_start, c_end)] = reconstruction_array
+        output_dataset[0][
+            t_idx, slice(c_start, c_end), slice(z_2D)
+        ] = reconstruction_array
     click.echo(f"Finished Writing.. t={t_idx}")
 
 
@@ -165,6 +196,7 @@ def process_single_position(
     c_idx = kwargs.get("c_idx", 4)
     c_start = kwargs.get("c_start", None)
     c_end = kwargs.get("c_end", None)
+    z_2D = kwargs.get("z_2D", None)
     # Check if the following
 
     # Loop through (T, C), deskewing and writing as we go
@@ -180,6 +212,7 @@ def process_single_position(
                 c_idx,
                 c_start,
                 c_end,
+                z_2D,
                 **func_args,
             ),
             itertools.product(range(T)),
@@ -241,7 +274,7 @@ def apply_inverse_transfer_function_cli(
             input_dataset.channel_names
         ):
             raise ValueError(
-                f"Each of the input_channel_names = {settings.input_channel_names} in {config_path} must appear in the dataset {input_data_path} which currently contains channel_names = {input_dataset.channel_names}."
+                f"Each of the input_channel_names = {settings.input_channel_names} in {config_path} must appear in the dataset {input_position_path} which currently contains channel_names = {input_dataset.channel_names}."
             )
 
         # Simplify important settings names
@@ -321,8 +354,9 @@ def apply_inverse_transfer_function_cli(
                 reconstructor_args = {
                     "c_idx": 0,
                     "c_start": -1,
-                    "absorption_transfer_function": absorption_transfer_function,
-                    "phase_transfer_function": phase_transfer_function,
+                    "z_2D": 1,
+                    "absorption_2d_to_3d_transfer_function": absorption_transfer_function,
+                    "phase_2d_to_3d_transfer_function": phase_transfer_function,
                     "settings": settings,
                     **settings.phase.apply_inverse.dict(),
                 }
@@ -360,19 +394,23 @@ def apply_inverse_transfer_function_cli(
 
         # # [biref and phase]
         if recon_biref and recon_phase:
-            #     echo_headline("Reconstructing phase with settings:")
-            #     echo_settings(settings.phase.apply_inverse)
-            #     echo_headline("Reconstructing birefringence with settings:")
-            #     echo_settings(settings.birefringence.apply_inverse)
-            #     echo_headline("Reconstructing...")
+            echo_headline("Reconstructing phase with settings:")
+            echo_settings(settings.phase.apply_inverse)
+            echo_headline("Reconstructing birefringence with settings:")
+            echo_settings(settings.birefringence.apply_inverse)
+            echo_headline("Reconstructing...")
 
-            #     # Load birefringence transfer function
-            #     intensity_to_stokes_matrix = torch.tensor(
-            #         transfer_function_dataset["intensity_to_stokes_matrix"][0, 0, 0]
-            #     )
+            # Load birefringence transfer function
+            intensity_to_stokes_matrix = torch.tensor(
+                transfer_function_dataset["intensity_to_stokes_matrix"][
+                    0, 0, 0
+                ]
+            )
 
             # [biref and phase, 2]
             if recon_dim == 2:
+                apply_inverse_tf_func = apply_inverse_biref_phase_2D
+
                 # Load phase transfer functions
                 absorption_transfer_function = torch.tensor(
                     transfer_function_dataset["absorption_transfer_function"][
@@ -383,42 +421,32 @@ def apply_inverse_transfer_function_cli(
                     transfer_function_dataset["phase_transfer_function"][0, 0]
                 )
 
-            #         for time_index in range(t_shape):
-            #             # Apply
-            #             reconstructed_parameters_2d = inplane_oriented_thick_pol3d.apply_inverse_transfer_function(
-            #                 tczyx_data[time_index],
-            #                 intensity_to_stokes_matrix,
-            #                 cyx_no_sample_data=cyx_no_sample_data,
-            #                 project_stokes_to_2d=True,
-            #                 **biref_inverse_dict,
-            #             )
+                birefringence_2D_args = {
+                    "intensity_to_stokes_matrix": intensity_to_stokes_matrix,
+                    "cyx_no_sample_data": cyx_no_sample_data,
+                    "project_stokes_to_2d": True,
+                    **biref_inverse_dict,
+                }
+                birefringence_3D_args = {
+                    "intensity_to_stokes_matrix": intensity_to_stokes_matrix,
+                    "cyx_no_sample_data": cyx_no_sample_data,
+                    "project_stokes_to_2d": False,
+                    **biref_inverse_dict,
+                }
 
-            #             reconstructed_parameters_3d = inplane_oriented_thick_pol3d.apply_inverse_transfer_function(
-            #                 tczyx_data[time_index],
-            #                 intensity_to_stokes_matrix,
-            #                 cyx_no_sample_data=cyx_no_sample_data,
-            #                 project_stokes_to_2d=False,
-            #                 **biref_inverse_dict,
-            #             )
+                phase2D_args = {
+                    "absorption_2d_to_3d_transfer_function": absorption_transfer_function,
+                    "phase_2d_to_3d_transfer_function": phase_transfer_function,
+                    **settings.phase.apply_inverse.dict(),
+                }
 
-            #             brightfield_3d = reconstructed_parameters_3d[2]
-
-            #             (
-            #                 _,
-            #                 yx_phase,
-            #             ) = isotropic_thin_3d.apply_inverse_transfer_function(
-            #                 brightfield_3d,
-            #                 absorption_transfer_function,
-            #                 phase_transfer_function,
-            #                 **settings.phase.apply_inverse.dict(),
-            #             )
-
-            #             # Save
-            #             for param_index, parameter in enumerate(
-            #                 reconstructed_parameters_2d
-            #             ):
-            #                 output_array[time_index, param_index] = parameter
-            #             output_array[time_index, -1, 0] = yx_phase
+                reconstructor_args = {
+                    "birefringence_2D_args": birefringence_2D_args,
+                    "birefringence_3D_args": birefringence_3D_args,
+                    "phase2D_args": phase2D_args,
+                    "settings": settings,
+                    "c_end": 5,
+                }
 
             # [biref and phase, 3]
             elif recon_dim == 3:
@@ -552,11 +580,25 @@ if __name__ == "__main__":
     print(os.getcwd())
     apply_inv_tf(
         [
-            "/home/eduardo.hirata/repos/recOrder/recOrder/tests/cli_tests/data_temp/2022_08_04_recOrder_pytest_20x_04NA.zarr/0/0/0",
-            "./bire_phase_TF.zarr",
+            "/home/eduardo.hirata/repos/recOrder/recOrder/tests/cli_tests/data_temp/2022_08_04_20x_04NA_BF.zarr/0/0/0",
+            "./phase3d_TF.zarr",
             "-c",
-            "./birefringence-and-phase.yml",
+            "./phase.yml",
             "-o",
-            "./bire_phase_3D.zarr",
+            "./phase_3d_test.zarr",
         ]
     )
+
+    # print(os.getcwd())
+    # os.chdir("/home/eduardo.hirata/repos/recOrder/recOrder/tests/cli_tests")
+    # print(os.getcwd())
+    # apply_inv_tf(
+    #     [
+    #         "/home/eduardo.hirata/repos/recOrder/recOrder/tests/cli_tests/data_temp/2022_08_04_recOrder_pytest_20x_04NA.zarr/0/0/0",
+    #         "./phase3d_TF.zarr",
+    #         "-c",
+    #         "./phase.yml",
+    #         "-o",
+    #         "./phase_3d_test.zarr",
+    #     ]
+    # )
