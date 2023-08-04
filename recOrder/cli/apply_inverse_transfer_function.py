@@ -16,7 +16,7 @@ from waveorder.models import (
     inplane_oriented_thick_pol3d,
     isotropic_thin_3d,
     phase_thick_3d,
-    # isotropic_fluorescent_thick_3d,
+    isotropic_fluorescent_thick_3d,
 )
 import torch.multiprocessing as mp
 from recOrder.cli import mp_utils
@@ -283,6 +283,8 @@ def apply_inverse_transfer_function_cli(
         # Simplify important settings names
         recon_biref = settings.birefringence is not None
         recon_phase = settings.phase is not None
+        recon_fluo = settings.fluorescence is not None
+
         recon_dim = settings.reconstruction_dimension
 
         # Prepare background dataset
@@ -496,32 +498,34 @@ def apply_inverse_transfer_function_cli(
                 }
 
         # # [fluo]
-        # if recon_fluo:
-        #     echo_headline("Reconstructing fluorescence with settings:")
-        #     echo_settings(settings.fluorescence.apply_inverse)
-        #     echo_headline("Reconstructing...")
+        if recon_fluo:
+            echo_headline("Reconstructing fluorescence with settings:")
+            echo_settings(settings.fluorescence.apply_inverse)
+            echo_headline("Reconstructing...")
 
-        #     # [fluo, 2]
-        #     if recon_dim == 2:
-        #         raise NotImplementedError
-        #     # [fluo, 3]
-        #     elif recon_dim == 3:
-        #         # Load transfer functions
-        #         optical_transfer_function = torch.tensor(
-        #             transfer_function_dataset["optical_transfer_function"][0, 0]
-        #         )
+            # [fluo, 2]
+            if recon_dim == 2:
+                raise NotImplementedError
+            # [fluo, 3]
+            elif recon_dim == 3:
+                apply_inverse_tf_func = (
+                    isotropic_fluorescent_thick_3d.apply_inverse_transfer_function
+                )
 
-        #         # Apply
-        #         for time_index in range(t_shape):
-        #             zyx_recon = isotropic_fluorescent_thick_3d.apply_inverse_transfer_function(
-        #                 tczyx_data[time_index, 0],
-        #                 optical_transfer_function,
-        #                 settings.fluorescence.transfer_function.z_padding,
-        #                 **settings.fluorescence.apply_inverse.dict(),
-        #             )
+                # Load transfer functions
+                optical_transfer_function = torch.tensor(
+                    transfer_function_dataset["optical_transfer_function"][
+                        0, 0
+                    ]
+                )
 
-        #             # Save
-        #             output_array[time_index, 0] = zyx_recon
+                reconstructor_args = {
+                    "optical_transfer_function": optical_transfer_function,
+                    "z_padding": settings.fluorescence.transfer_function.z_padding,
+                    "settings": settings,
+                    "c_idx": 0,
+                    **settings.fluorescence.apply_inverse.dict(),
+                }
 
         process_single_position(
             apply_inverse_tf_func,
@@ -592,16 +596,30 @@ if __name__ == "__main__":
     #     ]
     # )
 
+    # print(os.getcwd())
+    # os.chdir("/home/eduardo.hirata/repos/recOrder/recOrder/tests/cli_tests")
+    # print(os.getcwd())
+    # apply_inv_tf(
+    #     [
+    #         "/home/eduardo.hirata/repos/recOrder/recOrder/tests/cli_tests/data_temp/2022_08_04_recOrder_pytest_20x_04NA.zarr/0/0/0",
+    #         "./bire_phase_TF_2D.zarr",
+    #         "-c",
+    #         "./birefringence-and-phase.yml",
+    #         "-o",
+    #         "./bire_phase_2D.zarr",
+    #     ]
+    # )
+
     print(os.getcwd())
     os.chdir("/home/eduardo.hirata/repos/recOrder/recOrder/tests/cli_tests")
     print(os.getcwd())
     apply_inv_tf(
         [
-            "/home/eduardo.hirata/repos/recOrder/recOrder/tests/cli_tests/data_temp/2022_08_04_recOrder_pytest_20x_04NA.zarr/0/0/0",
-            "./bire_phase_TF_2D.zarr",
+            "/home/eduardo.hirata/repos/recOrder/recOrder/tests/cli_tests/3P_2T_1C_50Z_300Y_300X.zarr/0/0/4",
+            "./fluorescence_TF.zarr",
             "-c",
-            "./birefringence-and-phase.yml",
+            "./fluorescence.yml",
             "-o",
-            "./bire_phase_2D.zarr",
+            "./fluoresence_deconv.zarr",
         ]
     )
