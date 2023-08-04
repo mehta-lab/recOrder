@@ -23,7 +23,7 @@ Before you start you will need to confirm that your system is compatible with th
 
 Start by installing the Meadowlark DS5020 and liquid crystals using the software on the USB stick provided by Meadowlark. You will need to install the USB drivers and CellDrive5000.
 
-**Check your installation's versions** by opening CellDrive5000 and double clicking the Meadowlark Optics logo. Confirm that **"PC software version = 1.04" and "Controller firmware version = 1.04".** 
+**Check your installation's versions** by opening CellDrive5000 and double clicking the Meadowlark Optics logo. Confirm that **"PC software version = 1.04" and "Controller firmware version >= 1.04".** 
 
 If you need to upgrade your Meadowlark Software, [follow these steps](./meadowlark-software-upgrade.md). 
 
