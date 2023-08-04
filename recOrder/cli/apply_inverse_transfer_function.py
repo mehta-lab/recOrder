@@ -49,7 +49,7 @@ def apply_inverse_biref_phase_3D(czyx, birefringence_args, phase3D_args):
     brightfield_3d = reconstruction_birefringence_zyx[2]
 
     reconstruction_phase_zyx = phase_thick_3d.apply_inverse_transfer_function(
-        brightfield_3d, **phase_args
+        brightfield_3d, **phase3D_args
     )
 
     reconstruction_bire_phase_3D_zyx = reconstruction_birefringence_zyx + (
@@ -358,8 +358,8 @@ def apply_inverse_transfer_function_cli(
                     **settings.phase.apply_inverse.dict(),
                 }
 
-            # # [biref and phase]
-            # if recon_biref and recon_phase:
+        # # [biref and phase]
+        if recon_biref and recon_phase:
             #     echo_headline("Reconstructing phase with settings:")
             #     echo_settings(settings.phase.apply_inverse)
             #     echo_headline("Reconstructing birefringence with settings:")
@@ -371,15 +371,17 @@ def apply_inverse_transfer_function_cli(
             #         transfer_function_dataset["intensity_to_stokes_matrix"][0, 0, 0]
             #     )
 
-            #     # [biref and phase, 2]
-            #     if recon_dim == 2:
-            #         # Load phase transfer functions
-            #         absorption_transfer_function = torch.tensor(
-            #             transfer_function_dataset["absorption_transfer_function"][0, 0]
-            #         )
-            #         phase_transfer_function = torch.tensor(
-            #             transfer_function_dataset["phase_transfer_function"][0, 0]
-            #         )
+            # [biref and phase, 2]
+            if recon_dim == 2:
+                # Load phase transfer functions
+                absorption_transfer_function = torch.tensor(
+                    transfer_function_dataset["absorption_transfer_function"][
+                        0, 0
+                    ]
+                )
+                phase_transfer_function = torch.tensor(
+                    transfer_function_dataset["phase_transfer_function"][0, 0]
+                )
 
             #         for time_index in range(t_shape):
             #             # Apply
@@ -550,11 +552,11 @@ if __name__ == "__main__":
     print(os.getcwd())
     apply_inv_tf(
         [
-            "/home/eduardo.hirata/repos/recOrder/recOrder/tests/cli_tests/data_temp/2022_08_04_20x_04NA_BF.zarr/0/0/0",
-            "./phase3d_TF.zarr",
+            "/home/eduardo.hirata/repos/recOrder/recOrder/tests/cli_tests/data_temp/2022_08_04_recOrder_pytest_20x_04NA.zarr/0/0/0",
+            "./bire_phase_TF.zarr",
             "-c",
-            "./phase.yml",
+            "./birefringence-and-phase.yml",
             "-o",
-            "./phase3d_test.zarr",
+            "./bire_phase_3D.zarr",
         ]
     )
