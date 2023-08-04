@@ -131,15 +131,15 @@ def apply_reconstruction_to_zyx_and_save(
         [tensor.numpy() for tensor in reconstruction_zyx]
     )
     if reconstruction_array.ndim == 3:
-        reconstruction_array = np.expand_dims(reconstruction_array, axis=0)
+        reconstruction_array = np.expand_dims(
+            reconstruction_array[slice(z_2D)], axis=0
+        )
 
     print(f"recon shape {reconstruction_array.shape}")
     # Write to file
     # for c, recon_zyx in enumerate(reconstruction_zyx):
     with open_ome_zarr(output_path, mode="r+") as output_dataset:
-        output_dataset[0][
-            t_idx, slice(c_start, c_end), slice(z_2D)
-        ] = reconstruction_array
+        output_dataset[0][t_idx, slice(c_start, c_end)] = reconstruction_array
     click.echo(f"Finished Writing.. t={t_idx}")
 
 
@@ -240,9 +240,12 @@ def apply_inverse_transfer_function_cli(
 
     # TODO: should this be passed here?
     voxel_size = (1, 1, 1)
+    z_chunk_factor = 10
     # TODO:determine if this is a good chunk size?
     chunk_zyx_shape = (
-        output_zyx_shape[0] // 10,
+        output_zyx_shape[0] // z_chunk_factor
+        if output_zyx_shape[0] > z_chunk_factor
+        else output_zyx_shape[0],
         output_zyx_shape[1],
         output_zyx_shape[2],
     )
@@ -575,30 +578,30 @@ def apply_inv_tf(
 if __name__ == "__main__":
     import os
 
-    print(os.getcwd())
-    os.chdir("/home/eduardo.hirata/repos/recOrder/recOrder/tests/cli_tests")
-    print(os.getcwd())
-    apply_inv_tf(
-        [
-            "/home/eduardo.hirata/repos/recOrder/recOrder/tests/cli_tests/data_temp/2022_08_04_20x_04NA_BF.zarr/0/0/0",
-            "./phase3d_TF.zarr",
-            "-c",
-            "./phase.yml",
-            "-o",
-            "./phase_3d_test.zarr",
-        ]
-    )
-
     # print(os.getcwd())
     # os.chdir("/home/eduardo.hirata/repos/recOrder/recOrder/tests/cli_tests")
     # print(os.getcwd())
     # apply_inv_tf(
     #     [
-    #         "/home/eduardo.hirata/repos/recOrder/recOrder/tests/cli_tests/data_temp/2022_08_04_recOrder_pytest_20x_04NA.zarr/0/0/0",
-    #         "./phase3d_TF.zarr",
+    #         "/home/eduardo.hirata/repos/recOrder/recOrder/tests/cli_tests/data_temp/2022_08_04_20x_04NA_BF.zarr/0/0/0",
+    #         "./phase2d_TF.zarr",
     #         "-c",
     #         "./phase.yml",
     #         "-o",
-    #         "./phase_3d_test.zarr",
+    #         "./phase_2d_test.zarr",
     #     ]
     # )
+
+    print(os.getcwd())
+    os.chdir("/home/eduardo.hirata/repos/recOrder/recOrder/tests/cli_tests")
+    print(os.getcwd())
+    apply_inv_tf(
+        [
+            "/home/eduardo.hirata/repos/recOrder/recOrder/tests/cli_tests/data_temp/2022_08_04_recOrder_pytest_20x_04NA.zarr/0/0/0",
+            "./bire_phase_TF_2D.zarr",
+            "-c",
+            "./birefringence-and-phase.yml",
+            "-o",
+            "./bire_phase_2D.zarr",
+        ]
+    )
