@@ -7,7 +7,7 @@ This guide will walk through a complete recOrder installation consisting of:
 4. Installing a compatible version of `MicroManager` and LC device drivers.
 5. Connecting `recOrder` to `MicroManager` via a `pycromanager` connection.
  
-# Compatibility Summary 
+## Compatibility Summary 
 Before you start you will need to confirm that your system is compatible with the following software:
 
 | Software | Version |  
