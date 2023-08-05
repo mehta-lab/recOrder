@@ -25,7 +25,10 @@ Start by installing the Meadowlark DS5020 and liquid crystals using the software
 
 **Check your installation versions** by opening CellDrive5000 and double clicking the Meadowlark Optics logo. Confirm that **"PC software version = 1.08" and "Controller firmware version >= 1.04".**
 
-If you need to upgrade your Meadowlark Software, [follow these steps](./meadowlark-software-upgrade.md). 
+If you need to change your PC software version, follow these steps:
+- From "Add and remove programs", remove CellDrive5000 and "National Instruments Software".
+- From "Device manager", open the "Meadowlark Optics" group, right click `mlousb`, click "Uninstall device", check "Delete the driver software for this device", and click "Uninstall". Uninstall `Meadowlark Optics D5020 LC Driver` following the same steps.
+- Using the USB stick provided by Meadowlark, reinstall the USB drivers and CellDrive5000. 
 
 ## Install recOrder software
 
@@ -53,10 +56,12 @@ Download and install [`Micromanager 2.0` nightly build `20230426` (~150 MB link)
 
 Before launching `Micromanager`, download the [USB driver](https://github.com/mehta-lab/recOrder/releases/download/0.4.0rc0/usbdrvd.dll) and place this file into your `Micromanager` folder (likely `C:\Program Files\Micro-Manager` or similar). 
 
-Launch `Micromanager`, open `Devices > Hardware Configuration Wizard...`, and add the `MeadowlarkLcOpenSource` device to your configuration. Confirm your installation by opening `Devices > Device Property Browser...` and confirming that `MeadowlarkLCOpenSource` properties appear. 
+Launch `Micromanager`, open `Devices > Hardware Configuration Wizard...`, and add the `MeadowlarkLC` device to your configuration. Confirm your installation by opening `Devices > Device Property Browser...` and confirming that `MeadowlarkLC` properties appear. 
+
+**Upgrading users:** you will need to reinstall the Meadowlark device to your micromanager configuration file, because the device driver's name has changed to from `MeadowlarkLcOpenSource` to `MeadowlarkLC`. 
 
 ### Option 1 (recommended): Voltage-mode calibration installation
- Create a new channel group and add the `MeadowlarkLcOpenSource-Voltage (V) LC-A` and `MeadowlarkLcOpenSource-Voltage (V) LC-B` properties. 
+ Create a new channel group and add the `MeadowlarkLC-Voltage (V) LC-A` and `MeadowlarkLC-Voltage (V) LC-B` properties. 
 
 ![](https://github.com/mehta-lab/recOrder/blob/main/docs/images/create_group_voltage.png)
 
@@ -66,11 +71,11 @@ Add 5 presets to this group named `State0`, `State1`, `State2`, `State3`, and `S
 
 ### Option 2 (soon deprecated): retardance mode calibration installation
 
-Create a new channel group and add the property `MeadowlarkLcOpenSource-String send to -`. 
+Create a new channel group and add the property `MeadowlarkLC-String send to -`. 
 
 ![](https://github.com/mehta-lab/recOrder/blob/main/docs/images/create_group.png)
 
-Add 5 presets to this group named `State0`, `State1`, `State2`, `State3`, and `State4` and set the corresponding preset values to `state0`, `state1`, `state2`, `state3`, `state4` in the `MeadowlarkLcOpenSource-String send to –`* property. 
+Add 5 presets to this group named `State0`, `State1`, `State2`, `State3`, and `State4` and set the corresponding preset values to `state0`, `state1`, `state2`, `state3`, `state4` in the `MeadowlarkLC-String send to –`* property. 
 
 ![](https://github.com/mehta-lab/recOrder/blob/main/docs/images/create_preset.png)
 
