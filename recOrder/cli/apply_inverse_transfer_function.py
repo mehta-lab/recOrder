@@ -1,8 +1,7 @@
 import click
-import numpy as np
 import torch
 from typing import List
-from iohub.ngff import open_ome_zarr, Position
+from iohub.ngff import open_ome_zarr
 from recOrder.cli.printing import echo_headline, echo_settings
 from recOrder.cli.settings import ReconstructionSettings
 from recOrder.cli.parsing import (
@@ -21,12 +20,7 @@ from waveorder.models import (
 import torch.multiprocessing as mp
 from recOrder.cli import mp_utils
 from pathlib import Path
-import io
-import contextlib
-import inspect
 from natsort import natsorted
-from functools import partial
-import itertools
 
 # TODO: change the default from mp.count() to a variable that can be spit out by slurm
 
@@ -85,138 +79,6 @@ def apply_inverse_biref_phase_3D(czyx, birefringence_args, phase3D_args):
     )
 
     return reconstruction_bire_phase_3D_zyx
-
-
-def apply_reconstruction_to_zyx_and_save(
-    func,
-    position: Position,
-    output_path: Path,
-    settings: ReconstructionSettings,
-    c_idx: int = 4,
-    c_start: int = None,
-    c_end: int = None,
-    z_2D: int = None,
-    t_idx: int = 0,
-    **kwargs,
-) -> None:
-    """Load a zyx array from a Position object, apply a transformation and save the result to file"""
-    click.echo(f"Reconstructing t={t_idx}")
-
-    # Initialize torch module in each worker process
-    torch.set_num_threads(1)
-    torch.set_num_interop_threads(1)
-    torch.manual_seed(0)
-
-    # Find channel indices
-    channel_indices = []
-    for input_channel_name in settings.input_channel_names:
-        channel_indices.append(
-            position.channel_names.index(input_channel_name)
-        )
-    print(f"channel_indeces {channel_indices}")
-    # Load data
-    # tczyx_uint16_numpy = position.data.oindex[:, channel_indices]
-    # tczyx_data = torch.tensor(
-    #     np.int32(tczyx_uint16_numpy), dtype=torch.float32
-    # )  # convert to np.int32 (torch doesn't accept np.uint16), then convert to tensor float32
-    c_slice = slice(None) if c_idx == 4 else 0
-    czyx_data = torch.tensor(position[0][t_idx, c_slice], dtype=torch.float32)
-
-    # Apply transformation
-    click.echo("Applying inv transform...")
-    reconstruction_zyx = func(czyx_data, **kwargs)
-    click.echo("Done inv transform...")
-
-    reconstruction_array = np.array(
-        [tensor.numpy() for tensor in reconstruction_zyx]
-    )
-    if reconstruction_array.ndim == 3:
-        reconstruction_array = np.expand_dims(
-            reconstruction_array[slice(z_2D)], axis=0
-        )
-
-    print(f"recon shape {reconstruction_array.shape}")
-    # Write to file
-    # for c, recon_zyx in enumerate(reconstruction_zyx):
-    with open_ome_zarr(output_path, mode="r+") as output_dataset:
-        output_dataset[0][t_idx, slice(c_start, c_end)] = reconstruction_array
-    click.echo(f"Finished Writing.. t={t_idx}")
-
-
-def process_single_position(
-    func,
-    input_data_path: Path,
-    output_path: Path,
-    num_processes: int = mp.cpu_count(),
-    **kwargs,
-) -> None:
-    """Register a single position with multiprocessing parallelization over T and C"""
-    # Function to be applied
-    click.echo(f"Function to be applied: \t{func}")
-
-    # Get the reader and writer
-    click.echo(f"Input data path:\t{input_data_path}")
-    click.echo(f"Output data path:\t{output_path}")
-    input_dataset = open_ome_zarr(input_data_path)
-    stdout_buffer = io.StringIO()
-    with contextlib.redirect_stdout(stdout_buffer):
-        input_dataset.print_tree()
-    click.echo(f" Zarr Store info: {stdout_buffer.getvalue()}")
-
-    T, _, _, _, _ = input_dataset.data.shape
-    click.echo(f"Input dataset shape:\t{input_dataset.data.shape}")
-
-    # Check the arguments for the function
-    all_func_params = inspect.signature(func).parameters.keys()
-    # Extract the relevant kwargs for the function 'func'
-    func_args = {}
-    non_func_args = {}
-
-    for k, v in kwargs.items():
-        if k in all_func_params:
-            func_args[k] = v
-        else:
-            non_func_args[k] = v
-
-    # Write the settings into the metadata if existing
-    # TODO: alternatively we can throw all extra arguments as metadata.
-    if "extra_metadata" in non_func_args:
-        # For each dictionary in the nest
-        with open_ome_zarr(output_path, mode="r+") as output_dataset:
-            for params_metadata_keys in kwargs["extra_metadata"].keys():
-                output_dataset.zattrs["extra_metadata"] = non_func_args[
-                    "extra_metadata"
-                ]
-    # TODO: check if this is right implemented
-    print("Saving settings to zattrs")
-    with open_ome_zarr(output_path, mode="r+") as output_dataset:
-        output_dataset.zattrs["settings"] = kwargs["settings"].dict()
-    # Parse some settings from kwargs used in apply_reconstruction_to_zyx_and_save
-    settings = kwargs["settings"]
-    c_idx = kwargs.get("c_idx", 4)
-    c_start = kwargs.get("c_start", None)
-    c_end = kwargs.get("c_end", None)
-    z_2D = kwargs.get("z_2D", None)
-    # Check if the following
-
-    # Loop through (T, C), deskewing and writing as we go
-    click.echo(f"\nStarting multiprocess pool with {num_processes} processes")
-    with mp.Pool(num_processes) as p:
-        p.starmap(
-            partial(
-                apply_reconstruction_to_zyx_and_save,
-                func,
-                input_dataset,
-                output_path,
-                settings,
-                c_idx,
-                c_start,
-                c_end,
-                z_2D,
-                **func_args,
-            ),
-            itertools.product(range(T)),
-        )
 
 
 def apply_inverse_transfer_function_cli(
@@ -527,7 +389,7 @@ def apply_inverse_transfer_function_cli(
                     **settings.fluorescence.apply_inverse.dict(),
                 }
 
-        process_single_position(
+        mp_utils.process_single_position(
             apply_inverse_tf_func,
             input_data_path=input_position_path,
             output_path=output_position_path,
@@ -576,50 +438,4 @@ def apply_inv_tf(
         config_path=config_path,
         output_path=output_path,
         num_processes=num_processes,
-    )
-
-
-if __name__ == "__main__":
-    import os
-
-    # print(os.getcwd())
-    # os.chdir("/home/eduardo.hirata/repos/recOrder/recOrder/tests/cli_tests")
-    # print(os.getcwd())
-    # apply_inv_tf(
-    #     [
-    #         "/home/eduardo.hirata/repos/recOrder/recOrder/tests/cli_tests/data_temp/2022_08_04_20x_04NA_BF.zarr/0/0/0",
-    #         "./phase2d_TF.zarr",
-    #         "-c",
-    #         "./phase.yml",
-    #         "-o",
-    #         "./phase_2d_test.zarr",
-    #     ]
-    # )
-
-    # print(os.getcwd())
-    # os.chdir("/home/eduardo.hirata/repos/recOrder/recOrder/tests/cli_tests")
-    # print(os.getcwd())
-    # apply_inv_tf(
-    #     [
-    #         "/home/eduardo.hirata/repos/recOrder/recOrder/tests/cli_tests/data_temp/2022_08_04_recOrder_pytest_20x_04NA.zarr/0/0/0",
-    #         "./bire_phase_TF_2D.zarr",
-    #         "-c",
-    #         "./birefringence-and-phase.yml",
-    #         "-o",
-    #         "./bire_phase_2D.zarr",
-    #     ]
-    # )
-
-    print(os.getcwd())
-    os.chdir("/home/eduardo.hirata/repos/recOrder/recOrder/tests/cli_tests")
-    print(os.getcwd())
-    apply_inv_tf(
-        [
-            "/home/eduardo.hirata/repos/recOrder/recOrder/tests/cli_tests/3P_2T_1C_50Z_300Y_300X.zarr/0/0/4",
-            "./fluorescence_TF.zarr",
-            "-c",
-            "./fluorescence.yml",
-            "-o",
-            "./fluoresence_deconv.zarr",
-        ]
     )

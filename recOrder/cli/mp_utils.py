@@ -11,6 +11,8 @@ import io
 import inspect
 from recOrder.io import utils
 from recOrder.cli.settings import ReconstructionSettings
+import numpy as np
+import torch
 
 
 def create_empty_zarr(
@@ -82,26 +84,54 @@ def get_output_paths(
     return list_output_path
 
 
-def apply_transform_to_zyx_and_save(
+def apply_reconstruction_to_zyx_and_save(
     func,
     position: Position,
     output_path: Path,
-    t_idx: int,
-    c_idx: int,
+    settings: ReconstructionSettings,
+    c_idx: int = 4,
+    c_start: int = None,
+    c_end: int = None,
+    z_2D: int = None,
+    t_idx: int = 0,
     **kwargs,
 ) -> None:
     """Load a zyx array from a Position object, apply a transformation and save the result to file"""
-    click.echo(f"Registering c={c_idx}, t={t_idx}")
-    zyx_data = position[0][t_idx, c_idx]
+    click.echo(f"Reconstructing t={t_idx}")
+
+    # Initialize torch module in each worker process
+    torch.set_num_threads(1)
+    torch.set_num_interop_threads(1)
+
+    # Find channel indices
+    channel_indices = []
+    for input_channel_name in settings.input_channel_names:
+        channel_indices.append(
+            position.channel_names.index(input_channel_name)
+        )
+    # Load data
+    # tczyx_uint16_numpy = position.data.oindex[:, channel_indices]
+    # tczyx_data = torch.tensor(
+    #     np.int32(tczyx_uint16_numpy), dtype=torch.float32
+    # )  # convert to np.int32 (torch doesn't accept np.uint16), then convert to tensor float32
+    c_slice = slice(None) if c_idx == 4 else 0
+    czyx_data = torch.tensor(position[0][t_idx, c_slice], dtype=torch.float32)
 
     # Apply transformation
-    registered_zyx = func(zyx_data, **kwargs)
-
+    click.echo("Applying inv transform...")
+    reconstruction_zyx = func(czyx_data, **kwargs)
+    reconstruction_array = np.array(
+        [tensor.numpy() for tensor in reconstruction_zyx]
+    )
+    if reconstruction_array.ndim == 3:
+        reconstruction_array = np.expand_dims(
+            reconstruction_array[slice(z_2D)], axis=0
+        )
     # Write to file
+    # for c, recon_zyx in enumerate(reconstruction_zyx):
     with open_ome_zarr(output_path, mode="r+") as output_dataset:
-        output_dataset[0][t_idx, c_idx] = registered_zyx
-
-    click.echo(f"Finished Writing.. c={c_idx}, t={t_idx}")
+        output_dataset[0][t_idx, slice(c_start, c_end)] = reconstruction_array
+    click.echo(f"Finished Writing.. t={t_idx}")
 
 
 def process_single_position(
@@ -117,14 +147,14 @@ def process_single_position(
 
     # Get the reader and writer
     click.echo(f"Input data path:\t{input_data_path}")
-    click.echo(f"Output data path:\t{str(output_path)}")
-    input_dataset = open_ome_zarr(str(input_data_path))
+    click.echo(f"Output data path:\t{output_path}")
+    input_dataset = open_ome_zarr(input_data_path)
     stdout_buffer = io.StringIO()
     with contextlib.redirect_stdout(stdout_buffer):
         input_dataset.print_tree()
     click.echo(f" Zarr Store info: {stdout_buffer.getvalue()}")
 
-    T, C, _, _, _ = input_dataset.data.shape
+    T, _, _, _, _ = input_dataset.data.shape
     click.echo(f"Input dataset shape:\t{input_dataset.data.shape}")
 
     # Check the arguments for the function
@@ -148,19 +178,35 @@ def process_single_position(
                 output_dataset.zattrs["extra_metadata"] = non_func_args[
                     "extra_metadata"
                 ]
+    # TODO: check if this is right implemented
+    print("Saving settings to zattrs")
+    with open_ome_zarr(output_path, mode="r+") as output_dataset:
+        output_dataset.zattrs["settings"] = kwargs["settings"].dict()
+    # Parse some settings from kwargs used in apply_reconstruction_to_zyx_and_save
+    settings = kwargs["settings"]
+    c_idx = kwargs.get("c_idx", 4)
+    c_start = kwargs.get("c_start", None)
+    c_end = kwargs.get("c_end", None)
+    z_2D = kwargs.get("z_2D", None)
+    # Check if the following
 
     # Loop through (T, C), deskewing and writing as we go
     click.echo(f"\nStarting multiprocess pool with {num_processes} processes")
     with mp.Pool(num_processes) as p:
         p.starmap(
             partial(
-                apply_transform_to_zyx_and_save,
+                apply_reconstruction_to_zyx_and_save,
                 func,
                 input_dataset,
-                str(output_path),
+                output_path,
+                settings,
+                c_idx,
+                c_start,
+                c_end,
+                z_2D,
                 **func_args,
             ),
-            itertools.product(range(T), range(C)),
+            itertools.product(range(T)),
         )
 
 
@@ -204,6 +250,8 @@ def get_reconstruction_data_shape(
         output_z_shape = 1
     elif recon_dim == 3:
         output_z_shape = input_dataset.data.shape[2]
+    else:
+        raise ValueError("recon_dims not 2 nor 3. Please double check value")
 
     output_zyx_shape = (output_z_shape, Y, X)
 
