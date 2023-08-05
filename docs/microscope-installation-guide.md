@@ -25,7 +25,10 @@ Start by installing the Meadowlark DS5020 and liquid crystals using the software
 
 **Check your installation's versions** by opening CellDrive5000 and double clicking the Meadowlark Optics logo. Confirm that **"PC software version = 1.04" and "Controller firmware version >= 1.04".** 
 
-If you need to upgrade your Meadowlark Software, [follow these steps](./meadowlark-software-upgrade.md). 
+If you need to change your PC software version, follow these steps:
+- From "Add and remove programs", remove CellDrive5000 and "National Instruments Software".
+- From "Device manager", open the "Meadowlark Optics" group, right click `mlousb`, click "Uninstall device", check "Delete the driver software for this device", and click "Uninstall". Uninstall `Meadowlark Optics D5020 LC Driver` following the same steps.
+- Using the USB stick provided by Meadowlark, reinstall the USB drivers and CellDrive5000. 
 
 ## Install recOrder software
 
