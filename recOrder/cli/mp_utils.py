@@ -196,9 +196,9 @@ def get_reconstruction_data_shape(
     if recon_fluo:
         fluor_name = settings.input_channel_names[0]
         if recon_dim == 2:
-            channel_names.append(fluor_name + "2D")
+            channel_names.append(fluor_name + "_decon2D")
         elif recon_dim == 3:
-            channel_names.append(fluor_name + "3D")
+            channel_names.append(fluor_name + "_decon3D")
 
     if recon_dim == 2:
         output_z_shape = 1
