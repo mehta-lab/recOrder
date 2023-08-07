@@ -102,7 +102,7 @@ def apply_inverse_transfer_function_cli(
 
     # TODO: should this be passed here?
     voxel_size = (1, 1, 1)
-    z_chunk_factor = 10
+    z_chunk_factor = 20
     # TODO:determine if this is a good chunk size?
     chunk_zyx_shape = (
         output_zyx_shape[0] // z_chunk_factor
