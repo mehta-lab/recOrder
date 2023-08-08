@@ -162,7 +162,7 @@ def apply_inverse_transfer_function_cli(
             transfer_function_dataset["intensity_to_stokes_matrix"][0, 0, 0]
         )
 
-        for time_index in time_indices:
+        for output_index, time_index in enumerate(time_indices):
             # Apply
             reconstructed_parameters = (
                 inplane_oriented_thick_pol3d.apply_inverse_transfer_function(
@@ -175,7 +175,7 @@ def apply_inverse_transfer_function_cli(
             )
             # Save
             for param_index, parameter in enumerate(reconstructed_parameters):
-                output_array[time_index, param_index] = parameter
+                output_array[output_index, param_index] = parameter
 
     # [phase only]
     if recon_phase and (not recon_biref):
@@ -199,7 +199,7 @@ def apply_inverse_transfer_function_cli(
                 transfer_function_dataset["phase_transfer_function"][0, 0]
             )
 
-            for time_index in time_indices:
+            for output_index, time_index in enumerate(time_indices):
                 # Apply
                 (
                     _,
@@ -212,7 +212,7 @@ def apply_inverse_transfer_function_cli(
                 )
 
                 # Save
-                output_array[time_index, -1, 0] = yx_phase
+                output_array[output_index, -1, 0] = yx_phase
 
         # [phase only, 3]
         elif recon_dim == 3:
@@ -229,7 +229,7 @@ def apply_inverse_transfer_function_cli(
             )
 
             # Apply
-            for time_index in time_indices:
+            for output_index, time_index in enumerate(time_indices):
                 zyx_phase = phase_thick_3d.apply_inverse_transfer_function(
                     tczyx_data[time_index, 0],
                     real_potential_transfer_function,
@@ -240,7 +240,7 @@ def apply_inverse_transfer_function_cli(
                     **settings.phase.apply_inverse.dict(),
                 )
                 # Save
-                output_array[time_index, -1] = zyx_phase
+                output_array[output_index, -1] = zyx_phase
 
     # [biref and phase]
     if recon_biref and recon_phase:
@@ -265,7 +265,7 @@ def apply_inverse_transfer_function_cli(
                 transfer_function_dataset["phase_transfer_function"][0, 0]
             )
 
-            for time_index in time_indices:
+            for output_index, time_index in enumerate(time_indices):
                 # Apply
                 reconstructed_parameters_2d = inplane_oriented_thick_pol3d.apply_inverse_transfer_function(
                     tczyx_data[time_index],
@@ -299,8 +299,8 @@ def apply_inverse_transfer_function_cli(
                 for param_index, parameter in enumerate(
                     reconstructed_parameters_2d
                 ):
-                    output_array[time_index, param_index] = parameter
-                output_array[time_index, -1, 0] = yx_phase
+                    output_array[output_index, param_index] = parameter
+                output_array[output_index, -1, 0] = yx_phase
 
         # [biref and phase, 3]
         elif recon_dim == 3:
@@ -323,7 +323,7 @@ def apply_inverse_transfer_function_cli(
             )
 
             # Apply
-            for time_index in time_indices:
+            for output_index, time_index in enumerate(time_indices):
                 reconstructed_parameters_3d = inplane_oriented_thick_pol3d.apply_inverse_transfer_function(
                     tczyx_data[time_index],
                     intensity_to_stokes_matrix,
@@ -347,8 +347,8 @@ def apply_inverse_transfer_function_cli(
                 for param_index, parameter in enumerate(
                     reconstructed_parameters_3d
                 ):
-                    output_array[time_index, param_index] = parameter
-                output_array[time_index, -1] = zyx_phase
+                    output_array[output_index, param_index] = parameter
+                output_array[output_index, -1] = zyx_phase
 
     # [fluo]
     if recon_fluo:
@@ -367,7 +367,7 @@ def apply_inverse_transfer_function_cli(
             )
 
             # Apply
-            for time_index in time_indices:
+            for output_index, time_index in enumerate(time_indices):
                 zyx_recon = isotropic_fluorescent_thick_3d.apply_inverse_transfer_function(
                     tczyx_data[time_index, 0],
                     optical_transfer_function,
@@ -376,7 +376,7 @@ def apply_inverse_transfer_function_cli(
                 )
 
                 # Save
-                output_array[time_index, 0] = zyx_recon
+                output_array[output_index, 0] = zyx_recon
 
     output_dataset.zattrs["settings"] = settings.dict()
 
