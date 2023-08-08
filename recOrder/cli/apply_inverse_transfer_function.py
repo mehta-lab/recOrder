@@ -2,20 +2,21 @@ import click
 import numpy as np
 import torch
 from iohub import open_ome_zarr
-from recOrder.cli.printing import echo_headline, echo_settings
-from recOrder.cli.settings import ReconstructionSettings
-from recOrder.cli.parsing import (
-    input_data_path_argument,
-    config_path_option,
-    output_dataset_option,
-)
-from recOrder.io import utils
 from waveorder.models import (
     inplane_oriented_thick_pol3d,
+    isotropic_fluorescent_thick_3d,
     isotropic_thin_3d,
     phase_thick_3d,
-    isotropic_fluorescent_thick_3d,
 )
+
+from recOrder.cli.parsing import (
+    config_path_option,
+    input_data_path_argument,
+    output_dataset_option,
+)
+from recOrder.cli.printing import echo_headline, echo_settings
+from recOrder.cli.settings import ReconstructionSettings
+from recOrder.io import utils
 
 
 def _check_background_consistency(background_shape, data_shape):
@@ -73,7 +74,6 @@ def apply_inverse_transfer_function_cli(
         raise ValueError(
             f"time_indices = {time_indices} includes a time index beyond the maximum index of the dataset = {input_dataset.data.shape[0] - 1}"
         )
-
 
     # Simplify important settings names
     recon_biref = settings.birefringence is not None
