@@ -70,9 +70,10 @@ def apply_inverse_transfer_function_cli(
         )
 
     # Check for invalid times
-    if np.max(time_indices) > (input_dataset.data.shape[0] - 1):
+    time_ubound = input_dataset.data.shape[0] - 1
+    if np.max(time_indices) > time_ubound:
         raise ValueError(
-            f"time_indices = {time_indices} includes a time index beyond the maximum index of the dataset = {input_dataset.data.shape[0] - 1}"
+            f"time_indices = {time_indices} includes a time index beyond the maximum index of the dataset = {time_ubound}"
         )
 
     # Simplify important settings names
