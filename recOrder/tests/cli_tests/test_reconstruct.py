@@ -18,7 +18,7 @@ def test_reconstruct(tmp_path):
         mode="w",
         channel_names=channel_names,
     )
-    dataset.create_zeros("0", (2, 4, 4, 5, 6), dtype=np.uint16)
+    dataset.create_zeros("0", (5, 4, 4, 5, 6), dtype=np.uint16)
 
     # Setup options
     birefringence_settings = settings.BirefringenceSettings(
@@ -27,10 +27,10 @@ def test_reconstruct(tmp_path):
 
     # birefringence_option, time_indices, phase_option, dimension_option, time_length_target
     all_options = [
-        (birefringence_settings, [0], None, 2, 1),
+        (birefringence_settings, [0, 3, 4], None, 2, 3),
         (birefringence_settings, 0, settings.PhaseSettings(), 2, 1),
         (birefringence_settings, [0, 1], None, 3, 2),
-        (birefringence_settings, "all", settings.PhaseSettings(), 3, 2),
+        (birefringence_settings, "all", settings.PhaseSettings(), 3, 5),
     ]
 
     for (
