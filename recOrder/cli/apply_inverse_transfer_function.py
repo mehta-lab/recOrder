@@ -115,7 +115,9 @@ def apply_inverse_transfer_function_cli(
     output_dataset = open_ome_zarr(
         output_path, layout="fov", mode="a", channel_names=channel_names
     )
-    if 0 in time_indices:
+
+    # Create an empty TCZYX array if it doesn't exist
+    if not output_dataset.array_keys():
         output_array = output_dataset.create_zeros(
             name="0",
             shape=output_shape,
