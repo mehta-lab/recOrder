@@ -111,7 +111,7 @@ def apply_inverse_transfer_function_cli(
     )
 
     # Create an empty TCZYX array if it doesn't exist
-    if not output_dataset.array_keys():
+    if "0" not in output_dataset:
         output_array = output_dataset.create_zeros(
             name="0",
             shape=output_shape,
