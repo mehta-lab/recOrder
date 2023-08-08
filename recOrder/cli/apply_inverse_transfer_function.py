@@ -57,17 +57,10 @@ def apply_inverse_transfer_function_cli(
     # Find time indices
     if settings.time_indices == "all":
         time_indices = range(input_dataset.data.shape[0])
-        t_shape = input_dataset.data.shape[0]
     elif isinstance(settings.time_indices, list):
         time_indices = settings.time_indices
-        t_shape = len(time_indices)
     elif isinstance(settings.time_indices, int):
         time_indices = [settings.time_indices]
-        t_shape = 1
-    else:
-        raise ValueError(
-            f"time_indices = {time_indices} should be `all`, a list of integers, or an integer."
-        )
 
     # Check for invalid times
     time_ubound = input_dataset.data.shape[0] - 1
