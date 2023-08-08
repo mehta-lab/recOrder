@@ -19,26 +19,35 @@ def test_reconstruct(tmp_path):
         channel_names=channel_names,
     )
     position = dataset.create_position("0", "0", "0")
-    position.create_zeros("0", (2, 4, 4, 5, 6), dtype=np.uint16)
+    position.create_zeros("0", (5, 4, 4, 5, 6), dtype=np.uint16)
 
     # Setup options
     birefringence_settings = settings.BirefringenceSettings(
         transfer_function=settings.BirefringenceTransferFunctionSettings()
     )
+
+    # birefringence_option, time_indices, phase_option, dimension_option, time_length_target
     all_options = [
-        (birefringence_settings, None, 2),
-        (birefringence_settings, settings.PhaseSettings(), 2),
-        (birefringence_settings, None, 3),
-        (birefringence_settings, settings.PhaseSettings(), 3),
+        (birefringence_settings, [0, 3, 4], None, 2, 5),
+        (birefringence_settings, 0, settings.PhaseSettings(), 2, 5),
+        (birefringence_settings, [0, 1], None, 3, 5),
+        (birefringence_settings, "all", settings.PhaseSettings(), 3, 5),
     ]
 
-    for birefringence_option, phase_option, dimension_option in all_options:
+    for i, (
+        birefringence_option,
+        time_indices,
+        phase_option,
+        dimension_option,
+        time_length_target,
+    ) in enumerate(all_options):
         if (birefringence_option is None) and (phase_option is None):
             continue
 
         # Generate recon settings
         recon_settings = settings.ReconstructionSettings(
             input_channel_names=channel_names,
+            time_indices=time_indices,
             reconstruction_dimension=dimension_option,
             birefringence=birefringence_option,
             phase=phase_option,
@@ -60,11 +69,12 @@ def test_reconstruct(tmp_path):
                 "-o",
                 str(tf_path),
             ],
+            catch_exceptions=False,
         )
         assert tf_path.exists()
 
         # Apply the tf
-        result_path = input_path.with_name("result.zarr")
+        result_path = input_path.with_name(f"result{i}.zarr")
 
         result_inv = runner.invoke(
             cli,
@@ -79,6 +89,7 @@ def test_reconstruct(tmp_path):
                 "-o",
                 str(result_path),
             ],
+            catch_exceptions=False,
         )
         assert result_inv.exit_code == 0
         assert result_path.exists()
@@ -86,7 +97,7 @@ def test_reconstruct(tmp_path):
 
         # Check output
         result_dataset = open_ome_zarr(str(result_path) + "/0/0/0")
-        assert result_dataset["0"].shape[0] == 2
+        assert result_dataset["0"].shape[0] == time_length_target
         assert result_dataset["0"].shape[3:] == (5, 6)
 
         # Test direct recon
