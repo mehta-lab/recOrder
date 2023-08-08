@@ -27,19 +27,19 @@ def test_reconstruct(tmp_path):
 
     # birefringence_option, time_indices, phase_option, dimension_option, time_length_target
     all_options = [
-        (birefringence_settings, [0, 3, 4], None, 2, 3),
-        (birefringence_settings, 0, settings.PhaseSettings(), 2, 1),
-        (birefringence_settings, [0, 1], None, 3, 2),
+        (birefringence_settings, [0, 3, 4], None, 2, 5),
+        (birefringence_settings, 0, settings.PhaseSettings(), 2, 5),
+        (birefringence_settings, [0, 1], None, 3, 5),
         (birefringence_settings, "all", settings.PhaseSettings(), 3, 5),
     ]
 
-    for (
+    for i, (
         birefringence_option,
         time_indices,
         phase_option,
         dimension_option,
         time_length_target,
-    ) in all_options:
+    ) in enumerate(all_options):
         if (birefringence_option is None) and (phase_option is None):
             continue
 
@@ -72,7 +72,7 @@ def test_reconstruct(tmp_path):
         assert tf_path.exists()
 
         # Apply the tf
-        result_path = input_path.with_name("result.zarr")
+        result_path = input_path.with_name(f"result{i}.zarr")
 
         result_inv = runner.invoke(
             cli,
