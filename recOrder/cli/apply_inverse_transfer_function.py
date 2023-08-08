@@ -64,14 +64,14 @@ def apply_inverse_transfer_function_cli(
         time_indices = [settings.time_indices]
         t_shape = 1
     else:
-        ValueError(
+        raise ValueError(
             f"time_indices = {time_indices} should be `all`, a list of integers, or an integer."
         )
 
     # Check for invalid times
-    if np.max(time_indices) > input_dataset.data.shape[0]:
-        ValueError(
-            f"time_indices = {time_indices} includes a time index beyond the size the of the dataset = {input_dataset.data.shape[0]}"
+    if np.max(time_indices) > (input_dataset.data.shape[0] - 1):
+        raise ValueError(
+            f"time_indices = {time_indices} includes a time index beyond the maximum index of the dataset = {input_dataset.data.shape[0] - 1}"
         )
 
 
