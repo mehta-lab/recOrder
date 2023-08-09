@@ -18,6 +18,6 @@ def cli():
     """\033[92mrecOrder: Computational Toolkit for Label-Free Imaging\033[0m\n"""
 
 
+cli.add_command(reconstruct)
 cli.add_command(compute_tf)
 cli.add_command(apply_inv_tf)
-cli.add_command(reconstruct)
