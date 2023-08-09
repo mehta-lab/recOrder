@@ -394,7 +394,6 @@ def apply_inverse_transfer_function_cli(
 
 
 @click.command()
-@click.help_option("-h", "--help")
 @input_data_path_argument()
 @click.argument(
     "transfer_function_path",
