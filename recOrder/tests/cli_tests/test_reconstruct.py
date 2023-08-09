@@ -1,9 +1,10 @@
 import numpy as np
-from recOrder.cli.main import cli
-from recOrder.cli import settings
-from recOrder.io import utils
 from click.testing import CliRunner
 from iohub.ngff import open_ome_zarr
+
+from recOrder.cli import settings
+from recOrder.cli.main import cli
+from recOrder.io import utils
 
 
 def test_reconstruct(tmp_path):
@@ -13,11 +14,12 @@ def test_reconstruct(tmp_path):
     channel_names = [f"State{x}" for x in range(4)]
     dataset = open_ome_zarr(
         input_path,
-        layout="fov",
+        layout="hcs",
         mode="w",
         channel_names=channel_names,
     )
-    dataset.create_zeros("0", (2, 4, 4, 5, 6), dtype=np.uint16)
+    position = dataset.create_position("0", "0", "0")
+    position.create_zeros("0", (2, 4, 4, 5, 6), dtype=np.uint16)
 
     # Setup options
     birefringence_settings = settings.BirefringenceSettings(
@@ -51,7 +53,8 @@ def test_reconstruct(tmp_path):
             cli,
             [
                 "compute-tf",
-                str(input_path),
+                "-i",
+                str(input_path) + "/0/0/0",
                 "-c",
                 str(config_path),
                 "-o",
@@ -67,8 +70,32 @@ def test_reconstruct(tmp_path):
             cli,
             [
                 "apply-inv-tf",
-                str(input_path),
+                "-i",
+                str(input_path) + "/0/0/0",
+                "-t",
                 str(tf_path),
+                "-c",
+                str(config_path),
+                "-o",
+                str(result_path),
+            ],
+        )
+        assert result_inv.exit_code == 0
+        assert result_path.exists()
+        assert "Reconstructing" in result_inv.output
+
+        # Check output
+        result_dataset = open_ome_zarr(str(result_path) + "/0/0/0")
+        assert result_dataset["0"].shape[0] == 2
+        assert result_dataset["0"].shape[3:] == (5, 6)
+
+        # Test direct recon
+        result_inv = runner.invoke(
+            cli,
+            [
+                "reconstruct",
+                "-i",
+                str(input_path) + "/0/0/0/",
                 "-c",
                 str(config_path),
                 "-o",
@@ -78,24 +105,4 @@ def test_reconstruct(tmp_path):
         assert result_path.exists()
         assert result_inv.exit_code == 0
         assert "Reconstructing" in result_inv.output
-
-        # Check output
-        result_dataset = open_ome_zarr(result_path)
-        assert result_dataset["0"].shape[0] == 2
-        assert result_dataset["0"].shape[3:] == (5, 6)
-
-        # Test direct recon
-        result_inv = runner.invoke(
-            cli,
-            [
-                "reconstruct",
-                str(input_path),
-                "-c",
-                str(config_path),
-                "-o",
-                str(result_path),
-            ],
-        )
-        assert result_path.exists()
-        assert result_inv.exit_code == 0
         assert "Reconstructing" in result_inv.output

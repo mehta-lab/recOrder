@@ -57,4 +57,3 @@ def fluorescence_recon_settings_function(tmp_path):
         channel_names=[f"State{i}" for i in range(4)],
     )
     yield recon_settings, dataset
-    yield recon_settings, dataset
