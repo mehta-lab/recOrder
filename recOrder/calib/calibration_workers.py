@@ -484,6 +484,3 @@ def load_calibration(calib, metadata: MetadataReader):
     )
 
     return calib
-    )
-
-    return calib
