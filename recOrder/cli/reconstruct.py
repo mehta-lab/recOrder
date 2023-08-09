@@ -9,25 +9,25 @@ from recOrder.cli.compute_transfer_function import (
     compute_transfer_function_cli,
 )
 from recOrder.cli.parsing import (
-    config_path_option,
-    input_data_path_argument,
-    output_dataset_option,
+    config_filepath,
+    input_position_dirpaths,
+    output_dirpath,
 )
 
 
 @click.command()
-@input_data_path_argument()
-@config_path_option()
-@output_dataset_option(default="./reconstruction.zarr")
+@input_position_dirpaths()
+@config_filepath()
+@output_dirpath()
 def reconstruct(input_data_path, config_path, output_path):
-    """Reconstruct a dataset using a configuration file. This is a
+    """
+    Reconstruct a dataset using a configuration file. This is a
     convenience function for a `compute-tf` call followed by a `apply-inv-tf`
     call.
 
     See /examples for example configuration files.
 
-    Example usage:\n
-    $ recorder reconstruct input.zarr/0/0/0 -c /examples/birefringence.yml -o output.zarr
+    >> recorder reconstruct -i ./input.zarr/*/*/* -c ./examples/birefringence.yml -o ./output.zarr
     """
 
     # Handle transfer function path
@@ -41,7 +41,5 @@ def reconstruct(input_data_path, config_path, output_path):
         input_data_path, config_path, transfer_function_path
     )
     apply_inverse_transfer_function_cli(
-        input_data_path, transfer_function_path, config_path, output_path
-    )
         input_data_path, transfer_function_path, config_path, output_path
     )
