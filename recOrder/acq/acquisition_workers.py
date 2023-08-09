@@ -701,4 +701,3 @@ class PolarizationAcquisitionWorker(WorkerBase):
                 break
             else:
                 continue
-                continue

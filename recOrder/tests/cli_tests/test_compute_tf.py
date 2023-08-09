@@ -132,4 +132,3 @@ def test_fluorescence_write(fluorescence_recon_settings_function):
     assert dataset["optical_transfer_function"].shape == (1, 1, 3, 4, 5)
     assert "real_potential_transfer_function" not in dataset
     assert "imaginary_potential_transfer_function" not in dataset
-    assert "imaginary_potential_transfer_function" not in dataset
