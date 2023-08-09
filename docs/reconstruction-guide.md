@@ -10,12 +10,23 @@ The main command `reconstruct` command is composed of two subcommands: `compute-
 
 A reconstruction can be performed with a single `reconstruct` call. For example:
 ```
-recorder reconstruct data.zarr/0/0/0 -c config.yml -o reconstruction.zarr
+recorder reconstruct `
+    -i ./data.zarr/*/*/* `
+    -c ./config.yml `
+    -o ./reconstruction.zarr
 ```
 Equivalently, a reconstruction can be performed with a `compute-tf` call followed by an `apply-inv-tf` call. For example:
 ```
-recorder compute-tf data.zarr/0/0/0 -c config.yml -o tf.zarr
-recorder apply-inv-tf data.zarr/0/0/0 tf.zarr -c config.yml -o reconstruction.zarr
+recorder compute-tf `
+    -i ./data.zarr/0/0/0 `
+    -c ./config.yml `
+    -o ./tf.zarr
+
+recorder apply-inv-tf 
+    -i ./data.zarr/*/*/* `
+    -t ./tf.zarr `
+    -c ./config.yml `
+    -o ./reconstruction.zarr
 ```
 Computing the transfer function is typically the most expensive part of the reconstruction, so saving a transfer function then applying it to many datasets can save time. 
 
