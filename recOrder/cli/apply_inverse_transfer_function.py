@@ -398,7 +398,7 @@ def apply_inv_tf(
 
     See /examples for example configuration files.
 
-    >> recorder apply-inv-tf -i input.zarr/*/*/* -t transfer-function.zarr -c /examples/birefringence.yml -o output.zarr
+    >> recorder apply-inv-tf -i ./input.zarr/*/*/* -t ./transfer-function.zarr -c /examples/birefringence.yml -o ./output.zarr
     """
 
     output_position_dirpaths = get_output_paths(
