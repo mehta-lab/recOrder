@@ -4,6 +4,7 @@ import click
 import numpy as np
 import torch
 from iohub import open_ome_zarr
+from iohub.ngff_meta import TransformationMeta
 from waveorder.models import (
     inplane_oriented_thick_pol3d,
     isotropic_fluorescent_thick_3d,
@@ -129,6 +130,9 @@ def apply_inverse_transfer_function_cli(
                 1,
             )
             + input_dataset.data.shape[3:],  # chunk by YX
+            transform=[
+                TransformationMeta(type="scale", scale=input_dataset.scale)
+            ],
         )
     else:
         output_array = output_dataset[0]
