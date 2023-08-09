@@ -141,7 +141,7 @@ def generate_and_save_fluorescence_transfer_function(
 
 
 def compute_transfer_function_cli(
-    input_position_dirpaths, config_filepath, output_dirpath
+    input_position_dirpath, config_filepath, output_dirpath
 ):
     """CLI command to compute the transfer function given a configuration file path
     and a desired output path.
@@ -156,7 +156,7 @@ def compute_transfer_function_cli(
 
     # Read shape from input dataset
     input_dataset = open_ome_zarr(
-        input_position_dirpaths[0], layout="fov", mode="r"
+        input_position_dirpath, layout="fov", mode="r"
     )
     zyx_shape = input_dataset.data.shape[
         2:
@@ -217,5 +217,5 @@ def compute_tf(
     >> recorder compute-tf -i ./input.zarr/0/0/0 -c ./examples/birefringence.yml -o ./transfer_function.zarr
     """
     compute_transfer_function_cli(
-        input_position_dirpaths, config_filepath, output_dirpath
+        input_position_dirpaths[0], config_filepath, output_dirpath
     )
