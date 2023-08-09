@@ -52,7 +52,7 @@ def config_filepath() -> Callable:
 def transfer_function_dirpath() -> Callable:
     def decorator(f: Callable) -> Callable:
         return click.option(
-            "--transfer-function",
+            "--transfer-function-dirpath",
             "-t",
             required=True,
             type=click.Path(exists=False, file_okay=False, dir_okay=True),

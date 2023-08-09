@@ -10,7 +10,7 @@ from recOrder.cli.main import cli
 from recOrder.io import utils
 
 
-def test_compute_transfer(tmp_path, input_zarr):
+def test_compute_transfer(tmp_path, example_plate):
     recon_settings = settings.ReconstructionSettings(
         input_channel_names=[f"State{i}" for i in range(4)],
         reconstruction_dimension=3,
@@ -22,14 +22,14 @@ def test_compute_transfer(tmp_path, input_zarr):
 
     output_path = tmp_path / "output.zarr"
 
-    path, _ = input_zarr
+    plate_path, _ = example_plate
     runner = CliRunner()
     result = runner.invoke(
         cli,
         [
             "compute-tf",
             "-i",
-            str(path),
+            str(plate_path) + "/A/1/0",
             "-c",
             str(config_path),
             "-o",
