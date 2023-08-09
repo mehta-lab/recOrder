@@ -1,20 +1,21 @@
 import click
 import numpy as np
 from iohub import open_ome_zarr
-from recOrder.cli.printing import echo_settings, echo_headline
-from recOrder.cli.settings import ReconstructionSettings
-from recOrder.cli.parsing import (
-    input_data_path_argument,
-    config_path_option,
-    output_dataset_option,
-)
-from recOrder.io import utils
 from waveorder.models import (
     inplane_oriented_thick_pol3d,
+    isotropic_fluorescent_thick_3d,
     isotropic_thin_3d,
     phase_thick_3d,
-    isotropic_fluorescent_thick_3d,
 )
+
+from recOrder.cli.parsing import (
+    config_path_option,
+    input_data_path_argument,
+    output_dataset_option,
+)
+from recOrder.cli.printing import echo_headline, echo_settings
+from recOrder.cli.settings import ReconstructionSettings
+from recOrder.io import utils
 
 
 def generate_and_save_birefringence_transfer_function(settings, dataset):
@@ -203,7 +204,6 @@ def compute_transfer_function_cli(input_data_path, config_path, output_path):
 
 
 @click.command()
-@click.help_option("-h", "--help")
 @input_data_path_argument()
 @config_path_option()
 @output_dataset_option(default="./transfer-function.zarr")
@@ -216,4 +216,5 @@ def compute_tf(input_data_path, config_path, output_path):
     Example usage:\n
     $ recorder compute-tf input.zarr/0/0/0 -c /examples/birefringence.yml -o transfer_function.zarr
     """
+    compute_transfer_function_cli(input_data_path, config_path, output_path)
     compute_transfer_function_cli(input_data_path, config_path, output_path)

@@ -1,20 +1,21 @@
-import click
 import os
-from recOrder.cli.compute_transfer_function import (
-    compute_transfer_function_cli,
-)
+
+import click
+
 from recOrder.cli.apply_inverse_transfer_function import (
     apply_inverse_transfer_function_cli,
 )
+from recOrder.cli.compute_transfer_function import (
+    compute_transfer_function_cli,
+)
 from recOrder.cli.parsing import (
-    input_data_path_argument,
     config_path_option,
+    input_data_path_argument,
     output_dataset_option,
 )
 
 
 @click.command()
-@click.help_option("-h", "--help")
 @input_data_path_argument()
 @config_path_option()
 @output_dataset_option(default="./reconstruction.zarr")
@@ -40,5 +41,7 @@ def reconstruct(input_data_path, config_path, output_path):
         input_data_path, config_path, transfer_function_path
     )
     apply_inverse_transfer_function_cli(
+        input_data_path, transfer_function_path, config_path, output_path
+    )
         input_data_path, transfer_function_path, config_path, output_path
     )
