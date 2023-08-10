@@ -1,3 +1,5 @@
+import os
+
 import numpy as np
 from click.testing import CliRunner
 from iohub.ngff import open_ome_zarr
@@ -71,7 +73,7 @@ def test_reconstruct(tmp_path):
             [
                 "compute-tf",
                 "-i",
-                str(input_path) + "/0/0/0",
+                os.path.join(str(input_path), "0", "0", "0"),
                 "-c",
                 str(config_path),
                 "-o",
@@ -89,7 +91,7 @@ def test_reconstruct(tmp_path):
             [
                 "apply-inv-tf",
                 "-i",
-                str(input_path) + "/0/0/0",
+                os.path.join(str(input_path), "0", "0", "0"),
                 "-t",
                 str(tf_path),
                 "-c",
@@ -114,7 +116,7 @@ def test_reconstruct(tmp_path):
             [
                 "reconstruct",
                 "-i",
-                str(input_path) + "/0/0/0/",
+                os.path.join(str(input_path), "0", "0", "0"),
                 "-c",
                 str(config_path),
                 "-o",

@@ -1,3 +1,5 @@
+import os
+
 from click.testing import CliRunner
 
 from recOrder.cli import settings
@@ -29,7 +31,7 @@ def test_compute_transfer(tmp_path, example_plate):
         [
             "compute-tf",
             "-i",
-            str(plate_path) + "/A/1/0",
+            os.path.join(str(plate_path),"A","1","0"),
             "-c",
             str(config_path),
             "-o",
@@ -76,7 +78,7 @@ def test_compute_transfer_output_file(tmp_path, example_plate):
                 [
                     "compute-tf",
                     "-i",
-                    str(plate_path) + "/A/1/0",
+                    os.path.join(str(plate_path),"A","1","0"),
                     "-c",
                     str(config_path),
                     str(option),
