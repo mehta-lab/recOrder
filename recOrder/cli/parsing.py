@@ -56,7 +56,7 @@ def transfer_function_dirpath() -> Callable:
             "--transfer-function-dirpath",
             "-t",
             required=True,
-            type=click.Path(exists=False, file_okay=False, dir_okay=True),
+            type=click.Path(exists=False),
             help="Path to transfer function .zarr.",
         )(f)
 
@@ -69,7 +69,7 @@ def output_dirpath() -> Callable:
             "--output-dirpath",
             "-o",
             required=True,
-            type=click.Path(exists=False, file_okay=False, dir_okay=True),
+            type=click.Path(exists=False),
             help="Path to output directory.",
         )(f)
 
