@@ -1,5 +1,3 @@
-from typing import List
-
 import click
 import numpy as np
 from iohub import open_ome_zarr
@@ -205,7 +203,7 @@ def compute_transfer_function_cli(
 @config_filepath()
 @output_dirpath()
 def compute_tf(
-    input_position_dirpaths: List[str],
+    input_position_dirpaths: list[str],
     config_filepath: str,
     output_dirpath: int,
 ):

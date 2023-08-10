@@ -1,5 +1,3 @@
-from typing import List
-
 import click
 import numpy as np
 import torch
@@ -409,7 +407,7 @@ def apply_inverse_transfer_function_cli(
 @config_filepath()
 @output_dirpath()
 def apply_inv_tf(
-    input_position_dirpaths: List[str],
+    input_position_dirpaths: list[str],
     transfer_function_dirpath: str,
     config_filepath: str,
     output_dirpath: str,
