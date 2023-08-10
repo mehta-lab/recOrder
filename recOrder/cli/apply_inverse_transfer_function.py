@@ -115,7 +115,7 @@ def apply_inverse_transfer_function_cli(
     output_dataset = open_ome_zarr(
         output_position_dirpath,
         layout="fov",
-        mode="w",
+        mode="a",
         channel_names=channel_names,
     )
 
