@@ -178,8 +178,8 @@ class MainWidget(QWidget):
         self.ui.cb_flip_orientation.stateChanged[int].connect(
             self.enter_flip_orientation
         )
-        self.ui.cb_invert_phase.stateChanged[int].connect(
-            self.enter_invert_phase
+        self.ui.cb_invert_phase_contrast.stateChanged[int].connect(
+            self.enter_invert_phase_contrast
         )
 
         # This parameter seems to be wired differently than others...investigate later
@@ -320,7 +320,7 @@ class MainWidget(QWidget):
         self.use_gpu = False
         self.rotate_orientation = False
         self.flip_orientation = False
-        self.invert_phase = False
+        self.invert_phase_contrast = False
         self.pad_z = 0
         self.phase_reconstructor = None
         self.acq_bg_directory = ""
@@ -1619,12 +1619,12 @@ class MainWidget(QWidget):
             self.flip_orientation = False
 
     @Slot()
-    def enter_invert_phase(self):
-        state = self.ui.cb_invert_phase.checkState()
+    def enter_invert_phase_contrast(self):
+        state = self.ui.cb_invert_phase_contrast.checkState()
         if state == 2:
-            self.invert_phase = True
+            self.invert_phase_contrast = True
         elif state == 0:
-            self.invert_phase = False
+            self.invert_phase_contrast = False
 
     @Slot()
     def enter_recon_wavelength(self):
@@ -2208,7 +2208,7 @@ class MainWidget(QWidget):
                 "Magnification": self.mag,
                 "Rotate Orientation": self.rotate_orientation,
                 "Flip Orientation": self.flip_orientation,
-                "Invert Phase": self.invert_phase,
+                "Invert Phase": self.invert_phase_contrast,
             },
             "Phase Reconstruction Settings": {
                 "Z Padding": self.pad_z,

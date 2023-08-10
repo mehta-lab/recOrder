@@ -1,34 +1,37 @@
 from __future__ import annotations
 
-from qtpy.QtCore import Signal
-from iohub import open_ome_zarr
-from napari.qt.threading import WorkerBaseSignals, WorkerBase, thread_worker
-from recOrder.cli import settings
-from recOrder.io.core_functions import set_lc_state, snap_and_average
-from recOrder.io.utils import MockEmitter, model_to_yaml
-from recOrder.calib.Calibration import LC_DEVICE_NAME
-from recOrder.io.metadata_reader import MetadataReader, get_last_metadata_file
-from recOrder.cli.compute_transfer_function import (
-    compute_transfer_function_cli,
-)
-from recOrder.cli.apply_inverse_transfer_function import (
-    apply_inverse_transfer_function_cli,
-)
+import glob
+import json
+import logging
 import os
 import shutil
-import numpy as np
-import glob
-import logging
-import json
 
 # type hint/check
 from typing import TYPE_CHECKING
 
+import numpy as np
+from iohub import open_ome_zarr
+from napari.qt.threading import WorkerBase, WorkerBaseSignals, thread_worker
+from qtpy.QtCore import Signal
+
+from recOrder.calib.Calibration import LC_DEVICE_NAME
+from recOrder.cli import settings
+from recOrder.cli.apply_inverse_transfer_function import (
+    apply_inverse_transfer_function_cli,
+)
+from recOrder.cli.compute_transfer_function import (
+    compute_transfer_function_cli,
+)
+from recOrder.io.core_functions import set_lc_state, snap_and_average
+from recOrder.io.metadata_reader import MetadataReader, get_last_metadata_file
+from recOrder.io.utils import MockEmitter, model_to_yaml
+
 # avoid runtime import error
 if TYPE_CHECKING:
     from _typeshed import StrOrBytesPath
-    from recOrder.plugin.main_widget import MainWidget
+
     from recOrder.calib.Calibration import QLIPP_Calibration
+    from recOrder.plugin.main_widget import MainWidget
 
 
 class CalibrationSignals(WorkerBaseSignals):
@@ -350,7 +353,8 @@ class BackgroundCaptureWorker(
                     / 1000,
                     background_path="",
                     remove_estimated_background=False,
-                    orientation_flip=False,
+                    flip_orientation=False,
+                    rotate_orientation=False,
                 ),
             ),
         )

@@ -1632,7 +1632,7 @@
                </widget>
               </item>
               <item row="13" column="1">
-               <widget class="QCheckBox" name="cb_invert_phase">
+               <widget class="QCheckBox" name="cb_invert_phase_contrast">
                 <property name="text">
                  <string/>
                 </property>

@@ -63,8 +63,8 @@ def _generate_reconstruction_config_from_gui(
                 wavelength_illumination=calib_window.recon_wavelength / 1000,
                 background_path=background_path,
                 remove_estimated_background=remove_estimated_background,
-                orientation_flip=calib_window.flip_orientation,
-                orientation_rotate=calib_window.rotate_orientation,
+                flip_orientation=calib_window.flip_orientation,
+                rotate_orientation=calib_window.rotate_orientation,
             )
         )
         birefringence_settings = settings.BirefringenceSettings(
@@ -84,7 +84,7 @@ def _generate_reconstruction_config_from_gui(
                 index_of_refraction_media=calib_window.n_media,
                 numerical_aperture_detection=calib_window.obj_na,
                 numerical_aperture_illumination=calib_window.cond_na,
-                axial_flip=calib_window.invert_phase,
+                invert_phase_contrast=calib_window.invert_phase,
             )
         )
         phase_apply_inverse_settings = settings.FourierApplyInverseSettings(
@@ -272,7 +272,7 @@ class BFAcquisitionWorker(WorkerBase):
         self._check_abort()
 
         # Warn the user about axial
-        if self.calib_window.invert_phase:
+        if self.calib_window.invert_phase_contrast:
             show_warning(
                 "Inverting the phase contrast. This affects the visualization and saved reconstruction."
             )
