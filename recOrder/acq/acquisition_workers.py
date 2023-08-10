@@ -84,7 +84,7 @@ def _generate_reconstruction_config_from_gui(
                 index_of_refraction_media=calib_window.n_media,
                 numerical_aperture_detection=calib_window.obj_na,
                 numerical_aperture_illumination=calib_window.cond_na,
-                invert_phase_contrast=calib_window.invert_phase,
+                invert_phase_contrast=calib_window.invert_phase_contrast,
             )
         )
         phase_apply_inverse_settings = settings.FourierApplyInverseSettings(
