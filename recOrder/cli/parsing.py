@@ -17,7 +17,7 @@ def _validate_and_process_paths(
         with open_ome_zarr(path, mode="r") as dataset:
             if isinstance(dataset, Plate):
                 raise ValueError(
-                    "Please supply a single position instead of an HCS plate. Likely fix: replace 'input.zarr' with 'input.zarr/0/0/0'"
+                    "Please supply a list of positions instead of an HCS plate. Likely fix: replace 'input.zarr' with 'input.zarr/*/*/*' or 'input.zarr/0/0/0'"
                 )
     return input_paths
 
@@ -29,8 +29,9 @@ def input_position_dirpaths() -> Callable:
             "-i",
             cls=OptionEatAll,
             type=tuple,
+            required=True,
             callback=_validate_and_process_paths,
-            help="Paths to input positions",
+            help="List of paths to input positions, each with the same TCZYX shape. Supports wildcards e.g. 'input.zarr/*/*/*'.",
         )(f)
 
     return decorator
@@ -43,7 +44,7 @@ def config_filepath() -> Callable:
             "-c",
             required=True,
             type=click.Path(exists=True, file_okay=True, dir_okay=False),
-            help="Path to YAML configuration file",
+            help="Path to YAML configuration file.",
         )(f)
 
     return decorator
@@ -56,7 +57,7 @@ def transfer_function_dirpath() -> Callable:
             "-t",
             required=True,
             type=click.Path(exists=False, file_okay=False, dir_okay=True),
-            help="Path to transfer function .zarr",
+            help="Path to transfer function .zarr.",
         )(f)
 
     return decorator
@@ -69,7 +70,7 @@ def output_dirpath() -> Callable:
             "-o",
             required=True,
             type=click.Path(exists=False, file_okay=False, dir_okay=True),
-            help="Path to output directory",
+            help="Path to output directory.",
         )(f)
 
     return decorator
