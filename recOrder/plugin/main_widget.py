@@ -172,8 +172,14 @@ class MainWidget(QWidget):
         self.ui.chb_use_gpu.stateChanged[int].connect(self.enter_use_gpu)
         self.ui.le_gpu_id.editingFinished.connect(self.enter_gpu_id)
 
-        self.ui.cb_orientation_offset.stateChanged[int].connect(
-            self.enter_orientation_offset
+        self.ui.cb_rotate_orientation.stateChanged[int].connect(
+            self.enter_rotate_orientation
+        )
+        self.ui.cb_flip_orientation.stateChanged[int].connect(
+            self.enter_flip_orientation
+        )
+        self.ui.cb_invert_phase.stateChanged[int].connect(
+            self.enter_invert_phase
         )
 
         # This parameter seems to be wired differently than others...investigate later
@@ -312,7 +318,9 @@ class MainWidget(QWidget):
         self.acq_mode = "2D"
         self.gpu_id = 0
         self.use_gpu = False
-        self.orientation_offset = False
+        self.rotate_orientation = False
+        self.flip_orientation = False
+        self.invert_phase = False
         self.pad_z = 0
         self.phase_reconstructor = None
         self.acq_bg_directory = ""
@@ -1595,12 +1603,28 @@ class MainWidget(QWidget):
             self.use_gpu = False
 
     @Slot()
-    def enter_orientation_offset(self):
-        state = self.ui.cb_orientation_offset.checkState()
+    def enter_rotate_orientation(self):
+        state = self.ui.cb_rotate_orientation.checkState()
         if state == 2:
-            self.orientation_offset = True
+            self.rotate_orientation = True
         elif state == 0:
-            self.orientation_offset = False
+            self.rotate_orientation = False
+
+    @Slot()
+    def enter_flip_orientation(self):
+        state = self.ui.cb_flip_orientation.checkState()
+        if state == 2:
+            self.flip_orientation = True
+        elif state == 0:
+            self.flip_orientation = False
+
+    @Slot()
+    def enter_invert_phase(self):
+        state = self.ui.cb_invert_phase.checkState()
+        if state == 2:
+            self.invert_phase = True
+        elif state == 0:
+            self.invert_phase = False
 
     @Slot()
     def enter_recon_wavelength(self):
@@ -2182,7 +2206,9 @@ class MainWidget(QWidget):
                 "Camera Pixel Size": self.ps,
                 "RI of Objective Media": self.n_media,
                 "Magnification": self.mag,
-                "Orientation Offset": self.orientation_offset,
+                "Rotate Orientation": self.rotate_orientation,
+                "Flip Orientation": self.flip_orientation,
+                "Invert Phase": self.invert_phase,
             },
             "Phase Reconstruction Settings": {
                 "Z Padding": self.pad_z,
