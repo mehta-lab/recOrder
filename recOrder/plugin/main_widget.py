@@ -1596,7 +1596,7 @@ class MainWidget(QWidget):
 
     @Slot()
     def enter_use_gpu(self):
-        state = self.ui.chb_use_gpu.checkState()
+        state = self.ui.chb_use_gpu.checkState().value
         if state == 2:
             self.use_gpu = True
         elif state == 0:
@@ -1604,7 +1604,7 @@ class MainWidget(QWidget):
 
     @Slot()
     def enter_rotate_orientation(self):
-        state = self.ui.cb_rotate_orientation.checkState()
+        state = self.ui.cb_rotate_orientation.checkState().value
         if state == 2:
             self.rotate_orientation = True
         elif state == 0:
@@ -1612,7 +1612,7 @@ class MainWidget(QWidget):
 
     @Slot()
     def enter_flip_orientation(self):
-        state = self.ui.cb_flip_orientation.checkState()
+        state = self.ui.cb_flip_orientation.checkState().value
         if state == 2:
             self.flip_orientation = True
         elif state == 0:
@@ -1620,7 +1620,7 @@ class MainWidget(QWidget):
 
     @Slot()
     def enter_invert_phase_contrast(self):
-        state = self.ui.cb_invert_phase_contrast.checkState()
+        state = self.ui.cb_invert_phase_contrast.checkState().value
         if state == 2:
             self.invert_phase_contrast = True
         elif state == 0:
