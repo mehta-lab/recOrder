@@ -106,7 +106,7 @@ def test_reconstruct(tmp_path):
         assert "Reconstructing" in result_inv.output
 
         # Check output
-        result_dataset = open_ome_zarr(str(result_path) + "/0/0/0")
+        result_dataset = open_ome_zarr(os.path.join(str(result_path), "0", "0", "0"))
         assert result_dataset["0"].shape[0] == time_length_target
         assert result_dataset["0"].shape[3:] == (5, 6)
 
