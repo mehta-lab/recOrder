@@ -26,6 +26,11 @@ def reconstruct(input_position_dirpaths, config_filepath, output_dirpath):
     convenience function for a `compute-tf` call followed by a `apply-inv-tf`
     call.
 
+    Calculates the transfer function based on the shape of the first position
+    in the list `input-position-dirpaths`, then applies that transfer function
+    to all positions in the list `input-position-dirpaths`, so all positions
+    must have the same TCZYX shape.
+
     See /examples for example configuration files.
 
     >> recorder reconstruct -i ./input.zarr/*/*/* -c ./examples/birefringence.yml -o ./output.zarr

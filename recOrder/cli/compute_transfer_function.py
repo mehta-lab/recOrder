@@ -210,7 +210,10 @@ def compute_tf(
     """
     Compute a transfer function using a dataset and configuration file.
 
-    See /examples/ for example configuration files.
+    Calculates the transfer function based on the shape of the first position
+    in the list `input-position-dirpaths`.
+
+    See /examples for example configuration files.
 
     >> recorder compute-tf -i ./input.zarr/0/0/0 -c ./examples/birefringence.yml -o ./transfer_function.zarr
     """

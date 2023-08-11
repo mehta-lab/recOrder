@@ -415,6 +415,9 @@ def apply_inv_tf(
     """
     Apply an inverse transfer function to a dataset using a configuration file.
 
+    Applies a transfer function to all positions in the list `input-position-dirpaths`,
+    so all positions must have the same TCZYX shape.
+
     See /examples for example configuration files.
 
     >> recorder apply-inv-tf -i ./input.zarr/*/*/* -t ./transfer-function.zarr -c /examples/birefringence.yml -o ./output.zarr
