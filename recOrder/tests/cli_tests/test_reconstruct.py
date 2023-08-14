@@ -73,7 +73,7 @@ def test_reconstruct(tmp_path):
             [
                 "compute-tf",
                 "-i",
-                os.path.join(str(input_path), "0", "0", "0"),
+                str(input_path / "0" / "0" / "0"),
                 "-c",
                 str(config_path),
                 "-o",
@@ -91,7 +91,7 @@ def test_reconstruct(tmp_path):
             [
                 "apply-inv-tf",
                 "-i",
-                os.path.join(str(input_path), "0", "0", "0"),
+                str(input_path / "0" / "0" / "0"),
                 "-t",
                 str(tf_path),
                 "-c",
@@ -106,7 +106,7 @@ def test_reconstruct(tmp_path):
         assert "Reconstructing" in result_inv.output
 
         # Check output
-        result_dataset = open_ome_zarr(os.path.join(str(result_path), "0", "0", "0"))
+        result_dataset = open_ome_zarr(str(result_path / "0" / "0" / "0"))
         assert result_dataset["0"].shape[0] == time_length_target
         assert result_dataset["0"].shape[3:] == (5, 6)
 
@@ -116,7 +116,7 @@ def test_reconstruct(tmp_path):
             [
                 "reconstruct",
                 "-i",
-                os.path.join(str(input_path), "0", "0", "0"),
+                str(input_path / "0" / "0" / "0"),
                 "-c",
                 str(config_path),
                 "-o",
