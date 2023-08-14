@@ -22,6 +22,10 @@ def _validate_and_process_paths(
     return input_paths
 
 
+def _str_to_path(ctx: click.Context, opt: click.Option, value: str) -> None:
+    return Path(value)
+
+
 def input_position_dirpaths() -> Callable:
     def decorator(f: Callable) -> Callable:
         return click.option(
@@ -44,6 +48,7 @@ def config_filepath() -> Callable:
             "-c",
             required=True,
             type=click.Path(exists=True, file_okay=True, dir_okay=False),
+            callback=_str_to_path,
             help="Path to YAML configuration file.",
         )(f)
 
@@ -57,6 +62,7 @@ def transfer_function_dirpath() -> Callable:
             "-t",
             required=True,
             type=click.Path(exists=False),
+            callback=_str_to_path,
             help="Path to transfer function .zarr.",
         )(f)
 
@@ -70,6 +76,7 @@ def output_dirpath() -> Callable:
             "-o",
             required=True,
             type=click.Path(exists=False),
+            callback=_str_to_path,
             help="Path to output directory.",
         )(f)
 

@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import click
 import numpy as np
 from iohub import open_ome_zarr
@@ -139,8 +141,8 @@ def generate_and_save_fluorescence_transfer_function(
 
 
 def compute_transfer_function_cli(
-    input_position_dirpath, config_filepath, output_dirpath
-):
+    input_position_dirpath: Path, config_filepath: Path, output_dirpath: Path
+) -> None:
     """CLI command to compute the transfer function given a configuration file path
     and a desired output path.
     """
@@ -203,10 +205,10 @@ def compute_transfer_function_cli(
 @config_filepath()
 @output_dirpath()
 def compute_tf(
-    input_position_dirpaths: list[str],
-    config_filepath: str,
-    output_dirpath: int,
-):
+    input_position_dirpaths: list[Path],
+    config_filepath: Path,
+    output_dirpath: Path,
+) -> None:
     """
     Compute a transfer function using a dataset and configuration file.
 

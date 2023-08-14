@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import click
 import numpy as np
 import torch
@@ -31,11 +33,11 @@ def _check_background_consistency(background_shape, data_shape):
 
 
 def apply_inverse_transfer_function_cli(
-    input_position_dirpath,
-    transfer_function_dirpath,
-    config_filepath,
-    output_position_dirpath,
-):
+    input_position_dirpath: Path,
+    transfer_function_dirpath: Path,
+    config_filepath: Path,
+    output_position_dirpath: Path,
+) -> None:
     echo_headline("Starting reconstruction...")
 
     # Load datasets
@@ -407,11 +409,11 @@ def apply_inverse_transfer_function_cli(
 @config_filepath()
 @output_dirpath()
 def apply_inv_tf(
-    input_position_dirpaths: list[str],
-    transfer_function_dirpath: str,
-    config_filepath: str,
-    output_dirpath: str,
-):
+    input_position_dirpaths: list[Path],
+    transfer_function_dirpath: Path,
+    config_filepath: Path,
+    output_dirpath: Path,
+) -> None:
     """
     Apply an inverse transfer function to a dataset using a configuration file.
 
