@@ -10,7 +10,7 @@ from recOrder.cli.option_eat_all import OptionEatAll
 
 def _validate_and_process_paths(
     ctx: click.Context, opt: click.Option, value: str
-) -> None:
+) -> list[Path]:
     # Sort and validate the input paths
     input_paths = [Path(path) for path in natsorted(value)]
     for path in input_paths:
@@ -22,7 +22,7 @@ def _validate_and_process_paths(
     return input_paths
 
 
-def _str_to_path(ctx: click.Context, opt: click.Option, value: str) -> None:
+def _str_to_path(ctx: click.Context, opt: click.Option, value: str) -> Path:
     return Path(value)
 
 
