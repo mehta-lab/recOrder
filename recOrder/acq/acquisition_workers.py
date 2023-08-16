@@ -20,7 +20,7 @@ from recOrder.acq.acq_functions import (
 )
 from recOrder.cli import settings
 from recOrder.cli.apply_inverse_transfer_function import (
-    apply_inverse_transfer_function_cli,
+    apply_inverse_transfer_function_single_position,
 )
 from recOrder.cli.compute_transfer_function import (
     compute_transfer_function_cli,
@@ -304,7 +304,7 @@ class BFAcquisitionWorker(WorkerBase):
             output_dirpath=transfer_function_path,
         )
 
-        apply_inverse_transfer_function_cli(
+        apply_inverse_transfer_function_single_position(
             input_position_dirpath=input_data_path,
             transfer_function_dirpath=transfer_function_path,
             config_filepath=self.config_path,
@@ -636,7 +636,7 @@ class PolarizationAcquisitionWorker(WorkerBase):
             output_dirpath=transfer_function_path,
         )
 
-        apply_inverse_transfer_function_cli(
+        apply_inverse_transfer_function_single_position(
             input_position_dirpath=input_data_path,
             transfer_function_dirpath=transfer_function_path,
             config_filepath=self.config_path,
