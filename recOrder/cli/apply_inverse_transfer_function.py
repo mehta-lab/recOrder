@@ -160,21 +160,23 @@ def apply_inverse_transfer_function_single_position(
         else:
             cyx_no_sample_data = None
 
-    # Main reconstruction logic
-    # Eight different cases [2, 3] x [biref only, phase only, biref and phase, fluorescence]
+    for time_index in time_indices:
+        # Main reconstruction logic
+        # Eight different cases [2, 3] x [biref only, phase only, biref and phase, fluorescence]
 
-    # [biref only] [2 or 3]
-    if recon_biref and (not recon_phase):
-        echo_headline("Reconstructing birefringence with settings:")
-        echo_settings(settings.birefringence.apply_inverse)
-        echo_headline("Reconstructing birefringence...")
+        # [biref only] [2 or 3]
+        if recon_biref and (not recon_phase):
+            echo_headline("Reconstructing birefringence with settings:")
+            echo_settings(settings.birefringence.apply_inverse)
+            echo_headline("Reconstructing birefringence...")
 
-        # Load transfer function
-        intensity_to_stokes_matrix = torch.tensor(
-            transfer_function_dataset["intensity_to_stokes_matrix"][0, 0, 0]
-        )
+            # Load transfer function
+            intensity_to_stokes_matrix = torch.tensor(
+                transfer_function_dataset["intensity_to_stokes_matrix"][
+                    0, 0, 0
+                ]
+            )
 
-        for time_index in time_indices:
             # Apply
             reconstructed_parameters = (
                 inplane_oriented_thick_pol3d.apply_inverse_transfer_function(
@@ -189,29 +191,30 @@ def apply_inverse_transfer_function_single_position(
             for param_index, parameter in enumerate(reconstructed_parameters):
                 output_array[time_index, param_index] = parameter
 
-    # [phase only]
-    if recon_phase and (not recon_biref):
-        echo_headline("Reconstructing phase with settings:")
-        echo_settings(settings.phase.apply_inverse)
-        echo_headline("Reconstructing phase...")
+        # [phase only]
+        if recon_phase and (not recon_biref):
+            echo_headline("Reconstructing phase with settings:")
+            echo_settings(settings.phase.apply_inverse)
+            echo_headline("Reconstructing phase...")
 
-        # check data shapes
-        if tczyx_data.shape[1] != 1:
-            raise ValueError(
-                "You have requested a phase-only reconstruction, but the input dataset has more than one channel."
-            )
+            # check data shapes
+            if tczyx_data.shape[1] != 1:
+                raise ValueError(
+                    "You have requested a phase-only reconstruction, but the input dataset has more than one channel."
+                )
 
-        # [phase only, 2]
-        if recon_dim == 2:
-            # Load transfer functions
-            absorption_transfer_function = torch.tensor(
-                transfer_function_dataset["absorption_transfer_function"][0, 0]
-            )
-            phase_transfer_function = torch.tensor(
-                transfer_function_dataset["phase_transfer_function"][0, 0]
-            )
+            # [phase only, 2]
+            if recon_dim == 2:
+                # Load transfer functions
+                absorption_transfer_function = torch.tensor(
+                    transfer_function_dataset["absorption_transfer_function"][
+                        0, 0
+                    ]
+                )
+                phase_transfer_function = torch.tensor(
+                    transfer_function_dataset["phase_transfer_function"][0, 0]
+                )
 
-            for time_index in time_indices:
                 # Apply
                 (
                     _,
@@ -226,22 +229,21 @@ def apply_inverse_transfer_function_single_position(
                 # Save
                 output_array[time_index, -1, 0] = yx_phase
 
-        # [phase only, 3]
-        elif recon_dim == 3:
-            # Load transfer functions
-            real_potential_transfer_function = torch.tensor(
-                transfer_function_dataset["real_potential_transfer_function"][
-                    0, 0
-                ]
-            )
-            imaginary_potential_transfer_function = torch.tensor(
-                transfer_function_dataset[
-                    "imaginary_potential_transfer_function"
-                ][0, 0]
-            )
+            # [phase only, 3]
+            elif recon_dim == 3:
+                # Load transfer functions
+                real_potential_transfer_function = torch.tensor(
+                    transfer_function_dataset[
+                        "real_potential_transfer_function"
+                    ][0, 0]
+                )
+                imaginary_potential_transfer_function = torch.tensor(
+                    transfer_function_dataset[
+                        "imaginary_potential_transfer_function"
+                    ][0, 0]
+                )
 
-            # Apply
-            for time_index in time_indices:
+                # Apply
                 zyx_phase = phase_thick_3d.apply_inverse_transfer_function(
                     tczyx_data[time_index, 0],
                     real_potential_transfer_function,
@@ -254,30 +256,33 @@ def apply_inverse_transfer_function_single_position(
                 # Save
                 output_array[time_index, -1] = zyx_phase
 
-    # [biref and phase]
-    if recon_biref and recon_phase:
-        echo_headline("Reconstructing phase with settings:")
-        echo_settings(settings.phase.apply_inverse)
-        echo_headline("Reconstructing birefringence with settings:")
-        echo_settings(settings.birefringence.apply_inverse)
-        echo_headline("Reconstructing...")
+        # [biref and phase]
+        if recon_biref and recon_phase:
+            echo_headline("Reconstructing phase with settings:")
+            echo_settings(settings.phase.apply_inverse)
+            echo_headline("Reconstructing birefringence with settings:")
+            echo_settings(settings.birefringence.apply_inverse)
+            echo_headline("Reconstructing...")
 
-        # Load birefringence transfer function
-        intensity_to_stokes_matrix = torch.tensor(
-            transfer_function_dataset["intensity_to_stokes_matrix"][0, 0, 0]
-        )
-
-        # [biref and phase, 2]
-        if recon_dim == 2:
-            # Load phase transfer functions
-            absorption_transfer_function = torch.tensor(
-                transfer_function_dataset["absorption_transfer_function"][0, 0]
-            )
-            phase_transfer_function = torch.tensor(
-                transfer_function_dataset["phase_transfer_function"][0, 0]
+            # Load birefringence transfer function
+            intensity_to_stokes_matrix = torch.tensor(
+                transfer_function_dataset["intensity_to_stokes_matrix"][
+                    0, 0, 0
+                ]
             )
 
-            for time_index in time_indices:
+            # [biref and phase, 2]
+            if recon_dim == 2:
+                # Load phase transfer functions
+                absorption_transfer_function = torch.tensor(
+                    transfer_function_dataset["absorption_transfer_function"][
+                        0, 0
+                    ]
+                )
+                phase_transfer_function = torch.tensor(
+                    transfer_function_dataset["phase_transfer_function"][0, 0]
+                )
+
                 # Apply
                 reconstructed_parameters_2d = inplane_oriented_thick_pol3d.apply_inverse_transfer_function(
                     tczyx_data[time_index],
@@ -314,28 +319,27 @@ def apply_inverse_transfer_function_single_position(
                     output_array[time_index, param_index] = parameter
                 output_array[time_index, -1, 0] = yx_phase
 
-        # [biref and phase, 3]
-        elif recon_dim == 3:
-            # Load phase transfer functions
-            intensity_to_stokes_matrix = torch.tensor(
-                transfer_function_dataset["intensity_to_stokes_matrix"][
-                    0, 0, 0
-                ]
-            )
-            # Load transfer functions
-            real_potential_transfer_function = torch.tensor(
-                transfer_function_dataset["real_potential_transfer_function"][
-                    0, 0
-                ]
-            )
-            imaginary_potential_transfer_function = torch.tensor(
-                transfer_function_dataset[
-                    "imaginary_potential_transfer_function"
-                ][0, 0]
-            )
+            # [biref and phase, 3]
+            elif recon_dim == 3:
+                # Load phase transfer functions
+                intensity_to_stokes_matrix = torch.tensor(
+                    transfer_function_dataset["intensity_to_stokes_matrix"][
+                        0, 0, 0
+                    ]
+                )
+                # Load transfer functions
+                real_potential_transfer_function = torch.tensor(
+                    transfer_function_dataset[
+                        "real_potential_transfer_function"
+                    ][0, 0]
+                )
+                imaginary_potential_transfer_function = torch.tensor(
+                    transfer_function_dataset[
+                        "imaginary_potential_transfer_function"
+                    ][0, 0]
+                )
 
-            # Apply
-            for time_index in time_indices:
+                # Apply
                 reconstructed_parameters_3d = inplane_oriented_thick_pol3d.apply_inverse_transfer_function(
                     tczyx_data[time_index],
                     intensity_to_stokes_matrix,
@@ -362,24 +366,25 @@ def apply_inverse_transfer_function_single_position(
                     output_array[time_index, param_index] = parameter
                 output_array[time_index, -1] = zyx_phase
 
-    # [fluo]
-    if recon_fluo:
-        echo_headline("Reconstructing fluorescence with settings:")
-        echo_settings(settings.fluorescence.apply_inverse)
-        echo_headline("Reconstructing...")
+        # [fluo]
+        if recon_fluo:
+            echo_headline("Reconstructing fluorescence with settings:")
+            echo_settings(settings.fluorescence.apply_inverse)
+            echo_headline("Reconstructing...")
 
-        # [fluo, 2]
-        if recon_dim == 2:
-            raise NotImplementedError
-        # [fluo, 3]
-        elif recon_dim == 3:
-            # Load transfer functions
-            optical_transfer_function = torch.tensor(
-                transfer_function_dataset["optical_transfer_function"][0, 0]
-            )
+            # [fluo, 2]
+            if recon_dim == 2:
+                raise NotImplementedError
+            # [fluo, 3]
+            elif recon_dim == 3:
+                # Load transfer functions
+                optical_transfer_function = torch.tensor(
+                    transfer_function_dataset["optical_transfer_function"][
+                        0, 0
+                    ]
+                )
 
-            # Apply
-            for time_index in time_indices:
+                # Apply
                 zyx_recon = isotropic_fluorescent_thick_3d.apply_inverse_transfer_function(
                     tczyx_data[time_index, 0],
                     optical_transfer_function,
