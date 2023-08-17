@@ -306,8 +306,10 @@ def apply_inverse_transfer_function_single_position(
                     **settings.phase.apply_inverse.dict(),
                 )
 
-                # Save
-                output = torch.stack(reconstructed_parameters_2d + (yx_phase,))
+                output = torch.stack(
+                    reconstructed_parameters_2d
+                    + (torch.unsqueeze(yx_phase, 0),)
+                )  # CZYX
 
             # [biref and phase, 3]
             elif recon_dim == 3:
@@ -382,7 +384,7 @@ def apply_inverse_transfer_function_single_position(
 
         # Pad to CZYX
         while output.ndim != 4:
-            output = torch.unsqueeze(output)
+            output = torch.unsqueeze(output, 0)
 
         # Save
         output_array[time_index] = output
