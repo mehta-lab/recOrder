@@ -157,7 +157,6 @@ def apply_inverse_transfer_function_single_position(
         if recon_biref and (not recon_phase):
             echo_headline("Reconstructing birefringence with settings:")
             echo_settings(settings.birefringence)
-            echo_headline("Reconstructing birefringence...")
             output = apply_inverse_models.birefringence(
                 tczyx_data[time_index],
                 cyx_no_sample_data,
@@ -169,7 +168,6 @@ def apply_inverse_transfer_function_single_position(
         if recon_phase and (not recon_biref):
             echo_headline("Reconstructing phase with settings:")
             echo_settings(settings.phase.apply_inverse)
-            echo_headline("Reconstructing phase...")
             output = apply_inverse_models.phase(
                 tczyx_data[time_index, 0],
                 recon_dim,
@@ -179,11 +177,11 @@ def apply_inverse_transfer_function_single_position(
 
         # [biref and phase]
         if recon_biref and recon_phase:
-            echo_headline("Reconstructing phase with settings:")
-            echo_settings(settings.phase.apply_inverse)
-            echo_headline("Reconstructing birefringence with settings:")
+            echo_headline(
+                "Reconstructing birefringence and phase with settings:"
+            )
             echo_settings(settings.birefringence.apply_inverse)
-            echo_headline("Reconstructing...")
+            echo_settings(settings.phase.apply_inverse)
             output = apply_inverse_models.birefringence_and_phase(
                 tczyx_data[time_index],
                 cyx_no_sample_data,
@@ -197,7 +195,6 @@ def apply_inverse_transfer_function_single_position(
         if recon_fluo:
             echo_headline("Reconstructing fluorescence with settings:")
             echo_settings(settings.fluorescence.apply_inverse)
-            echo_headline("Reconstructing...")
             output = apply_inverse_models.fluorescence(
                 tczyx_data[time_index, 0],
                 recon_dim,
