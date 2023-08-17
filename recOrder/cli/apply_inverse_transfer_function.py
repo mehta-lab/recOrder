@@ -188,7 +188,7 @@ def apply_inverse_transfer_function_single_position(
                 )
             )
             # Save
-            output_array[time_index] = torch.stack(reconstructed_parameters)
+            output = torch.stack(reconstructed_parameters)
 
         # [phase only]
         if recon_phase and (not recon_biref):
@@ -217,16 +217,13 @@ def apply_inverse_transfer_function_single_position(
                 # Apply
                 (
                     _,
-                    yx_phase,
+                    output,
                 ) = isotropic_thin_3d.apply_inverse_transfer_function(
                     tczyx_data[time_index, 0],
                     absorption_transfer_function,
                     phase_transfer_function,
                     **settings.phase.apply_inverse.dict(),
                 )
-
-                # Save
-                output_array[time_index, -1, 0] = yx_phase
 
             # [phase only, 3]
             elif recon_dim == 3:
@@ -243,7 +240,7 @@ def apply_inverse_transfer_function_single_position(
                 )
 
                 # Apply
-                zyx_phase = phase_thick_3d.apply_inverse_transfer_function(
+                output = phase_thick_3d.apply_inverse_transfer_function(
                     tczyx_data[time_index, 0],
                     real_potential_transfer_function,
                     imaginary_potential_transfer_function,
@@ -252,8 +249,6 @@ def apply_inverse_transfer_function_single_position(
                     wavelength_illumination=settings.phase.transfer_function.wavelength_illumination,
                     **settings.phase.apply_inverse.dict(),
                 )
-                # Save
-                output_array[time_index, -1] = zyx_phase
 
         # [biref and phase]
         if recon_biref and recon_phase:
@@ -312,11 +307,7 @@ def apply_inverse_transfer_function_single_position(
                 )
 
                 # Save
-                for param_index, parameter in enumerate(
-                    reconstructed_parameters_2d
-                ):
-                    output_array[time_index, param_index] = parameter
-                output_array[time_index, -1, 0] = yx_phase
+                output = torch.stack(reconstructed_parameters_2d + (yx_phase,))
 
             # [biref and phase, 3]
             elif recon_dim == 3:
@@ -359,7 +350,7 @@ def apply_inverse_transfer_function_single_position(
                     **settings.phase.apply_inverse.dict(),
                 )
                 # Save
-                output_array[time_index] = torch.stack(
+                output = torch.stack(
                     reconstructed_parameters_3d + (zyx_phase,)
                 )
 
@@ -382,15 +373,19 @@ def apply_inverse_transfer_function_single_position(
                 )
 
                 # Apply
-                zyx_recon = isotropic_fluorescent_thick_3d.apply_inverse_transfer_function(
+                output = isotropic_fluorescent_thick_3d.apply_inverse_transfer_function(
                     tczyx_data[time_index, 0],
                     optical_transfer_function,
                     settings.fluorescence.transfer_function.z_padding,
                     **settings.fluorescence.apply_inverse.dict(),
                 )
 
-                # Save
-                output_array[time_index, 0] = zyx_recon
+        # Pad to CZYX
+        while output.ndim != 4:
+            output = torch.unsqueeze(output)
+
+        # Save
+        output_array[time_index] = output
 
     output_dataset.zattrs["settings"] = settings.dict()
 
