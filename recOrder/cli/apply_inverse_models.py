@@ -38,7 +38,7 @@ def birefringence(
 
 
 def phase(
-    zyx_data,
+    czyx_data,
     recon_dim,
     settings_phase,
     transfer_function_dataset,
@@ -58,7 +58,7 @@ def phase(
             _,
             output,
         ) = isotropic_thin_3d.apply_inverse_transfer_function(
-            zyx_data,
+            czyx_data[0],
             absorption_transfer_function,
             phase_transfer_function,
             **settings_phase.apply_inverse.dict(),
@@ -78,7 +78,7 @@ def phase(
 
         # Apply
         output = phase_thick_3d.apply_inverse_transfer_function(
-            zyx_data,
+            czyx_data[0],
             real_potential_transfer_function,
             imaginary_potential_transfer_function,
             z_padding=settings_phase.transfer_function.z_padding,
@@ -86,6 +86,11 @@ def phase(
             wavelength_illumination=settings_phase.transfer_function.wavelength_illumination,
             **settings_phase.apply_inverse.dict(),
         )
+
+    # Pad to CZYX
+    while output.ndim != 4:
+        output = torch.unsqueeze(output, 0)
+
     return output
 
 
@@ -193,7 +198,7 @@ def birefringence_and_phase(
 
 
 def fluorescence(
-    zyx_data, recon_dim, settings_fluorescence, transfer_function_dataset
+    czyx_data, recon_dim, settings_fluorescence, transfer_function_dataset
 ):
     # [fluo, 2]
     if recon_dim == 2:
@@ -208,9 +213,14 @@ def fluorescence(
         # Apply
         output = (
             isotropic_fluorescent_thick_3d.apply_inverse_transfer_function(
-                zyx_data,
+                czyx_data[0],
                 optical_transfer_function,
                 settings_fluorescence.transfer_function.z_padding,
                 **settings_fluorescence.apply_inverse.dict(),
             )
         )
+        # Pad to CZYX
+    while output.ndim != 4:
+        output = torch.unsqueeze(output, 0)
+
+    return output

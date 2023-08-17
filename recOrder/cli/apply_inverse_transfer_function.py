@@ -3,18 +3,25 @@ from pathlib import Path
 import click
 import numpy as np
 import torch
+import torch.multiprocessing as mp
 from iohub import open_ome_zarr
-
+from functools import partial
+import itertools
+import inspect
 from recOrder.cli import apply_inverse_models
 from recOrder.cli.parsing import (
     config_filepath,
     input_position_dirpaths,
     output_dirpath,
     transfer_function_dirpath,
+    processes_option,
 )
 from recOrder.cli.printing import echo_headline, echo_settings
 from recOrder.cli.settings import ReconstructionSettings
-from recOrder.cli.utils import create_empty_hcs_zarr
+from recOrder.cli.utils import (
+    create_empty_hcs_zarr,
+    apply_reconstruction_to_zyx_and_save,
+)
 from recOrder.io import utils
 
 
@@ -77,6 +84,7 @@ def apply_inverse_transfer_function_single_position(
     transfer_function_dirpath: Path,
     config_filepath: Path,
     output_position_dirpath: Path,
+    num_processes,
 ) -> None:
     echo_headline("Starting reconstruction...")
 
@@ -123,20 +131,6 @@ def apply_inverse_transfer_function_single_position(
     recon_fluo = settings.fluorescence is not None
     recon_dim = settings.reconstruction_dimension
 
-    # Open output dataset
-    output_dataset = open_ome_zarr(
-        output_position_dirpath,
-        layout="fov",
-        mode="a",
-    )
-    output_array = output_dataset[0]
-
-    # Load data
-    tczyx_uint16_numpy = input_dataset.data.oindex[:, channel_indices]
-    tczyx_data = torch.tensor(
-        np.int32(tczyx_uint16_numpy), dtype=torch.float32
-    )  # convert to np.int32 (torch doesn't accept np.uint16), then convert to tensor float32
-
     # Load background
     if settings.birefringence is not None:
         biref_inverse_dict = settings.birefringence.apply_inverse.dict()
@@ -152,67 +146,84 @@ def apply_inverse_transfer_function_single_position(
         else:
             cyx_no_sample_data = None
 
-    for time_index in time_indices:
         # [biref only]
         if recon_biref and (not recon_phase):
             echo_headline("Reconstructing birefringence with settings:")
             echo_settings(settings.birefringence)
-            output = apply_inverse_models.birefringence(
-                tczyx_data[time_index],
-                cyx_no_sample_data,
-                recon_dim,
-                biref_inverse_dict,
-                transfer_function_dataset,
-            )
-        # [phase only]
-        if recon_phase and (not recon_biref):
-            echo_headline("Reconstructing phase with settings:")
-            echo_settings(settings.phase.apply_inverse)
-            output = apply_inverse_models.phase(
-                tczyx_data[time_index, 0],
-                recon_dim,
-                settings.phase,
-                transfer_function_dataset,
-            )
 
-        # [biref and phase]
-        if recon_biref and recon_phase:
-            echo_headline(
-                "Reconstructing birefringence and phase with settings:"
-            )
-            echo_settings(settings.birefringence.apply_inverse)
-            echo_settings(settings.phase.apply_inverse)
-            output = apply_inverse_models.birefringence_and_phase(
-                tczyx_data[time_index],
-                cyx_no_sample_data,
-                recon_dim,
-                biref_inverse_dict,
-                settings.phase,
-                transfer_function_dataset,
-            )
+            apply_inverse_model_function = apply_inverse_models.birefringence
+            apply_inverse_args = {
+                "cyx_no_sample_data": cyx_no_sample_data,
+                "recon_dim": recon_dim,
+                "biref_inverse_dict": biref_inverse_dict,
+                "transfer_function_dataset": transfer_function_dataset,
+            }
 
-        # [fluo]
-        if recon_fluo:
-            echo_headline("Reconstructing fluorescence with settings:")
-            echo_settings(settings.fluorescence.apply_inverse)
-            output = apply_inverse_models.fluorescence(
-                tczyx_data[time_index, 0],
-                recon_dim,
-                settings.fluorescence,
-                transfer_function_dataset,
-            )
+        #     # [phase only]
+        #     if recon_phase and (not recon_biref):
+        #         echo_headline("Reconstructing phase with settings:")
+        #         echo_settings(settings.phase.apply_inverse)
+        #         output = apply_inverse_models.phase(
+        #             tczyx_data[time_index, 0],
+        #             recon_dim,
+        #             settings.phase,
+        #             transfer_function_dataset,
+        #         )
 
-        # Pad to CZYX
-        while output.ndim != 4:
-            output = torch.unsqueeze(output, 0)
+        #     # [biref and phase]
+        #     if recon_biref and recon_phase:
+        #         echo_headline(
+        #             "Reconstructing birefringence and phase with settings:"
+        #         )
+        #         echo_settings(settings.birefringence.apply_inverse)
+        #         echo_settings(settings.phase.apply_inverse)
+        #         output = apply_inverse_models.birefringence_and_phase(
+        #             tczyx_data[time_index],
+        #             cyx_no_sample_data,
+        #             recon_dim,
+        #             biref_inverse_dict,
+        #             settings.phase,
+        #             transfer_function_dataset,
+        #         )
 
-        # Save
-        output_array[time_index] = output
+        #     # [fluo]
+        #     if recon_fluo:
+        #         echo_headline("Reconstructing fluorescence with settings:")
+        #         echo_settings(settings.fluorescence.apply_inverse)
+        #         output = apply_inverse_models.fluorescence(
+        #             tczyx_data[time_index, 0],
+        #             recon_dim,
+        #             settings.fluorescence,
+        #             transfer_function_dataset,
+        #         )
 
-    output_dataset.zattrs["settings"] = settings.dict()
+    # Initialize torch module in each worker process
+    torch.set_num_threads(1)
+    torch.set_num_interop_threads(1)
 
-    echo_headline(f"Closing {output_position_dirpath}\n")
-    output_dataset.close()
+    # Loop through (T, C), deskewing and writing as we go
+    click.echo(f"\nStarting multiprocess pool with {num_processes} processes")
+    with mp.Pool(num_processes) as p:
+        p.starmap(
+            partial(
+                apply_reconstruction_to_zyx_and_save,
+                apply_inverse_model_function,
+                input_dataset,
+                output_position_dirpath,
+                channel_indices,
+                **apply_inverse_args,
+            ),
+            itertools.product(time_indices),
+        )
+
+    # Save metadata at position level
+    with open_ome_zarr(
+        output_position_dirpath, layout="fov", mode="a"
+    ) as output_dataset:
+        output_dataset.zattrs["settings"] = settings.dict()
+
+    # echo_headline(f"Closing {output_position_dirpath}\n")
+    # output_dataset.close()
     transfer_function_dataset.close()
     input_dataset.close()
 
@@ -226,6 +237,7 @@ def apply_inverse_transfer_function_cli(
     transfer_function_dirpath: Path,
     config_filepath: Path,
     output_dirpath: Path,
+    num_processes,
 ) -> None:
     output_metadata = get_reconstruction_output_metadata(
         input_position_dirpaths[0], config_filepath
@@ -242,6 +254,7 @@ def apply_inverse_transfer_function_cli(
             transfer_function_dirpath,
             config_filepath,
             output_dirpath / Path(*input_position_dirpath.parts[-3:]),
+            num_processes,
         )
 
 
@@ -250,11 +263,13 @@ def apply_inverse_transfer_function_cli(
 @transfer_function_dirpath()
 @config_filepath()
 @output_dirpath()
+@processes_option(default=mp.cpu_count())
 def apply_inv_tf(
     input_position_dirpaths: list[Path],
     transfer_function_dirpath: Path,
     config_filepath: Path,
     output_dirpath: Path,
+    num_processes,
 ) -> None:
     """
     Apply an inverse transfer function to a dataset using a configuration file.
@@ -271,4 +286,5 @@ def apply_inv_tf(
         transfer_function_dirpath,
         config_filepath,
         output_dirpath,
+        num_processes,
     )

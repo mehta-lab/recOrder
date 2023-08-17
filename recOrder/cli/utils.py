@@ -1,9 +1,13 @@
 from pathlib import Path
 from typing import Tuple
 
-from iohub.ngff import open_ome_zarr
+from iohub.ngff import open_ome_zarr, Position
 from iohub.ngff_meta import TransformationMeta
 from numpy.typing import DTypeLike
+import torch
+from recOrder.cli.settings import ReconstructionSettings
+import click
+import numpy as np
 
 
 def create_empty_hcs_zarr(
@@ -34,3 +38,31 @@ def create_empty_hcs_zarr(
                 dtype=dtype,
                 transform=[TransformationMeta(type="scale", scale=scale)],
             )
+
+
+def apply_reconstruction_to_zyx_and_save(
+    func,
+    position: Position,
+    output_path: Path,
+    channel_indices,
+    t_idx: int = 0,
+    **kwargs,
+) -> None:
+    """Load a zyx array from a Position object, apply a transformation and save the result to file"""
+    click.echo(f"Reconstructing t={t_idx}")
+
+    # Load data
+    tczyx_uint16_numpy = position.data.oindex[:, channel_indices]
+    # convert to np.int32 (torch doesn't accept np.uint16), then convert to tensor float32
+    czyx_data = torch.tensor(
+        np.int32(tczyx_uint16_numpy), dtype=torch.float32
+    )[t_idx]
+
+    # Apply transformation
+    reconstruction_czyx = func(czyx_data, **kwargs)
+
+    # Write to file
+    # for c, recon_zyx in enumerate(reconstruction_zyx):
+    with open_ome_zarr(output_path, mode="r+") as output_dataset:
+        output_dataset[0][t_idx] = reconstruction_czyx
+    click.echo(f"Finished Writing.. t={t_idx}")
