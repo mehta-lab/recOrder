@@ -2,11 +2,11 @@ from pathlib import Path
 from typing import Callable
 
 import click
+import torch.multiprocessing as mp
 from iohub.ngff import Plate, open_ome_zarr
 from natsort import natsorted
 
 from recOrder.cli.option_eat_all import OptionEatAll
-import torch.multiprocessing as mp
 
 
 def _validate_and_process_paths(

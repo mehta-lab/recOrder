@@ -1,3 +1,6 @@
+import inspect
+import itertools
+from functools import partial
 from pathlib import Path
 
 import click
@@ -5,22 +8,20 @@ import numpy as np
 import torch
 import torch.multiprocessing as mp
 from iohub import open_ome_zarr
-from functools import partial
-import itertools
-import inspect
+
 from recOrder.cli import apply_inverse_models
 from recOrder.cli.parsing import (
     config_filepath,
     input_position_dirpaths,
     output_dirpath,
-    transfer_function_dirpath,
     processes_option,
+    transfer_function_dirpath,
 )
 from recOrder.cli.printing import echo_headline, echo_settings
 from recOrder.cli.settings import ReconstructionSettings
 from recOrder.cli.utils import (
-    create_empty_hcs_zarr,
     apply_inverse_to_zyx_and_save,
+    create_empty_hcs_zarr,
 )
 from recOrder.io import utils
 
