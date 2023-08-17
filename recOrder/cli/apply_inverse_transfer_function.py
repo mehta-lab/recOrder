@@ -188,8 +188,7 @@ def apply_inverse_transfer_function_single_position(
                 )
             )
             # Save
-            for param_index, parameter in enumerate(reconstructed_parameters):
-                output_array[time_index, param_index] = parameter
+            output_array[time_index] = torch.stack(reconstructed_parameters)
 
         # [phase only]
         if recon_phase and (not recon_biref):
@@ -360,11 +359,9 @@ def apply_inverse_transfer_function_single_position(
                     **settings.phase.apply_inverse.dict(),
                 )
                 # Save
-                for param_index, parameter in enumerate(
-                    reconstructed_parameters_3d
-                ):
-                    output_array[time_index, param_index] = parameter
-                output_array[time_index, -1] = zyx_phase
+                output_array[time_index] = torch.stack(
+                    reconstructed_parameters_3d + (zyx_phase,)
+                )
 
         # [fluo]
         if recon_fluo:
