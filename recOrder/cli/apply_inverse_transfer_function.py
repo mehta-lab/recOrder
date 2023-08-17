@@ -20,7 +20,7 @@ from recOrder.cli.printing import echo_headline, echo_settings
 from recOrder.cli.settings import ReconstructionSettings
 from recOrder.cli.utils import (
     create_empty_hcs_zarr,
-    apply_reconstruction_to_zyx_and_save,
+    apply_inverse_to_zyx_and_save,
 )
 from recOrder.io import utils
 
@@ -151,6 +151,7 @@ def apply_inverse_transfer_function_single_position(
             echo_headline("Reconstructing birefringence with settings:")
             echo_settings(settings.birefringence)
 
+            # Setup parameters for apply_inverse_to_zyx_and_save
             apply_inverse_model_function = apply_inverse_models.birefringence
             apply_inverse_args = {
                 "cyx_no_sample_data": cyx_no_sample_data,
@@ -159,43 +160,51 @@ def apply_inverse_transfer_function_single_position(
                 "transfer_function_dataset": transfer_function_dataset,
             }
 
-        #     # [phase only]
-        #     if recon_phase and (not recon_biref):
-        #         echo_headline("Reconstructing phase with settings:")
-        #         echo_settings(settings.phase.apply_inverse)
-        #         output = apply_inverse_models.phase(
-        #             tczyx_data[time_index, 0],
-        #             recon_dim,
-        #             settings.phase,
-        #             transfer_function_dataset,
-        #         )
+        # [phase only]
+        if recon_phase and (not recon_biref):
+            echo_headline("Reconstructing phase with settings:")
+            echo_settings(settings.phase.apply_inverse)
 
-        #     # [biref and phase]
-        #     if recon_biref and recon_phase:
-        #         echo_headline(
-        #             "Reconstructing birefringence and phase with settings:"
-        #         )
-        #         echo_settings(settings.birefringence.apply_inverse)
-        #         echo_settings(settings.phase.apply_inverse)
-        #         output = apply_inverse_models.birefringence_and_phase(
-        #             tczyx_data[time_index],
-        #             cyx_no_sample_data,
-        #             recon_dim,
-        #             biref_inverse_dict,
-        #             settings.phase,
-        #             transfer_function_dataset,
-        #         )
+            # Setup parameters for apply_inverse_to_zyx_and_save
+            apply_inverse_model_function = apply_inverse_models.phase
+            apply_inverse_args = {
+                "recon_dim": recon_dim,
+                "settings_phase": settings.phase,
+                "transfer_function_dataset": transfer_function_dataset,
+            }
 
-        #     # [fluo]
-        #     if recon_fluo:
-        #         echo_headline("Reconstructing fluorescence with settings:")
-        #         echo_settings(settings.fluorescence.apply_inverse)
-        #         output = apply_inverse_models.fluorescence(
-        #             tczyx_data[time_index, 0],
-        #             recon_dim,
-        #             settings.fluorescence,
-        #             transfer_function_dataset,
-        #         )
+        # [biref and phase]
+        if recon_biref and recon_phase:
+            echo_headline(
+                "Reconstructing birefringence and phase with settings:"
+            )
+            echo_settings(settings.birefringence.apply_inverse)
+            echo_settings(settings.phase.apply_inverse)
+
+            # Setup parameters for apply_inverse_to_zyx_and_save
+            apply_inverse_model_function = (
+                apply_inverse_models.birefringence_and_phase
+            )
+            apply_inverse_args = {
+                "cyx_no_sample_data": cyx_no_sample_data,
+                "recon_dim": recon_dim,
+                "biref_inverse_dict": biref_inverse_dict,
+                "settings_phase": settings.phase,
+                "transfer_function_dataset": transfer_function_dataset,
+            }
+
+        # [fluo]
+        if recon_fluo:
+            echo_headline("Reconstructing fluorescence with settings:")
+            echo_settings(settings.fluorescence.apply_inverse)
+
+            # Setup parameters for apply_inverse_to_zyx_and_save
+            apply_inverse_model_function = apply_inverse_models.fluorescence
+            apply_inverse_args = {
+                "recon_dim": recon_dim,
+                "settings_fluorescence": settings.fluorescence,
+                "transfer_function_dataset": transfer_function_dataset,
+            }
 
     # Initialize torch module in each worker process
     torch.set_num_threads(1)
@@ -206,7 +215,7 @@ def apply_inverse_transfer_function_single_position(
     with mp.Pool(num_processes) as p:
         p.starmap(
             partial(
-                apply_reconstruction_to_zyx_and_save,
+                apply_inverse_to_zyx_and_save,
                 apply_inverse_model_function,
                 input_dataset,
                 output_position_dirpath,

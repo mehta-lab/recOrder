@@ -40,7 +40,7 @@ def create_empty_hcs_zarr(
             )
 
 
-def apply_reconstruction_to_zyx_and_save(
+def apply_inverse_to_zyx_and_save(
     func,
     position: Position,
     output_path: Path,
