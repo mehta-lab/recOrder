@@ -62,8 +62,6 @@ def get_reconstruction_output_metadata(position_path: Path, config_path: Path):
         output_z_shape = 1
     elif recon_dim == 3:
         output_z_shape = input_dataset.data.shape[2]
-    else:
-        raise ValueError("recon_dims not 2 nor 3. Please double check value")
 
     return {
         "shape": (T, len(channel_names), output_z_shape, Y, X),
