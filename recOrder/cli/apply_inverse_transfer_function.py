@@ -86,7 +86,7 @@ def apply_inverse_transfer_function_single_position(
     output_position_dirpath: Path,
     num_processes,
 ) -> None:
-    echo_headline("Starting reconstruction...")
+    echo_headline("\nStarting reconstruction...")
 
     # Load datasets
     transfer_function_dataset = open_ome_zarr(transfer_function_dirpath)
@@ -204,10 +204,6 @@ def apply_inverse_transfer_function_single_position(
             "transfer_function_dataset": transfer_function_dataset,
         }
 
-    # Initialize torch module in each worker process
-    torch.set_num_threads(1)
-    torch.set_num_interop_threads(1)
-
     # Loop through (T, C), deskewing and writing as we go
     click.echo(f"\nStarting multiprocess pool with {num_processes} processes")
     with mp.Pool(num_processes) as p:
@@ -224,12 +220,10 @@ def apply_inverse_transfer_function_single_position(
         )
 
     # Save metadata at position level
-    with open_ome_zarr(
-        output_position_dirpath, layout="fov", mode="a"
-    ) as output_dataset:
+    with open_ome_zarr(output_position_dirpath, mode="r+") as output_dataset:
         output_dataset.zattrs["settings"] = settings.dict()
 
-    # echo_headline(f"Closing {output_position_dirpath}\n")
+    echo_headline(f"Closing {output_position_dirpath}\n")
     # output_dataset.close()
     transfer_function_dataset.close()
     input_dataset.close()
@@ -254,6 +248,9 @@ def apply_inverse_transfer_function_cli(
         position_keys=[p.parts[-3:] for p in input_position_dirpaths],
         **output_metadata,
     )
+    # Initialize torch num of threads and interoeration oeprations
+    torch.set_num_threads(1)
+    torch.set_num_interop_threads(1)
 
     for input_position_dirpath in input_position_dirpaths:
         apply_inverse_transfer_function_single_position(
