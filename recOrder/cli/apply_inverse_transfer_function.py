@@ -29,7 +29,7 @@ def _check_background_consistency(background_shape, data_shape):
 def get_reconstruction_output_metadata(position_path: Path, config_path: Path):
     # Load the first position to infer dataset information
     input_dataset = open_ome_zarr(str(position_path), mode="r")
-    T, C, Z, Y, X = input_dataset.data.shape
+    T, _, Z, Y, X = input_dataset.data.shape
 
     settings = utils.yaml_to_model(config_path, ReconstructionSettings)
 
@@ -139,7 +139,7 @@ def apply_inverse_transfer_function_single_position(
         np.int32(tczyx_uint16_numpy), dtype=torch.float32
     )  # convert to np.int32 (torch doesn't accept np.uint16), then convert to tensor float32
 
-    # Prepare background dataset
+    # Load background
     if settings.birefringence is not None:
         biref_inverse_dict = settings.birefringence.apply_inverse.dict()
 
@@ -155,10 +155,7 @@ def apply_inverse_transfer_function_single_position(
             cyx_no_sample_data = None
 
     for time_index in time_indices:
-        # Main reconstruction logic
-        # Eight different cases [2, 3] x [biref only, phase only, biref and phase, fluorescence]
-
-        # [biref only] [2 or 3]
+        # [biref only]
         if recon_biref and (not recon_phase):
             echo_headline("Reconstructing birefringence with settings:")
             echo_settings(settings.birefringence)

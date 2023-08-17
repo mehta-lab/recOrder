@@ -1,3 +1,7 @@
+"""
+This module converts recOrder's reconstructions into waveorder calls
+"""
+
 import torch
 from waveorder.models import (
     inplane_oriented_thick_pol3d,
