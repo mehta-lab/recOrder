@@ -1172,30 +1172,28 @@ class MainWidget(QWidget):
 
     def handle_layers_updated(self, event: Event):
         layers: LayerList = event.source
-        # starting with the most recently added layers
-        for layer in reversed(layers):
-            # find a layer name that starts with "Orientation"
-            if layer.name.startswith("Orientation"):
-                orientation_name = layer.name
-                suffix = orientation_name.replace("Orientation", "")
-                retardance_name = "Retardance" + suffix
-                overlay_name = "BirefringenceOverlay" + suffix
-                # if the matching retardance layer is present, generate an overlay
-                if retardance_name in layers:
-                    logging.info(
-                        "Detected updated birefringence layers: "
-                        f"'{retardance_name}', '{orientation_name}'"
-                    )
-                    self._draw_bire_overlay(
-                        retardance_name, orientation_name, overlay_name
-                    )
-
-                # always display layers that start with "Orientation" in hsv
+        # if the first channel starts with "Orientation"
+        if layers[-1].name.startswith("Orientation"):
+            orientation_name = layers[-1].name
+            suffix = orientation_name.replace("Orientation", "")
+            retardance_name = "Retardance" + suffix
+            overlay_name = "BirefringenceOverlay" + suffix
+            # if the matching retardance layer is present, generate an overlay
+            if retardance_name in layers:
                 logging.info(
-                    "Detected orientation layer in updated layer list."
-                    "Setting its colormap to HSV."
+                    "Detected updated birefringence layers: "
+                    f"'{retardance_name}', '{orientation_name}'"
                 )
-                self.viewer.layers[orientation_name].colormap = "hsv"
+                self._draw_bire_overlay(
+                    retardance_name, orientation_name, overlay_name
+                )
+
+            # always display layers that start with "Orientation" in hsv
+            logging.info(
+                "Detected orientation layer in updated layer list."
+                "Setting its colormap to HSV."
+            )
+            self.viewer.layers[orientation_name].colormap = "hsv"
 
     def _draw_bire_overlay(
         self, retardance_name: str, orientation_name: str, overlay_name: str
