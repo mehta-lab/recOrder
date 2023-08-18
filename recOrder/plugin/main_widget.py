@@ -1172,30 +1172,29 @@ class MainWidget(QWidget):
 
     def handle_layers_updated(self, event: Event):
         layers: LayerList = event.source
-        latest_layer_name = layers[-1].name
-        channels = ["Retardance", "Orientation"]
-        for ch in channels:
-            if latest_layer_name.startswith(ch):
-                suffix = latest_layer_name.replace(ch, "")
-                other_name = channels[1 - channels.index(ch)] + suffix
+        for layer in layers:
+            if layer.name.startswith("Orientation"):
+                orientation_name = layer.name
+                suffix = orientation_name.replace("Orientation", "")
+                retardance_name = "Retardance" + suffix
                 overlay_name = "BirefringenceOverlay" + suffix
-                if other_name in layers and overlay_name not in layers:
+                if retardance_name in layers:
                     logging.info(
                         "Detected updated birefringence layers: "
-                        f"'{latest_layer_name}', '{other_name}'"
+                        f"'{retardance_name}', '{orientation_name}'"
                     )
                     self._draw_bire_overlay(
-                        [ch + suffix, other_name], overlay_name
+                        retardance_name, orientation_name, overlay_name
                     )
-        if latest_layer_name.startswith(channels[1]):
-            logging.info(
-                "Detected orientation layer in updated layer list."
-                "Setting its colormap to HSV."
-            )
-            self.viewer.layers[latest_layer_name].colormap = "hsv"
+
+                logging.info(
+                    "Detected orientation layer in updated layer list."
+                    "Setting its colormap to HSV."
+                )
+                self.viewer.layers[orientation_name].colormap = "hsv"
 
     def _draw_bire_overlay(
-        self, source_names: list[str, str], overlay_name: str
+        self, retardance_name: str, orientation_name: str, overlay_name: str
     ):
         def _layer_data(name: str):
             return self.viewer.layers[name].data
@@ -1203,7 +1202,6 @@ class MainWidget(QWidget):
         def _draw(overlay):
             self._add_or_update_image_layer(overlay, overlay_name, cmap="rgb")
 
-        orientation_name, retardance_name = sorted(source_names)
         retardance = _layer_data(retardance_name)
         orientation = _layer_data(orientation_name)
         worker = create_worker(
