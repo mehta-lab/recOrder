@@ -355,7 +355,6 @@ class BFAcquisitionWorker(WorkerBase):
                         self.latest_out_path,
                         data_type="ometiff",
                         grid_layout=False,
-                        label_positions=False,
                     )
                     converter.run()
                     shutil.rmtree(os.path.join(dir_, prefix))
@@ -657,7 +656,6 @@ class PolarizationAcquisitionWorker(WorkerBase):
                         self.latest_out_path,
                         data_type="ometiff",
                         grid_layout=False,
-                        label_positions=False,
                     )
                     converter.run()
                     shutil.rmtree(os.path.join(dir_, prefix))
