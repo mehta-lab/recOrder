@@ -100,10 +100,10 @@ def test_reconstruct(tmp_input_path_zarr):
 
 def test_cli_apply_inv_tf_mock(tmp_input_path_zarr):
     tmp_input_zarr, tmp_config_yml = tmp_input_path_zarr
-    tmp_config_yml = tmp_config_yml.with_name("0.yml")
-    tf_path = tmp_input_zarr.with_name("tf_0.zarr")
-    input_path = tmp_input_zarr / "0" / "0" / "0"
-    result_path = tmp_input_zarr.with_name("result.zarr")
+    tmp_config_yml = tmp_config_yml.with_name("0.yml").resolve()
+    tf_path = tmp_input_zarr.with_name("tf_0.zarr").resolve()
+    input_path = (tmp_input_zarr / "0" / "0" / "0").resolve()
+    result_path = tmp_input_zarr.with_name("result.zarr").resolve()
 
     assert tmp_config_yml.exists()
     assert tf_path.exists()
@@ -133,10 +133,10 @@ def test_cli_apply_inv_tf_mock(tmp_input_path_zarr):
             catch_exceptions=False,
         )
         mock.assert_called_with(
-            [input_path.resolve()],
-            Path(tf_path).resolve(),
-            Path(tmp_config_yml).resolve(),
-            Path(result_path).resolve(),
+            [input_path],
+            Path(tf_path),
+            Path(tmp_config_yml),
+            Path(result_path),
             1,
         )
         assert result_inv.exit_code == 0
@@ -156,7 +156,7 @@ def test_cli_apply_inv_tf_output(tmp_input_path_zarr, capsys):
         if (birefringence_option is None) and (phase_option is None):
             continue
 
-        result_path = tmp_input_zarr.with_name(f"result{i}.zarr")
+        result_path = tmp_input_zarr.with_name(f"result{i}.zarr").resolve()
 
         tf_path = tmp_input_zarr.with_name(f"tf_{i}.zarr")
         tmp_config_yml = tmp_config_yml.with_name(f"{i}.yml")

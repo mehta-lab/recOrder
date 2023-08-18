@@ -253,15 +253,11 @@ def apply_inverse_transfer_function_cli(
     output_metadata = get_reconstruction_output_metadata(
         input_position_dirpaths[0], config_filepath
     )
-    print(f"output meta {output_metadata}")
     create_empty_hcs_zarr(
         store_path=output_dirpath,
         position_keys=[p.parts[-3:] for p in input_position_dirpaths],
         **output_metadata,
     )
-    with open_ome_zarr(output_dirpath) as output:
-        shape = output["0/0/0/0"].shape
-        print(f"zarr shape {shape}")
     # Initialize torch num of threads and interoeration operations
     if num_processes > 1:
         torch.set_num_threads(1)
