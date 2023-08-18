@@ -1172,12 +1172,15 @@ class MainWidget(QWidget):
 
     def handle_layers_updated(self, event: Event):
         layers: LayerList = event.source
-        for layer in layers:
+        # starting with the most recently added layers
+        for layer in reversed(layers):
+            # find a layer name that starts with "Orientation"
             if layer.name.startswith("Orientation"):
                 orientation_name = layer.name
                 suffix = orientation_name.replace("Orientation", "")
                 retardance_name = "Retardance" + suffix
                 overlay_name = "BirefringenceOverlay" + suffix
+                # if the matching retardance layer is present, generate an overlay
                 if retardance_name in layers:
                     logging.info(
                         "Detected updated birefringence layers: "
@@ -1187,6 +1190,7 @@ class MainWidget(QWidget):
                         retardance_name, orientation_name, overlay_name
                     )
 
+                # always display layers that start with "Orientation" in hsv
                 logging.info(
                     "Detected orientation layer in updated layer list."
                     "Setting its colormap to HSV."
