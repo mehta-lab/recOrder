@@ -1,4 +1,3 @@
-import inspect
 import itertools
 from functools import partial
 from pathlib import Path
@@ -205,20 +204,30 @@ def apply_inverse_transfer_function_single_position(
             "transfer_function_dataset": transfer_function_dataset,
         }
 
-    # Loop through (T, C), deskewing and writing as we go
-    click.echo(f"\nStarting multiprocess pool with {num_processes} processes")
-    with mp.Pool(num_processes) as p:
-        p.starmap(
-            partial(
-                apply_inverse_to_zyx_and_save,
-                apply_inverse_model_function,
-                input_dataset,
-                output_position_dirpath,
-                channel_indices,
-                **apply_inverse_args,
-            ),
-            itertools.product(time_indices),
+    # Make the partial function for apply inverse
+    partial_apply_inverse_to_zyx_and_save = partial(
+        apply_inverse_to_zyx_and_save,
+        apply_inverse_model_function,
+        input_dataset,
+        output_position_dirpath,
+        channel_indices,
+        **apply_inverse_args,
+    )
+
+    # Multiprocessing Logic
+    if num_processes > 1:
+        # Loop through (T, C), deskewing and writing as we go
+        click.echo(
+            f"\nStarting multiprocess pool with {num_processes} processes"
         )
+        with mp.Pool(num_processes) as p:
+            p.starmap(
+                partial_apply_inverse_to_zyx_and_save,
+                itertools.product(time_indices),
+            )
+    else:
+        for t_idx in time_indices:
+            partial_apply_inverse_to_zyx_and_save(t_idx)
 
     # Save metadata at position level
     with open_ome_zarr(output_position_dirpath, mode="r+") as output_dataset:
@@ -239,19 +248,24 @@ def apply_inverse_transfer_function_cli(
     transfer_function_dirpath: Path,
     config_filepath: Path,
     output_dirpath: Path,
-    num_processes,
+    num_processes: int = 1,
 ) -> None:
     output_metadata = get_reconstruction_output_metadata(
         input_position_dirpaths[0], config_filepath
     )
+    print(f"output meta {output_metadata}")
     create_empty_hcs_zarr(
         store_path=output_dirpath,
         position_keys=[p.parts[-3:] for p in input_position_dirpaths],
         **output_metadata,
     )
-    # Initialize torch num of threads and interoeration oeprations
-    torch.set_num_threads(1)
-    torch.set_num_interop_threads(1)
+    with open_ome_zarr(output_dirpath) as output:
+        shape = output["0/0/0/0"].shape
+        print(f"zarr shape {shape}")
+    # Initialize torch num of threads and interoeration operations
+    if num_processes > 1:
+        torch.set_num_threads(1)
+        torch.set_num_interop_threads(1)
 
     for input_position_dirpath in input_position_dirpaths:
         apply_inverse_transfer_function_single_position(
@@ -268,7 +282,7 @@ def apply_inverse_transfer_function_cli(
 @transfer_function_dirpath()
 @config_filepath()
 @output_dirpath()
-@processes_option(default=mp.cpu_count())
+@processes_option(default=1)
 def apply_inv_tf(
     input_position_dirpaths: list[Path],
     transfer_function_dirpath: Path,
