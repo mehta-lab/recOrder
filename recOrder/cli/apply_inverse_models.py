@@ -13,10 +13,12 @@ from waveorder.models import (
 
 def radians_to_nanometers(retardance_rad, wavelength_illumination_um):
     """
-    waveorder returns retardance in radians, while recorder displays and save retardance in nanometers.
-    This function uses the illumination wavelength in um to convert radians to nanometers.
+    waveorder returns retardance in radians, while recorder displays and saves
+    retardance in nanometers. This function converts from radians to nanometers
+    using the illumination wavelength (which is internally handled in um
+    in recOrder).
     """
-    return 1000 * retardance_rad * wavelength_illumination_um / (2 * np.pi)
+    return retardance_rad * wavelength_illumination_um * 1e3 / (2 * np.pi)
 
 
 def birefringence(
