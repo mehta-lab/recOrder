@@ -22,6 +22,7 @@ def radians_to_nanometers(retardance_rad, wavelength_illumination_um):
 def birefringence(
     czyx_data,
     cyx_no_sample_data,
+    wavelength_illumination,
     recon_dim,
     biref_inverse_dict,
     transfer_function_dataset,
@@ -30,9 +31,6 @@ def birefringence(
     intensity_to_stokes_matrix = torch.tensor(
         transfer_function_dataset["intensity_to_stokes_matrix"][0, 0, 0]
     )
-
-    # Pop wavelength_illumination (um) from biref_inverse_dict
-    wavelength_illumination = biref_inverse_dict.pop("wavelength_illumination")
 
     # Apply reconstruction
     # (retardance, orientation, transmittance, depolarization)
@@ -114,6 +112,7 @@ def phase(
 def birefringence_and_phase(
     czyx_data,
     cyx_no_sample_data,
+    wavelength_illumination,
     recon_dim,
     biref_inverse_dict,
     settings_phase,
@@ -123,9 +122,6 @@ def birefringence_and_phase(
     intensity_to_stokes_matrix = torch.tensor(
         transfer_function_dataset["intensity_to_stokes_matrix"][0, 0, 0]
     )
-
-    # Pop wavelength_illumination (um) from biref_inverse_dict
-    wavelength_illumination = biref_inverse_dict.pop("wavelength_illumination")
 
     # [biref and phase, 2]
     if recon_dim == 2:
