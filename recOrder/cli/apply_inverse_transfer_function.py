@@ -216,7 +216,7 @@ def apply_inverse_transfer_function_single_position(
 
     # Multiprocessing Logic
     if num_processes > 1:
-        # Loop through (T, C), deskewing and writing as we go
+        # Loop through T, processing and writing as we go
         click.echo(
             f"\nStarting multiprocess pool with {num_processes} processes"
         )
