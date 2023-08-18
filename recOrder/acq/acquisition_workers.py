@@ -305,7 +305,7 @@ class BFAcquisitionWorker(WorkerBase):
         )
 
         apply_inverse_transfer_function_cli(
-            input_position_dirpats=[input_data_path],
+            input_position_dirpaths=[input_data_path],
             transfer_function_dirpath=transfer_function_path,
             config_filepath=self.config_path,
             output_dirpath=reconstruction_path,
