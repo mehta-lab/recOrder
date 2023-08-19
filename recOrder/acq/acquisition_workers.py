@@ -354,6 +354,7 @@ class BFAcquisitionWorker(WorkerBase):
                         os.path.join(dir_, prefix),
                         self.latest_out_path,
                         data_type="ometiff",
+                        scale_voxels=False,
                         grid_layout=False,
                     )
                     converter.run()
