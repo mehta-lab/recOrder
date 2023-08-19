@@ -47,3 +47,5 @@ working_directory/                      # commonly YYYY_MM_DD_exp_name, but not 
     ├── reconstruction_settings.yml
     └── transfer_function.zarr
 ```
+
+Each `.zarr` contains an [OME-NGFF v0.4](https://ngff.openmicroscopy.org/0.4/) in HCS format with a single field of view. 
