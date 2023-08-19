@@ -26,8 +26,3 @@
     ```
 
 5. To acquire data via `Micromanager`, follow the [microscope installation guide](./microscope-installation-guide.md).
-
-## GPU acceleration (Optional)
-
-`recOrder` supports NVIDIA GPU computation with the `cupy` package. Follow [these instructions](https://github.com/cupy/cupy) to install `cupy` and check its installation with ```import cupy```.
-To enable gpu processing, set ```use_gpu: True``` in the config files.
