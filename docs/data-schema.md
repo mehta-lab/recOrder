@@ -8,41 +8,37 @@ Currently, we structure raw data in the following hierarchy:
 
 ```text
 working_directory/                      # commonly YYYY_MM_DD_exp_name, but not enforced
-├── calibration_metadata.txt        
+├── calibration_metadata_0.txt        
 │   ...
-├── calibration_metadata<i>.txt         # i calibration repeats
+├── calibration_metadata_<i>.txt         # i calibration repeats
 │
-├── BG
+├── bg_0
 │   ...
-├── BG_<j>                              # j background repeats
+├── bg_<j>                              # j background repeats
 │   ├── background.zarr             
-│   ├── calibration_metadata.txt        # duplicated for each BG
-│   ├── gui_state.yml               
+│   ├── calibration_metadata.txt        # copied into each bg folder 
 │   ├── reconstruction.zarr
 │   ├── reconstruction_settings.yml     # for use with `recorder reconstruct`
 │   └── transfer_function.zarr          # for use with `recorder apply-inv-tf`
 │
-├── <acq_name_0>_recOrderPluginSnap_0   
-├── <acq_name_0>_recOrderPluginSnap_1 
-│   ├── <acq_name_0>_RawPolDataSnap.zarr
-│   ├── gui_state.yml
+├── <acq_name_0>_snap_0   
+├── <acq_name_0>_snap_1 
+│   ├── raw_data.zarr
 │   ├── reconstruction.zarr
 │   ├── reconstruction_settings.yml
 │   └── transfer_function.zarr
 │   ...
-├── <acq_name_0>_recOrderPluginSnap_<k> # k repeats with the first acquisition name
-│   ├── <acq_name_0>_RawBFDataSnap.zarr # note mixed Pol and BF data with same acquisition name
-│   ├── gui_state.yml
+├── <acq_name_0>_snap_<k>               # k repeats with the first acquisition name
+│   ├── raw_data.zarr          
 │   ├── reconstruction.zarr
 │   ├── reconstruction_settings.yml
 │   └── transfer_function.zarr
 │   ...
 │
-├── <acq_name_l>_recOrderPluginSnap_0   # l different acquisition names
+├── <acq_name_l>_snap_0                 # l different acquisition names
 │   ...
-├── <acq_name_l>_recOrderPluginSnap_<m> $ m repeats for this acquisition name
-    ├── <acq_name_l>_RawBFDataSnap.zarr 
-    ├── gui_state.yml
+├── <acq_name_l>_snap_<m>               # m repeats for this acquisition name
+    ├── raw_data.zarr 
     ├── reconstruction.zarr
     ├── reconstruction_settings.yml
     └── transfer_function.zarr
