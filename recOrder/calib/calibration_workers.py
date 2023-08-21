@@ -363,7 +363,7 @@ class BackgroundCaptureWorker(
             self.birefringence = dataset["0/0/0/0"][0, :, 0]
 
         # Save metadata file and emit imgs
-        meta_file = bg_path / "calibration_metadata.txt"
+        meta_file = bg_path / "polarization_calibration.txt"
         self._write_meta_file(meta_file)
 
         # Update last calibration file

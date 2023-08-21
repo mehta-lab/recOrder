@@ -1975,7 +1975,7 @@ class MainWidget(QWidget):
         self.calib.swing = self.swing
         self.calib.wavelength = self.wavelength
         self.calib.meta_file = os.path.join(
-            self.directory, "calibration_metadata.txt"
+            self.directory, "polarization_calibration.txt"
         )
 
         # FIXME: for 1.0.0 we'd like to avoid MM call in the main thread
