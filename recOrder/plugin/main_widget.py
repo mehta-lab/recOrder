@@ -1171,6 +1171,15 @@ class MainWidget(QWidget):
         )
 
     def handle_layers_updated(self, event: Event):
+        """Whenever a layer is inserted or moved, we check if the top layer
+        starts with 'Orientation*'. If it is, we search for a layer that starts
+        with 'Retardance*' and has the same suffix as 'Orientation*', then use the
+        'Orientation*'-'Retardance*' pair to generate a 'BirefringenceOverlay*'
+        layer.
+
+        We also color the 'Orientation*' layer in an HSV colormap.
+        """
+
         layers: LayerList = event.source
         # if the first channel starts with "Orientation"
         if layers[-1].name.startswith("Orientation"):
