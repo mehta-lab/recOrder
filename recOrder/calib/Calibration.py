@@ -946,8 +946,8 @@ class QLIPP_Calibration:
                 }
             )
 
-        if not self.meta_file.endswith(".txt"):
-            self.meta_file += ".txt"
+        # if not self.meta_file.endswith(".txt"):
+        #    self.meta_file += ".txt"
 
         with open(self.meta_file, "w") as metafile:
             json.dump(metadata, metafile, indent=1)

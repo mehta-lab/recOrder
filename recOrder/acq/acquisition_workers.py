@@ -45,13 +45,13 @@ def _generate_reconstruction_config_from_gui(
             background_path = ""
             remove_estimated_background = False
         elif calib_window.bg_option == "Measured":
-            background_path = calib_window.acq_bg_directory
+            background_path = str(calib_window.acq_bg_directory)
             remove_estimated_background = False
         elif calib_window.bg_option == "Estimated":
             background_path = ""
             remove_estimated_background = True
         elif calib_window.bg_option == "Measured + Estimated":
-            background_path = calib_window.acq_bg_directory
+            background_path = str(calib_window.acq_bg_directory)
             remove_estimated_background = True
 
         birefringence_transfer_function_settings = (
@@ -167,7 +167,12 @@ class BFAcquisitionWorker(WorkerBase):
                 "save directory is empty, please specify a directory in the plugin"
             )
 
-        self.snap_dir = Path(save_dir) / "snap"
+        if self.calib_window.save_name is None:
+            self.snap_dir = Path(save_dir) / "snap"
+        else:
+            self.snap_dir = Path(save_dir) / (
+                self.calib_window.save_name + "_snap"
+            )
         self.snap_dir = add_index_to_path(self.snap_dir)
         self.snap_dir.mkdir()
 
@@ -211,9 +216,8 @@ class BFAcquisitionWorker(WorkerBase):
                     break
 
         # Create and validate reconstruction settings
-        self.config_path = os.path.join(
-            self.snap_dir, "reconstruction_settings.yml"
-        )
+        self.config_path = self.snap_dir / "reconstruction_settings.yml"
+
         _generate_reconstruction_config_from_gui(
             self.config_path,
             "phase",
@@ -232,7 +236,7 @@ class BFAcquisitionWorker(WorkerBase):
             zstart=self.calib_window.z_start,
             zend=self.calib_window.z_end,
             zstep=self.calib_window.z_step,
-            save_dir=self.snap_dir,
+            save_dir=str(self.snap_dir),
             prefix=self.prefix,
             keep_shutter_open_slices=True,
         )
@@ -323,25 +327,15 @@ class BFAcquisitionWorker(WorkerBase):
                 # Try to delete the data, sometime it isn't cleaned up quickly enough and will
                 # return an error.  In this case, catch the error and then try to close again (seems to work).
                 try:
-                    save_prefix = (
-                        self.calib_window.save_name
-                        if self.calib_window.save_name
-                        else None
-                    )
-                    name = (
-                        f"RawBFDataSnap.zarr"
-                        if not save_prefix
-                        else f"{save_prefix}_RawBFDataSnap.zarr"
-                    )
-                    self.latest_out_path = os.path.join(self.snap_dir, name)
+                    self.latest_out_path = self.snap_dir / "raw_data.zarr"
                     converter = TIFFConverter(
-                        os.path.join(dir_, prefix),
-                        self.latest_out_path,
+                        str(Path(dir_) / prefix),
+                        str(self.latest_out_path),
                         data_type="ometiff",
                         grid_layout=False,
                     )
                     converter.run()
-                    shutil.rmtree(os.path.join(dir_, prefix))
+                    shutil.rmtree(Path(dir_) / prefix)
                 except PermissionError as ex:
                     dp.close()
                 break
@@ -389,7 +383,12 @@ class PolarizationAcquisitionWorker(WorkerBase):
                 "save directory is empty, please specify a directory in the plugin"
             )
 
-        self.snap_dir = Path(save_dir) / "snap"
+        if self.calib_window.save_name is None:
+            self.snap_dir = Path(save_dir) / "snap"
+        else:
+            self.snap_dir = Path(save_dir) / (
+                self.calib_window.save_name + "_snap"
+            )
         self.snap_dir = add_index_to_path(self.snap_dir)
         self.snap_dir.mkdir()
 
@@ -423,9 +422,7 @@ class PolarizationAcquisitionWorker(WorkerBase):
         self._check_abort()
 
         # Create and validate reconstruction settings
-        self.config_path = os.path.join(
-            self.snap_dir, "reconstruction_settings.yml"
-        )
+        self.config_path = self.snap_dir / "reconstruction_settings.yml"
         _generate_reconstruction_config_from_gui(
             self.config_path,
             self.mode,
@@ -442,7 +439,7 @@ class PolarizationAcquisitionWorker(WorkerBase):
                 self.calib_window.mm,
                 channel_group=self.channel_group,
                 channels=channels,
-                save_dir=self.snap_dir,
+                save_dir=str(self.snap_dir),
                 prefix=self.prefix,
                 keep_shutter_open_channels=True,
             )
@@ -462,7 +459,7 @@ class PolarizationAcquisitionWorker(WorkerBase):
                 zstart=self.calib_window.z_start,
                 zend=self.calib_window.z_end,
                 zstep=self.calib_window.z_step,
-                save_dir=self.snap_dir,
+                save_dir=str(self.snap_dir),
                 prefix=self.prefix,
                 keep_shutter_open_channels=True,
                 keep_shutter_open_slices=True,
@@ -608,25 +605,15 @@ class PolarizationAcquisitionWorker(WorkerBase):
                 # Try to delete the data, sometime it isn't cleaned up quickly enough and will
                 # return an error.  In this case, catch the error and then try to close again (seems to work).
                 try:
-                    save_prefix = (
-                        self.calib_window.save_name
-                        if self.calib_window.save_name
-                        else None
-                    )
-                    name = (
-                        f"RawPolDataSnap.zarr"
-                        if not save_prefix
-                        else f"{save_prefix}_RawPolDataSnap.zarr"
-                    )
-                    self.latest_out_path = os.path.join(self.snap_dir, name)
+                    self.latest_out_path = self.snap_dir / "raw_data.zarr"
                     converter = TIFFConverter(
-                        os.path.join(dir_, prefix),
-                        self.latest_out_path,
+                        str(Path(dir_) / prefix),
+                        str(self.latest_out_path),
                         data_type="ometiff",
                         grid_layout=False,
                     )
                     converter.run()
-                    shutil.rmtree(os.path.join(dir_, prefix))
+                    shutil.rmtree(Path(dir_) / prefix)
                 except PermissionError as ex:
                     dp.close()
                 break

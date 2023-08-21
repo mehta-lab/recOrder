@@ -45,7 +45,7 @@ class CalibrationSignals(WorkerBaseSignals):
     intensity_update = Signal(object)
     calib_assessment = Signal(str)
     calib_assessment_msg = Signal(str)
-    calib_file_emit = Signal(str)
+    calib_file_emit = Signal(Path)
     plot_sequence_emit = Signal(str)
     lc_states = Signal(tuple)
     aborted = Signal()
@@ -58,7 +58,7 @@ class BackgroundSignals(WorkerBaseSignals):
 
     bg_image_emitter = Signal(object)
     bire_image_emitter = Signal(object)
-    bg_path_update_emitter = Signal(str)
+    bg_path_update_emitter = Signal(Path)
     aborted = Signal()
 
 
