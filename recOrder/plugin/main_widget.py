@@ -309,7 +309,7 @@ class MainWidget(QWidget):
         ]
         self.last_calib_meta_file = None
         self.use_cropped_roi = False
-        self.bg_folder_name = "BG"
+        self.bg_folder_name = "bg"
         self.n_avg = 5
         self.intensity_monitor = []
         self.save_directory = str(Path.cwd())
@@ -1257,7 +1257,7 @@ class MainWidget(QWidget):
         # Saves phase reconstructor to be re-used if possible
         self.phase_reconstructor = value
 
-    @Slot(str)
+    @Slot(Path)
     def handle_calib_file_update(self, value):
         self.last_calib_meta_file = value
 
@@ -1543,8 +1543,8 @@ class MainWidget(QWidget):
         else:
             self.ui.le_bg_path.setText("Path Does Not Exist")
 
-    @Slot(str)
-    def handle_bg_path_update(self, value: str):
+    @Slot(Path)
+    def handle_bg_path_update(self, value: Path):
         """
         Handles the update of the most recent background folderpath from
         BackgroundWorker to display in the reconstruction texbox.
@@ -1555,10 +1555,10 @@ class MainWidget(QWidget):
             most recent captured background folderpath
         """
         path = value
-        if os.path.exists(path):
+        if path.exists():
             self.acq_bg_directory = path
             self.current_bg_path = path
-            self.ui.le_bg_path.setText(path)
+            self.ui.le_bg_path.setText(str(path))
         else:
             msg = """ 
                 Background acquisition was not successful.
