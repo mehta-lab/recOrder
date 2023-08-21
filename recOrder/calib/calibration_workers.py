@@ -5,6 +5,7 @@ import json
 import logging
 import os
 import shutil
+from pathlib import Path
 
 # type hint/check
 from typing import TYPE_CHECKING
@@ -12,7 +13,6 @@ from typing import TYPE_CHECKING
 import numpy as np
 from iohub import open_ome_zarr
 from napari.qt.threading import WorkerBase, WorkerBaseSignals, thread_worker
-from pathlib import Path
 from qtpy.QtCore import Signal
 
 from recOrder.calib.Calibration import LC_DEVICE_NAME
@@ -336,7 +336,6 @@ class BackgroundCaptureWorker(
 
         # capture and return background images
         imgs = self.calib.capture_bg(self.calib_window.n_avg, bg_path)
-        self.calib_window._dump_gui_state(bg_path)
 
         # build background-specific reconstruction settings
         reconstruction_settings = settings.ReconstructionSettings(
