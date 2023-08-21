@@ -167,7 +167,12 @@ class BFAcquisitionWorker(WorkerBase):
                 "save directory is empty, please specify a directory in the plugin"
             )
 
-        self.snap_dir = Path(save_dir) / "snap"
+        if self.calib_window.save_name is None:
+            self.snap_dir = Path(save_dir) / "snap"
+        else:
+            self.snap_dir = Path(save_dir) / (
+                self.calib_window.save_name + "_snap"
+            )
         self.snap_dir = add_index_to_path(self.snap_dir)
         self.snap_dir.mkdir()
 
@@ -378,7 +383,12 @@ class PolarizationAcquisitionWorker(WorkerBase):
                 "save directory is empty, please specify a directory in the plugin"
             )
 
-        self.snap_dir = Path(save_dir) / "snap"
+        if self.calib_window.save_name is None:
+            self.snap_dir = Path(save_dir) / "snap"
+        else:
+            self.snap_dir = Path(save_dir) / (
+                self.calib_window.save_name + "_snap"
+            )
         self.snap_dir = add_index_to_path(self.snap_dir)
         self.snap_dir.mkdir()
 
