@@ -8,15 +8,15 @@ Currently, we structure raw data in the following hierarchy:
 
 ```text
 working_directory/                      # commonly YYYY_MM_DD_exp_name, but not enforced
-├── calibration_metadata_0.txt        
+├── polarization_calibration_0.txt        
 │   ...
-├── calibration_metadata_<i>.txt         # i calibration repeats
+├── polarization_calibration_<i>.txt    # i calibration repeats
 │
 ├── bg_0
 │   ...
 ├── bg_<j>                              # j background repeats
 │   ├── background.zarr             
-│   ├── calibration_metadata.txt        # copied into each bg folder 
+│   ├── polarization_calibration.txt    # copied into each bg folder 
 │   ├── reconstruction.zarr
 │   ├── reconstruction_settings.yml     # for use with `recorder reconstruct`
 │   └── transfer_function.zarr          # for use with `recorder apply-inv-tf`
