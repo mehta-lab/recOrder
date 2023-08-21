@@ -26,7 +26,7 @@ from recOrder.cli.apply_inverse_transfer_function import (
 from recOrder.cli.compute_transfer_function import (
     compute_transfer_function_cli,
 )
-from recOrder.io.utils import model_to_yaml, ram_message
+from recOrder.io.utils import add_index_to_path, model_to_yaml, ram_message
 
 # avoid runtime import error
 if TYPE_CHECKING:
@@ -145,7 +145,7 @@ class BFAcquisitionWorker(WorkerBase):
         self.calib_window = calib_window
 
         # Init Properties
-        self.prefix = "recOrderPluginSnap"
+        self.prefix = "snap"
         self.dm = self.calib_window.mm.displays()
         self.dim = (
             "2D"
@@ -165,24 +165,9 @@ class BFAcquisitionWorker(WorkerBase):
                 "save directory is empty, please specify a directory in the plugin"
             )
 
-        # increment filename one more than last found saved snap
-        i = 0
-        prefix = self.calib_window.save_name
-        snap_dir = (
-            f"recOrderPluginSnap_{i}"
-            if not prefix
-            else f"{prefix}_recOrderPluginSnap_{i}"
-        )
-        while os.path.exists(os.path.join(save_dir, snap_dir)):
-            i += 1
-            snap_dir = (
-                f"recOrderPluginSnap_{i}"
-                if not prefix
-                else f"{prefix}_recOrderPluginSnap_{i}"
-            )
-
-        self.snap_dir = os.path.join(save_dir, snap_dir)
-        os.mkdir(self.snap_dir)
+        self.snap_dir = Path(save_dir) / "snap"
+        self.snap_dir = add_index_to_path(self.snap_dir)
+        self.snap_dir.mkdir()
 
     def _check_abort(self):
         if self.abort_requested:
@@ -402,24 +387,9 @@ class PolarizationAcquisitionWorker(WorkerBase):
                 "save directory is empty, please specify a directory in the plugin"
             )
 
-        # increment filename one more than last found saved snap
-        i = 0
-        prefix = self.calib_window.save_name
-        snap_dir = (
-            f"recOrderPluginSnap_{i}"
-            if not prefix
-            else f"{prefix}_recOrderPluginSnap_{i}"
-        )
-        while os.path.exists(os.path.join(save_dir, snap_dir)):
-            i += 1
-            snap_dir = (
-                f"recOrderPluginSnap_{i}"
-                if not prefix
-                else f"{prefix}_recOrderPluginSnap_{i}"
-            )
-
-        self.snap_dir = os.path.join(save_dir, snap_dir)
-        os.mkdir(self.snap_dir)
+        self.snap_dir = Path(save_dir) / "snap"
+        self.snap_dir = add_index_to_path(self.snap_dir)
+        self.snap_dir.mkdir()
 
     def _check_abort(self):
         if self.abort_requested:
