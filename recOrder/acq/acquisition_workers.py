@@ -327,7 +327,7 @@ class BFAcquisitionWorker(WorkerBase):
                 # Try to delete the data, sometime it isn't cleaned up quickly enough and will
                 # return an error.  In this case, catch the error and then try to close again (seems to work).
                 try:
-                    self.latest_out_path = self.snap_dir / "data.zarr"
+                    self.latest_out_path = self.snap_dir / "raw_data.zarr"
                     converter = TIFFConverter(
                         str(Path(dir_) / prefix),
                         str(self.latest_out_path),
@@ -605,7 +605,7 @@ class PolarizationAcquisitionWorker(WorkerBase):
                 # Try to delete the data, sometime it isn't cleaned up quickly enough and will
                 # return an error.  In this case, catch the error and then try to close again (seems to work).
                 try:
-                    self.latest_out_path = self.snap_dir / "data.zarr"
+                    self.latest_out_path = self.snap_dir / "raw_data.zarr"
                     converter = TIFFConverter(
                         str(Path(dir_) / prefix),
                         str(self.latest_out_path),
