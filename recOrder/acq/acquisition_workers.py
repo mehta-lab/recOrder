@@ -62,7 +62,7 @@ def _generate_reconstruction_config_from_gui(
         birefringence_apply_inverse_settings = (
             settings.BirefringenceApplyInverseSettings(
                 wavelength_illumination=calib_window.recon_wavelength
-                / 1000,  # um
+                / 1000,  # convert from um to nm
                 background_path=background_path,
                 remove_estimated_background=remove_estimated_background,
                 flip_orientation=calib_window.flip_orientation,
