@@ -20,6 +20,7 @@ def add_index_to_path(path: Path):
     For example:
     './output.txt' -> './output_0.txt' if no other files named './output*.txt' exist.
     './output.txt' -> './output_2.txt' if './output_0.txt' and './output_1.txt' already exist.
+
     Parameters
     ----------
     path: Path
