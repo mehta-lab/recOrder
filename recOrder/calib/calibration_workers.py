@@ -1,10 +1,7 @@
 from __future__ import annotations
 
-import glob
 import json
 import logging
-import os
-import shutil
 from pathlib import Path
 
 # type hint/check
@@ -24,7 +21,7 @@ from recOrder.cli.compute_transfer_function import (
     compute_transfer_function_cli,
 )
 from recOrder.io.core_functions import set_lc_state, snap_and_average
-from recOrder.io.metadata_reader import MetadataReader, get_last_metadata_file
+from recOrder.io.metadata_reader import MetadataReader
 from recOrder.io.utils import MockEmitter, add_index_to_path, model_to_yaml
 
 # avoid runtime import error
