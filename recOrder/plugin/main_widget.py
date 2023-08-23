@@ -1205,26 +1205,30 @@ class MainWidget(QWidget):
                 # this object will remain a dask `Array` after calling `compute()`
                 if any([("get_" in k) for k in data.dask.keys()]):
                     data: da.Array = data.compute()
+            else:
+                chunks = (data.ndim - 2) * (1,) + data.shape[
+                    -2:
+                ]  # needs to match
+                data = da.from_array(data, chunks=chunks)
             return data
-
-        def _draw(overlay):
-            self._add_or_update_image_layer(overlay, overlay_name, cmap="rgb")
 
         orientation_name, retardance_name = sorted(source_names)
         retardance = _layer_data(retardance_name)
         orientation = _layer_data(orientation_name)
-        worker = create_worker(
-            ret_ori_overlay,
-            retardance=retardance,
-            orientation=orientation,
-            ret_max=np.percentile(np.ravel(retardance), 99.99),
-            cmap=self.colormap,
+
+        rgb_chunks = (
+            (retardance.ndim - 2) * (1,) + retardance.shape[-2:] + (3,)
         )
-        worker.start()
-        logging.info(f"Updating the birefringence overlay layer.")
-        if retardance.size >= 2 * 2048 * 2048:
-            show_info("Generating large overlay. This might take a moment...")
-        worker.returned.connect(_draw)
+        overlay = da.map_blocks(
+            ret_ori_overlay,
+            retardance,
+            orientation,
+            chunks=rgb_chunks,
+            new_axis=-1,
+            ret_max="auto",
+        )
+
+        self._add_or_update_image_layer(overlay, overlay_name, cmap="rgb")
 
     @Slot(object)
     def handle_bire_image_update(self, value: NDArray):
