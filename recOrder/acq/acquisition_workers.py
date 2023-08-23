@@ -267,6 +267,16 @@ class BFAcquisitionWorker(WorkerBase):
                 "Inverting the phase contrast. This affects the visualization and saved reconstruction."
             )
 
+        # Warn user about mismatched scales
+        recon_scale = np.array(
+            (self.calib_window.z_step,)
+            + 2 * (self.calib_window.ps / self.calib_window.mag,)
+        )
+        if not np.allclose(np.array(scale[2:]), recon_scale, rtol=1e-2):
+            show_warning(
+                f"Requested reconstruction scale = {recon_scale} and data scale = {scale[2:]} and  are not equal. recOrder's reconstruction uses the GUI's zstep, pixel size, and magnification, while napari's viewer uses the input data's metadata."
+            )
+
         logging.info("Finished Acquisition")
         logging.debug("Finished Acquisition")
 
@@ -491,6 +501,16 @@ class PolarizationAcquisitionWorker(WorkerBase):
         if self.calib_window.flip_orientation:
             show_warning(
                 "Applying a flip to orientation channel. This affects the visualization and saved reconstruction."
+            )
+
+        # Warn user about mismatched scales
+        recon_scale = np.array(
+            (self.calib_window.z_step,)
+            + 2 * (self.calib_window.ps / self.calib_window.mag,)
+        )
+        if not np.allclose(np.array(scale[2:]), recon_scale, rtol=1e-2):
+            show_warning(
+                f"Requested reconstruction scale = {recon_scale} and data scale = {scale[2:]} and  are not equal. recOrder's reconstruction uses the GUI's zstep, pixel size, and magnification, while napari's viewer uses the input data's metadata."
             )
 
         logging.info("Finished Acquisition")
