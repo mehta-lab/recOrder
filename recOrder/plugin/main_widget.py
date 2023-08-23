@@ -309,7 +309,7 @@ class MainWidget(QWidget):
         ]
         self.last_calib_meta_file = None
         self.use_cropped_roi = False
-        self.bg_folder_name = "BG"
+        self.bg_folder_name = "bg"
         self.n_avg = 5
         self.intensity_monitor = []
         self.save_directory = str(Path.cwd())
@@ -1208,7 +1208,14 @@ class MainWidget(QWidget):
         self, retardance_name: str, orientation_name: str, overlay_name: str
     ):
         def _layer_data(name: str):
-            return self.viewer.layers[name].data
+            data = self.viewer.layers[name].data
+            if isinstance(data, da.Array):
+                # the ome-zarr reader will read HCS plates/wells as nested dask graph
+                # which will contain 'get_tile' or 'get_field' in its graph
+                # this object will remain a dask `Array` after calling `compute()`
+                if any([("get_" in k) for k in data.dask.keys()]):
+                    data: da.Array = data.compute()
+            return data
 
         def _draw(overlay):
             self._add_or_update_image_layer(overlay, overlay_name, cmap="rgb")
@@ -1259,7 +1266,7 @@ class MainWidget(QWidget):
         # Saves phase reconstructor to be re-used if possible
         self.phase_reconstructor = value
 
-    @Slot(str)
+    @Slot(Path)
     def handle_calib_file_update(self, value):
         self.last_calib_meta_file = value
 
@@ -1545,8 +1552,8 @@ class MainWidget(QWidget):
         else:
             self.ui.le_bg_path.setText("Path Does Not Exist")
 
-    @Slot(str)
-    def handle_bg_path_update(self, value: str):
+    @Slot(Path)
+    def handle_bg_path_update(self, value: Path):
         """
         Handles the update of the most recent background folderpath from
         BackgroundWorker to display in the reconstruction texbox.
@@ -1557,10 +1564,10 @@ class MainWidget(QWidget):
             most recent captured background folderpath
         """
         path = value
-        if os.path.exists(path):
+        if path.exists():
             self.acq_bg_directory = path
             self.current_bg_path = path
-            self.ui.le_bg_path.setText(path)
+            self.ui.le_bg_path.setText(str(path))
         else:
             msg = """ 
                 Background acquisition was not successful.
@@ -1977,7 +1984,7 @@ class MainWidget(QWidget):
         self.calib.swing = self.swing
         self.calib.wavelength = self.wavelength
         self.calib.meta_file = os.path.join(
-            self.directory, "calibration_metadata.txt"
+            self.directory, "polarization_calibration.txt"
         )
 
         # FIXME: for 1.0.0 we'd like to avoid MM call in the main thread
@@ -2176,67 +2183,6 @@ class MainWidget(QWidget):
 
         # Start Thread
         self.worker.start()
-
-    def _dump_gui_state(self, save_dir: StrOrBytesPath):
-        """Collect and save the current GUI settings to a YAML file.
-
-        Parameters
-        ----------
-        save_dir : str | bytes | PathLike[str] | PathLike[bytes]
-            directory to save
-        """
-        gui_state = {
-            "Run Calibration": {
-                "Swing": self.swing,
-                "Wavelength": self.wavelength,
-                "Illumination Scheme": self.calib_scheme,
-                "Calibration Mode": self.calib_mode,
-                "Config Group": self.config_group,
-            },
-            "Capture Background": {
-                "Background Folder Name": self.bg_folder_name,
-                "Number of Images to Average": self.n_avg,
-            },
-            "Acquisition Settings": {
-                "Z Start": self.z_start,
-                "Z End": self.z_end,
-                "Z Step": self.z_step,
-                "Acquisition Mode": self.acq_mode,
-                "BF Channel": self.ui.cb_acq_channel.itemText(
-                    self.ui.cb_acq_channel.currentIndex()
-                ),
-            },
-            "General Reconstruction Settings": {
-                "Background Correction": self.bg_option,
-                "Background Path": self.current_bg_path,
-                "Wavelength": self.recon_wavelength,
-                "Objective NA": self.obj_na,
-                "Condenser NA": self.cond_na,
-                "Camera Pixel Size": self.ps,
-                "RI of Objective Media": self.n_media,
-                "Magnification": self.mag,
-                "Rotate Orientation": self.rotate_orientation,
-                "Flip Orientation": self.flip_orientation,
-                "Invert Phase": self.invert_phase_contrast,
-            },
-            "Phase Reconstruction Settings": {
-                "Z Padding": self.pad_z,
-                "Regularizer": self.phase_regularizer,
-                "Strength": float(self.ui.le_phase_strength.text()),
-            },
-        }
-        # TV-specific parameters
-        if self.phase_regularizer == "TV":
-            gui_state["Phase Reconstruction Settings"]["Rho"] = float(
-                self.ui.le_rho.text()
-            )
-            gui_state["Phase Reconstruction Settings"]["Iterations"] = int(
-                self.ui.le_itr.text()
-            )
-        # save in YAML
-        save_path = os.path.join(save_dir, "gui_state.yml")
-        with open(save_path, "w") as f:
-            yaml.dump(gui_state, f, default_flow_style=False, sort_keys=False)
 
     @Slot(bool)
     def save_config(self):

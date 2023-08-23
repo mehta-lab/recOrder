@@ -13,48 +13,31 @@ from matplotlib.colors import hsv_to_rgb
 from waveorder.waveorder_reconstructor import waveorder_microscopy
 
 
-# TO BE DEPRECATED
-def extract_reconstruction_parameters(reconstructor, magnification=None):
-    """
-    Function that extracts the reconstruction parameters from a waveorder reconstructor.  Works for waveorder_microscopy class.
+def add_index_to_path(path: Path):
+    """Takes a path to a file or folder and appends the smallest index that does
+    not already exist in that folder.
+
+    For example:
+    './output.txt' -> './output_0.txt' if no other files named './output*.txt' exist.
+    './output.txt' -> './output_2.txt' if './output_0.txt' and './output_1.txt' already exist.
 
     Parameters
     ----------
-    reconstructor:      (waveorder reconstructor object) initalized reconstructor
-    magnification:      (float or None) magnification of the microscope setup (value not saved in reconstructor)
+    path: Path
+        Base path to add index to
 
     Returns
     -------
-    attr_dict           (dict) dictionary of reconstruction parameters in their native units
-
+    Path
     """
+    index = 0
+    new_stem = f"{path.stem}_{index}"
 
-    ps = reconstructor.ps
-    if ps:
-        ps = ps * magnification if magnification else ps
+    while (path.parent / (new_stem + path.suffix)).exists():
+        index += 1
+        new_stem = f"{path.stem}_{index}"
 
-    if isinstance(reconstructor, waveorder_microscopy):
-        attr_dict = {
-            "phase_dimension": reconstructor.phase_deconv,
-            "wavelength (nm)": np.round(
-                reconstructor.lambda_illu * 1000 * reconstructor.n_media, 1
-            ),
-            "pad_z": reconstructor.pad_z,
-            "n_objective_media": reconstructor.n_media,
-            "bg_correction_option": reconstructor.bg_option,
-            "objective_NA": reconstructor.NA_obj * reconstructor.n_media,
-            "condenser_NA": reconstructor.NA_illu * reconstructor.n_media,
-            "magnification": magnification,
-            "swing": reconstructor.chi
-            if reconstructor.N_channel == 4
-            else reconstructor.chi / 2 / np.pi,
-            "pixel_size": ps,
-        }
-
-    else:
-        attr_dict = dict()
-
-    return attr_dict
+    return path.parent / (new_stem + path.suffix)
 
 
 def load_background(background_path):
@@ -96,25 +79,6 @@ def ram_message():
         message = f"{gb_available:.1f} GB of RAM is available."
 
     return (is_warning, message)
-
-
-def rec_bkg_to_wo_bkg(recorder_option) -> str:
-    """
-    Converts recOrder's background options to waveorder's background options.
-
-    Parameters
-    ----------
-    recorder_option
-
-    Returns
-    -------
-    waveorder_option
-
-    """
-    if recorder_option == "local_fit+":
-        return "local_fit"
-    else:
-        return recorder_option
 
 
 def generic_hsv_overlay(
