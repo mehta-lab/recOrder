@@ -1133,6 +1133,7 @@ class MainWidget(QWidget):
         name: str,
         cmap: str = "gray",
         move_to_top: bool = True,
+        scale: tuple = 5 * (1,),
     ):
         """Add image layer of the given name if it does not exist, update existing layer otherwise.
 
@@ -1155,19 +1156,33 @@ class MainWidget(QWidget):
                 self.viewer.layers.move(src_index, dest_index=-1)
         else:
             if cmap == "rgb":
-                self.viewer.add_image(image, name=name, rgb=True)
+                self.viewer.add_image(
+                    image,
+                    name=name,
+                    rgb=True,
+                    scale=(scale[(image.ndim - 4) :]) + (3,),
+                )
             else:
-                self.viewer.add_image(image, name=name, colormap=cmap)
+                self.viewer.add_image(
+                    image,
+                    name=name,
+                    colormap=cmap,
+                    scale=scale[(image.ndim - 4) :],
+                )
 
-    @Slot(object)
+    @Slot(tuple)
     def handle_bg_image_update(self, value):
-        self._add_or_update_image_layer(value, "Background Images")
+        data, scale = value
+        self._add_or_update_image_layer(data, "Background Images", scale=scale)
 
-    @Slot(object)
+    @Slot(tuple)
     def handle_bg_bire_image_update(self, value):
-        self._add_or_update_image_layer(value[0], "Background Retardance")
+        data, scale = value
         self._add_or_update_image_layer(
-            value[1], "Background Orientation", cmap="hsv"
+            data[0], "Background Retardance", scale=scale
+        )
+        self._add_or_update_image_layer(
+            data[1], "Background Orientation", cmap="hsv", scale=scale
         )
 
     def handle_layers_updated(self, event: Event):
@@ -1185,7 +1200,9 @@ class MainWidget(QWidget):
                         f"'{latest_layer_name}', '{other_name}'"
                     )
                     self._draw_bire_overlay(
-                        [ch + suffix, other_name], overlay_name
+                        [ch + suffix, other_name],
+                        overlay_name,
+                        scale=layers[latest_layer_name].scale,
                     )
         if latest_layer_name.startswith(channels[1]):
             logging.info(
@@ -1195,7 +1212,7 @@ class MainWidget(QWidget):
             self.viewer.layers[latest_layer_name].colormap = "hsv"
 
     def _draw_bire_overlay(
-        self, source_names: list[str, str], overlay_name: str
+        self, source_names: list[str, str], overlay_name: str, scale: tuple
     ):
         def _layer_data(name: str):
             data = self.viewer.layers[name].data
@@ -1229,7 +1246,9 @@ class MainWidget(QWidget):
             cmap=self.colormap,
         )
 
-        self._add_or_update_image_layer(overlay, overlay_name, cmap="rgb")
+        self._add_or_update_image_layer(
+            overlay, overlay_name, cmap="rgb", scale=scale
+        )
 
     @Slot(object)
     def handle_bire_image_update(self, value: NDArray):
@@ -1239,12 +1258,13 @@ class MainWidget(QWidget):
             cmap = "gray" if channel != "Orientation" else "hsv"
             self._add_or_update_image_layer(value[i], name, cmap=cmap)
 
-    @Slot(object)
+    @Slot(tuple)
     def handle_phase_image_update(self, value):
+        phase, scale = value
         name = "Phase2D" if self.acq_mode == "2D" else "Phase3D"
 
         # Add new layer if none exists, otherwise update layer data
-        self._add_or_update_image_layer(value, name)
+        self._add_or_update_image_layer(phase, name, scale=scale)
 
         if "Phase" not in [
             self.ui.cb_saturation.itemText(i)

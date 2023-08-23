@@ -117,8 +117,8 @@ class PolarizationAcquisitionSignals(WorkerBaseSignals):
     Custom Signals class that includes napari native signals
     """
 
-    phase_image_emitter = Signal(object)
-    bire_image_emitter = Signal(object)
+    phase_image_emitter = Signal(tuple)
+    bire_image_emitter = Signal(tuple)
     phase_reconstructor_emitter = Signal(object)
     aborted = Signal()
 
@@ -128,7 +128,7 @@ class BFAcquisitionSignals(WorkerBaseSignals):
     Custom Signals class that includes napari native signals
     """
 
-    phase_image_emitter = Signal(object)
+    phase_image_emitter = Signal(tuple)
     phase_reconstructor_emitter = Signal(object)
     aborted = Signal()
 
@@ -258,7 +258,7 @@ class BFAcquisitionWorker(WorkerBase):
         # Reconstruct snapped images
         self.n_slices = stack.shape[2]
 
-        phase = self._reconstruct()
+        phase, scale = self._reconstruct()
         self._check_abort()
 
         # Warn the user about axial
@@ -271,7 +271,7 @@ class BFAcquisitionWorker(WorkerBase):
         logging.debug("Finished Acquisition")
 
         # Emit the images and let thread know function is finished
-        self.phase_image_emitter.emit(phase)
+        self.phase_image_emitter.emit((phase, scale))
 
     def _reconstruct(self):
         """
@@ -301,8 +301,9 @@ class BFAcquisitionWorker(WorkerBase):
         # Read reconstruction to pass to emitters
         with open_ome_zarr(reconstruction_path, mode="r") as dataset:
             phase = dataset["0/0/0/0"][0]
+            scale = dataset["0/0/0/0"].scale
 
-        return phase
+        return phase, scale
 
     def _cleanup_acq(self):
         # Get display windows
@@ -479,7 +480,7 @@ class PolarizationAcquisitionWorker(WorkerBase):
         # Reconstruct snapped images
         self._check_abort()
         self.n_slices = stack.shape[2]
-        birefringence, phase = self._reconstruct()
+        birefringence, phase, scale = self._reconstruct()
         self._check_abort()
 
         # Warn the user about rotations and flips
@@ -496,8 +497,8 @@ class PolarizationAcquisitionWorker(WorkerBase):
         logging.debug("Finished Acquisition")
 
         # Emit the images and let thread know function is finished
-        self.bire_image_emitter.emit(birefringence)
-        self.phase_image_emitter.emit(phase)
+        self.bire_image_emitter.emit((birefringence, scale))
+        self.phase_image_emitter.emit((phase, scale))
 
     def _check_exposure(self) -> None:
         """
@@ -579,8 +580,9 @@ class PolarizationAcquisitionWorker(WorkerBase):
                 phase = czyx_data[4]
             except:
                 phase = None
+            scale = dataset["0/0/0/0"].scale
 
-        return birefringence, phase
+        return birefringence, phase, scale
 
     def _cleanup_acq(self):
         # Get display windows
