@@ -301,7 +301,7 @@ class BFAcquisitionWorker(WorkerBase):
         # Read reconstruction to pass to emitters
         with open_ome_zarr(reconstruction_path, mode="r") as dataset:
             phase = dataset["0/0/0/0"][0]
-            scale = dataset["0/0/0/0"].scale
+            scale = dataset["0/0/0"].scale
 
         return phase, scale
 
@@ -580,7 +580,7 @@ class PolarizationAcquisitionWorker(WorkerBase):
                 phase = czyx_data[4]
             except:
                 phase = None
-            scale = dataset["0/0/0/0"].scale
+            scale = dataset["0/0/0"].scale
 
         return birefringence, phase, scale
 

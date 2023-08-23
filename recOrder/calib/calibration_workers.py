@@ -358,7 +358,7 @@ class BackgroundCaptureWorker(
         with open_ome_zarr(reconstruction_path, mode="r") as dataset:
             self.retardance = dataset["0/0/0/0"][0, 0, 0]
             self.birefringence = dataset["0/0/0/0"][0, :, 0]
-            scale = dataset["0/0/0/0"].scale
+            scale = dataset["0/0/0"].scale
 
         # Save metadata file and emit imgs
         meta_file = bg_path / "polarization_calibration.txt"

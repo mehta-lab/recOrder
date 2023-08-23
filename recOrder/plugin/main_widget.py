@@ -1148,7 +1148,7 @@ class MainWidget(QWidget):
         move_to_top : bool, optional
             whether to move the updated layer to the top of layers list, by default True
         """
-        scale = scale[(image.ndim - 4) :]  # match shapes
+        scale = scale[-image.ndim :]  # match shapes
 
         if name in self.viewer.layers:
             self.viewer.layers[name].data = image
@@ -1246,9 +1246,6 @@ class MainWidget(QWidget):
                 data = da.from_array(data, chunks=chunks)
             return data
 
-        def _draw(overlay):
-            self._add_or_update_image_layer(overlay, overlay_name, cmap="rgb")
-
         retardance = _layer_data(retardance_name)
         orientation = _layer_data(orientation_name)
 
@@ -1269,13 +1266,17 @@ class MainWidget(QWidget):
             overlay, overlay_name, cmap="rgb", scale=scale
         )
 
-    @Slot(object)
-    def handle_bire_image_update(self, value: NDArray):
+    @Slot(tuple)
+    def handle_bire_image_update(self, value):
+        data, scale = value
+
         # generate overlay in a separate thread
         for i, channel in enumerate(("Retardance", "Orientation")):
             name = channel
             cmap = "gray" if channel != "Orientation" else "hsv"
-            self._add_or_update_image_layer(value[i], name, cmap=cmap)
+            self._add_or_update_image_layer(
+                data[i], name, cmap=cmap, scale=scale
+            )
 
     @Slot(tuple)
     def handle_phase_image_update(self, value):
