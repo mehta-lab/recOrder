@@ -1148,6 +1148,8 @@ class MainWidget(QWidget):
         move_to_top : bool, optional
             whether to move the updated layer to the top of layers list, by default True
         """
+        scale = scale[(image.ndim - 4) :]  # match shapes
+
         if name in self.viewer.layers:
             self.viewer.layers[name].data = image
             if move_to_top:
@@ -1160,14 +1162,14 @@ class MainWidget(QWidget):
                     image,
                     name=name,
                     rgb=True,
-                    scale=(scale[(image.ndim - 4) :]) + (3,),
+                    scale=scale,
                 )
             else:
                 self.viewer.add_image(
                     image,
                     name=name,
                     colormap=cmap,
-                    scale=scale[(image.ndim - 4) :],
+                    scale=scale,
                 )
 
     @Slot(tuple)
