@@ -32,6 +32,16 @@
    <enum>Qt::LeftToRight</enum>
   </property>
   <layout class="QGridLayout" name="gridLayout_7">
+   <item row="0" column="0">
+    <widget class="QLabel" name="label_logo">
+     <property name="text">
+      <string/>
+     </property>
+     <property name="alignment">
+      <set>Qt::AlignCenter</set>
+     </property>
+    </widget>
+   </item>
    <item row="1" column="0" alignment="Qt::AlignTop">
     <widget class="QGroupBox" name="recon_status">
      <property name="font">
@@ -124,7 +134,7 @@
       <enum>QTabWidget::North</enum>
      </property>
      <property name="currentIndex">
-      <number>0</number>
+      <number>1</number>
      </property>
      <property name="elideMode">
       <enum>Qt::ElideMiddle</enum>
@@ -1752,7 +1762,36 @@
            </rect>
           </property>
           <layout class="QGridLayout" name="gridLayout_4">
-           <item row="2" column="0" alignment="Qt::AlignTop">
+           <item row="5" column="0">
+            <widget class="QLabel" name="label_orientation_image">
+             <property name="sizePolicy">
+              <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+               <horstretch>0</horstretch>
+               <verstretch>0</verstretch>
+              </sizepolicy>
+             </property>
+             <property name="text">
+              <string/>
+             </property>
+             <property name="alignment">
+              <set>Qt::AlignCenter</set>
+             </property>
+            </widget>
+           </item>
+           <item row="1" column="0">
+            <widget class="QLabel" name="label">
+             <property name="sizePolicy">
+              <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+               <horstretch>0</horstretch>
+               <verstretch>0</verstretch>
+              </sizepolicy>
+             </property>
+             <property name="text">
+              <string>Overlay Retardance Maximum </string>
+             </property>
+            </widget>
+           </item>
+           <item row="6" column="0" alignment="Qt::AlignTop">
             <widget class="QGroupBox" name="DisplayOptions">
              <property name="sizePolicy">
               <sizepolicy hsizetype="Preferred" vsizetype="Expanding">
@@ -1838,29 +1877,6 @@
                 <property name="orientation">
                  <enum>Qt::Horizontal</enum>
                 </property>
-               </widget>
-              </item>
-              <item row="3" column="1" colspan="2">
-               <widget class="QComboBox" name="cb_colormap">
-                <property name="font">
-                 <font>
-                  <italic>false</italic>
-                  <bold>false</bold>
-                 </font>
-                </property>
-                <property name="focusPolicy">
-                 <enum>Qt::StrongFocus</enum>
-                </property>
-                <item>
-                 <property name="text">
-                  <string>HSV</string>
-                 </property>
-                </item>
-                <item>
-                 <property name="text">
-                  <string>JCh (Perceptually Uniform)</string>
-                 </property>
-                </item>
                </widget>
               </item>
               <item row="11" column="1">
@@ -2056,10 +2072,33 @@
                 </property>
                </widget>
               </item>
+              <item row="3" column="1" colspan="2">
+               <widget class="QComboBox" name="cb_colormap">
+                <property name="font">
+                 <font>
+                  <italic>false</italic>
+                  <bold>false</bold>
+                 </font>
+                </property>
+                <property name="focusPolicy">
+                 <enum>Qt::StrongFocus</enum>
+                </property>
+                <item>
+                 <property name="text">
+                  <string>HSV</string>
+                 </property>
+                </item>
+                <item>
+                 <property name="text">
+                  <string>JCh (Perceptually Uniform)</string>
+                 </property>
+                </item>
+               </widget>
+              </item>
              </layout>
             </widget>
            </item>
-           <item row="0" column="0">
+           <item row="3" column="0">
             <widget class="QLabel" name="label_orientation_legend">
              <property name="sizePolicy">
               <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
@@ -2075,19 +2114,10 @@
              </property>
             </widget>
            </item>
-           <item row="1" column="0">
-            <widget class="QLabel" name="label_orientation_image">
-             <property name="sizePolicy">
-              <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
-               <horstretch>0</horstretch>
-               <verstretch>0</verstretch>
-              </sizepolicy>
-             </property>
-             <property name="text">
-              <string/>
-             </property>
-             <property name="alignment">
-              <set>Qt::AlignCenter</set>
+           <item row="2" column="0">
+            <widget class="QSlider" name="retMaxSlider">
+             <property name="orientation">
+              <enum>Qt::Horizontal</enum>
              </property>
             </widget>
            </item>
@@ -2097,16 +2127,6 @@
        </item>
       </layout>
      </widget>
-    </widget>
-   </item>
-   <item row="0" column="0">
-    <widget class="QLabel" name="label_logo">
-     <property name="text">
-      <string/>
-     </property>
-     <property name="alignment">
-      <set>Qt::AlignCenter</set>
-     </property>
     </widget>
    </item>
   </layout>
