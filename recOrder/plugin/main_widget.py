@@ -1226,6 +1226,7 @@ class MainWidget(QWidget):
             chunks=rgb_chunks,
             new_axis=-1,
             ret_max="auto",
+            cmap=self.colormap,
         )
 
         self._add_or_update_image_layer(overlay, overlay_name, cmap="rgb")
