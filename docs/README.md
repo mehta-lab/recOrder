@@ -6,8 +6,6 @@
 
 **I would like to automate my reconstructions:** start with the [reconstruction guide](./reconstruction-guide.md) and use the [data schema](./data-schema.md).
 
-**I would like to watch an experienced user introduce `recOrder` (out of date)**: [watch the tutorial](https://drive.google.com/file/d/1tHLHZ_uUnddb3jzXnQUjUiynSDS8XIy2/view?usp=sharing). 
-
 **I would like to set up a development environment and test `recOrder`**: start with the [development guide](./development-guide.md).
 
 **I would like understand `recOrder`'s calibration routine**: read the [calibration guide](./calibration-guide.md).
