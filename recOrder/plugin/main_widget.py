@@ -236,6 +236,11 @@ class MainWidget(QWidget):
         self.viewer.layers.events.moved.connect(self.handle_layers_updated)
         self.viewer.layers.events.inserted.connect(self.handle_layers_updated)
 
+        # Birefringence overlay controls
+        self.ui.retMaxSlider.sliderMoved[int].connect(
+            self.handle_ret_max_slider_move
+        )
+
         # Commenting for 0.3.0. Consider debugging or deleting for 1.0.0.
         # self.ui.cb_colormap.currentIndexChanged[int].connect(
         #     self.enter_colormap
@@ -341,6 +346,7 @@ class MainWidget(QWidget):
         self.reconstruction_data_path = None
         self.reconstruction_data = None
         self.calib_assessment_level = None
+        self.ret_max = 25
         recorder_dir = dirname(dirname(dirname(os.path.abspath(__file__))))
         self.worker = None
 
@@ -1246,24 +1252,30 @@ class MainWidget(QWidget):
                 data = da.from_array(data, chunks=chunks)
             return data
 
-        retardance = _layer_data(retardance_name)
-        orientation = _layer_data(orientation_name)
+        self.overlay_scale = scale
+        self.overlay_name = overlay_name
+        self.overlay_retardance = _layer_data(retardance_name)
+        self.overlay_orientation = _layer_data(orientation_name)
+        self.update_overlay_dask_array()
 
-        rgb_chunks = (
-            (retardance.ndim - 2) * (1,) + retardance.shape[-2:] + (3,)
+    def update_overlay_dask_array(self):
+        self.rgb_chunks = (
+            (self.overlay_retardance.ndim - 2) * (1,)
+            + self.overlay_retardance.shape[-2:]
+            + (3,)
         )
         overlay = da.map_blocks(
             ret_ori_overlay,
-            retardance,
-            orientation,
-            chunks=rgb_chunks,
+            self.overlay_retardance,
+            self.overlay_orientation,
+            chunks=self.rgb_chunks,
             new_axis=-1,
-            ret_max="auto",
+            ret_max=self.ret_max,
             cmap=self.colormap,
         )
 
         self._add_or_update_image_layer(
-            overlay, overlay_name, cmap="rgb", scale=scale
+            overlay, self.overlay_name, cmap="rgb", scale=self.overlay_scale
         )
 
     @Slot(tuple)
@@ -2238,6 +2250,11 @@ class MainWidget(QWidget):
             self.config_reader.timepoints = f"[!!python/tuple [{t[0]},{t[1]}]]"
 
         self.config_reader.save_yaml(dir_=dir_, name=name)
+
+    @Slot(int)
+    def handle_ret_max_slider_move(self, value):
+        self.ret_max = value
+        self.update_overlay_dask_array()
 
     # Commenting for 0.3.0. Consider debugging or deleting for 1.0.0.
     # @Slot(int)
