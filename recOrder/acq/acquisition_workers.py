@@ -34,7 +34,7 @@ if TYPE_CHECKING:
 
 
 def _check_scale_mismatch(
-    recon_scale: tuple[float, float, float],
+    recon_scale: np.array,
     ngff_scale: tuple[float, float, float, float, float],
 ) -> None:
     if not np.allclose(np.array(ngff_scale[2:]), recon_scale, rtol=1e-2):
