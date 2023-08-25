@@ -137,7 +137,7 @@ The remaining parameters are used by the reconstructions:
 * **RI of Obj. Media**: refractive index of the objective media, typical values are 1.0 (air), 1.3 (water), 1.473 (glycerol), or 1.512 (oil)
 * **Magnification**: magnification of the objective
 * **Rotate Orientation (90 deg)**: rotates "Orientation" reconstructions by +90 degrees clockwise and saves the result, most useful when a known-orientation sample is available
-* **Flip Orientation (90 deg)**: flips "Orientation" reconstructions about napari's horizontal axis and saves the result
+* **Flip Orientation**: flips "Orientation" reconstructions about napari's horizontal axis before saving the result
 * **Invert Phase Contrast**: inverts the phase reconstruction's contrast by flipping the positive and negative directions of the stage during the reconstruction, and saves the result 
 
 ### Phase Reconstruction Settings
