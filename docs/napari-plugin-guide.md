@@ -64,18 +64,18 @@ Once finished, you will get a calibration assessment and an extinction value. Th
 For a deeper discussion of the calibration procedure, swing, and the extinction ratio, see the [calibration guide](./calibration-guide.md).
 
 ### Optional: Load Calibration
-The **Load Calibration** button allows earlier calibrations to be reused. Select a *polarization_calibration.txt* file and MicroManager's presets will be updated with these settings. `recOrder`` will also collect a few images to update the extinction ratio to reflect the current condition of the light path. Once this short acquisition has finished, the user can acquire data as normal.  
+The **Load Calibration** button allows earlier calibrations to be reused. Select a *polarization_calibration.txt* file and MicroManager's presets will be updated with these settings. `recOrder` will also collect a few images to update the extinction ratio to reflect the current condition of the light path. Once this short acquisition has finished, the user can acquire data as normal.  
 
-This feature is useful if MicroManager and/or `recOrder`` crashes. If the sample and imaging setup haven't changed, it is safe to reuse a calibration. Otherwise, if the sample or the microscope changes, we recommend performing a new calibration.
+This feature is useful if MicroManager and/or `recOrder` crashes. If the sample and imaging setup haven't changed, it is safe to reuse a calibration. Otherwise, if the sample or the microscope changes, we recommend performing a new calibration.
 
 ### Optional: Calculate Extinction
-The **Calculate Extinction** button acquires a few images and recalculate the extinction value. 
+The **Calculate Extinction** button acquires a few images and recalculates the extinction value. 
 
-This feature is useful for checking if a new region of your sample requires a recalibration. If the sample or background varies as you move around the sample, the extinction will drop and you should recalibrate and acquire background images as close to the area in which you will be imaging as possible.
+This feature is useful for checking if a new region of your sample requires a recalibration. If the sample or background varies as you move around the sample, the extinction will drop and you should recalibrate and acquire background images as close to the area you will be imaging as possible.
 
 ### Capture Background
 
-The **Capture Background** button will acquire several images under each of the calibrated polarization states, average them (we recommend 5), save them to specified **Background Folder Name** within the main **Directory** then display the result in napari layers.
+The **Capture Background** button will acquire several images under each of the calibrated polarization states, average them (we recommend 5), save them to specified **Background Folder Name** within the main **Directory**, then display the result in napari layers.
 
 ![](./images/cap_bg.png)
 
@@ -85,7 +85,7 @@ It is normal to see background retardance and orientation. We will use these bac
 The advanced tab gives the user a log output which can be useful for debugging purposes. There is a log level “debugging” which serves as a verbose output. Look here for any hints as to what may have gone wrong during calibration or acquisition.
 
 ## Acquisition / Reconstruction Tab
-This acquisition tab is designed to take single image volumes for both phase and birefringence measurements to allow the user to test their calibration and background. We recommend this tab for quick testing and the Micromanager MDA acquisition for high-throughput data collection.
+This acquisition tab is designed to acquire and reconstruct single volumes of both phase and birefringence measurements to allow the user to test their calibration and background. We recommend this tab for quick testing and the Micromanager MDA acquisition for high-throughput data collection.
 
 ### Acquire Buttons
 ![](./images/acquire_buttons.png)
@@ -97,7 +97,7 @@ The **STOP** button will end the acquisition as soon as possible, though MicroMa
 ### Acquisition Settings
 ![](./images/acquisition_settings.png)
 
-The **Acquisition Mode** sets the target shape for the reconstruction. Perhaps surprisingly, all 2D reconstructions require 3D data except for **Retardance + Orientation** in 2D **Acquisition Mode**. The following table summarizes the data that will be acquired with an acquisition button is pressed in **2D** and **3D** acquisition modes:
+The **Acquisition Mode** sets the target dimensions for the reconstruction. Perhaps surprisingly, all 2D reconstructions require 3D data except for **Retardance + Orientation** in **2D Acquisition Mode**. The following table summarizes the data that will be acquired when an acquisition button is pressed in **2D** and **3D** acquisition modes:
 
 | **Acquisition** \ Acquisition Mode | 2D mode | 3D mode |  
 | :--- | :--- | :--- |
@@ -105,7 +105,7 @@ The **Acquisition Mode** sets the target shape for the reconstruction. Perhaps s
 | **Phase From BF** | ZYX data | ZYX data | 
 | **Retardance + Orientation + Phase** | CZYX data | CZYX data | 
 
-Unless a **Retardance + Orientation** reconstruction in 2D **Acquisition Mode** is requested, `recOrder` uses MicroManager's z-stage to acquire 3D data. **Z Start**, **Z End**, and **Z Step** are stage settings for acquiring an image volume, relative to the current position of the stage. Values are in the stage's default units, typically in microns.
+Unless a **Retardance + Orientation** reconstruction in **2D Acquisition Mode** is requested, `recOrder` uses MicroManager's z-stage to acquire 3D data. **Z Start**, **Z End**, and **Z Step** are stage settings for acquiring an image volume, relative to the current position of the stage. Values are in the stage's default units, typically in microns.
 
 For example, to image a 20 um thick cell the user would focus in the middle of the cell then choose
 
@@ -113,50 +113,51 @@ For example, to image a 20 um thick cell the user would focus in the middle of t
 * **Z End** = 12
 * **Z Step** =  0.25
 
-For phase reconstruction, the stack should have about two depths-of-focus above and below the edges of the sample because the reconstruction algorithm uses the defocus information to more accurately reconstruct phase.
+For phase reconstruction, the stack should have about two depths-of-focus above and below the edges of the sample because the reconstruction algorithm uses defocus information to more accurately reconstruct phase.
 
 ### General Reconstruction Settings 
 ![](./images/general_reconstruction_settings.png)
 
 The **Save Directory** and **Save Name** are where the acquired data (`<save_dir>/<save_name>_snap_<n>/raw_data.zarr`) and reconstructions (`<save_dir>/<save_name>_snap_<n>/reconstruction.zarr`) will be saved. 
 
-The **Background Correction** menu has several option (each with mouseover explanations):
+The **Background Correction** menu has several options (each with mouseover explanations):
 * **None**: No background correction is performed. 
 * **Measured**: Corrects sample images with a background image acquired at an empty field of view, loaded from **Background Path**, by default the most recent background acquisition. 
 * **Estimated**: Estimates the sample background by fitting a 2D surface to the sample images. Works well when structures are spatially distributed across the field of view and a clear background is unavailable.
-* **Measured + Estimated**: Applies a **Measured** background correction and then an **Estimated** background correction. Use to remove residual background after the sample retardance is corrected with measured background.
+* **Measured + Estimated**: Applies a **Measured** background correction then an **Estimated** background correction. Use to remove residual background after the sample retardance is corrected with measured background.
 
 The remaining parameters are used by the reconstructions:
  
 * **GPU ID**: Not implemented
-* **Wavelength (nm)**: Illumination wavelength
+* **Wavelength (nm)**: illumination wavelength
 * **Objective NA**: numerical aperture of the objective, typically found next to magnification
 * **Condenser NA**: numerical aperture of the condenser
-* **Camera Pixel Size (um)**: Pixel size of the camera in microns (ex. 6.5)
-* **RI of Obj. Media**: Refractive index of the objective media. Typical values are 1.0 (air), 1.3 (water), 1.473 (glycerol), or 1.512 (oil)
-* **Magnification**: Magnification of the objective
-* **Rotate Orientation (90 deg)**: Rotates "Orientation" reconstructions by +90 degrees clockwise and saves the result, most useful when a known-orientation sample is available
-* **Flip Orientation (90 deg)**: Flips "Orientation" reconstructions about napari's horizontal axis and saves the result
-* **Invert Phase Contrast**: Inverts the phase reconstruction's contrast by flipping the positive and negative directions of the stage during the reconstruction, and saves the result 
+* **Camera Pixel Size (um)**: pixel size of the camera in microns (e.g. 6.5 um)
+* **RI of Obj. Media**: refractive index of the objective media, typical values are 1.0 (air), 1.3 (water), 1.473 (glycerol), or 1.512 (oil)
+* **Magnification**: magnification of the objective
+* **Rotate Orientation (90 deg)**: rotates "Orientation" reconstructions by +90 degrees clockwise and saves the result, most useful when a known-orientation sample is available
+* **Flip Orientation (90 deg)**: flips "Orientation" reconstructions about napari's horizontal axis and saves the result
+* **Invert Phase Contrast**: inverts the phase reconstruction's contrast by flipping the positive and negative directions of the stage during the reconstruction, and saves the result 
 
 ### Phase Reconstruction Settings
 ![](./images/phase_reconstruction_settings.png)
+
 These parameters are used only by phase reconstructions
 
 * **Z Padding**: The number of slices to pad on either end of the stack in order to correct for edge reflection artifacts, necessary if the sample is not fully out of focus on either end of the stack
-* **Regularizer**: Choose "Tikhonov", he "TV" regularizer is not implemented
-* **Strength**: The Tikhonov regularization strength. Too small/large will result in reconstructions that are too noisy/smooth
+* **Regularizer**: Choose "Tikhonov", the "TV" regularizer is not implemented
+* **Strength**: The Tikhonov regularization strength, too small/large will result in reconstructions that are too noisy/smooth
 
-The acquired data will then be displayed in the `napari` window. Note that phase reconstruction is more computationally expensive and may take several minutes depending on your system.
+The acquired data will then be displayed in napari layers. Note that phase reconstruction is more computationally expensive and may take several minutes depending on your system.
 
 Examples of acquiring 2D birefringence data (kidney tissue) with this snap method are below:
 
 ![](./images/acq_finished.png)
 
 ### Recreating reconstructions
-`recOrder`'s GUI acquires data from MicroManager, reads the GUI to generate a configuration file, then uses a CLI to reconstruct the acquired data with the configuration file. This means all reconstructions are exactly reproducible via a CLI. See the terminal that started napari for a log of the exact CLI commands to use to reproduce the results in the napari window. 
+`recOrder`'s GUI acquires data from MicroManager, reads the GUI to generate a configuration file, then uses a CLI to reconstruct the acquired data with the configuration file, which makes all reconstructions exactly reproducible via a CLI. See the terminal that started napari for a log of the exact CLI commands that will reproduce the results in the napari window. 
 
-See the [reconstruction guide](./reconstruction-guide.md) for detailed CLI usage. 
+See the [reconstruction guide](./reconstruction-guide.md) for CLI usage instructions. 
 
 ## Visualizations
 When an **Orientation*** layer appears at the top of the layers list, `recOrder` will automatically color it with an HSV color map that indicates the orientation. 

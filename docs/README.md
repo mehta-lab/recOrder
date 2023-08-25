@@ -4,7 +4,7 @@
 
 **I would like to use the `napari plugin`:** start with the [plugin guide](./napari-plugin-guide.md).
 
-**I would like to perform a reconstructions on existing data:** start with the [reconstruction guide](./reconstruction-guide.md) and consult the [data schema](./data-schema.md) for `recOrder`'s format.
+**I would like to reconstruct existing data:** start with the [reconstruction guide](./reconstruction-guide.md) and consult the [data schema](./data-schema.md) for `recOrder`'s format.
 
 **I would like to set up a development environment and test `recOrder`**: start with the [development guide](./development-guide.md).
 
