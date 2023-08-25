@@ -9,6 +9,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from importlib_metadata import version
 from iohub import open_ome_zarr
+from iohub.ngff_meta import TransformationMeta
 from mpl_toolkits.axes_grid1.axes_divider import make_axes_locatable
 from napari.utils.notifications import show_warning
 from scipy.interpolate import interp1d
@@ -1091,8 +1092,6 @@ class QLIPP_Calibration:
             channel_names=[f"State{i}" for i in range(num_states)],
         ) as dataset:
             position = dataset.create_position("0", "0", "0")
-            from iohub.ngff_meta import TransformationMeta
-
             position.create_zeros(
                 name="0",
                 shape=(1, num_states, 1, cyx_data.shape[1], cyx_data.shape[2]),
