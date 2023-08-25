@@ -27,7 +27,7 @@ The first step in the acquisition process is to calibrate the liquid crystals an
 
 
 ### Prepare for a calibration
-Place your sample on the stage, focus on the surface of the coverlip/well, navigate to **an empty FOV**, then align the light source into **Kohler illumination** [following these steps.](https://www.microscopyu.com/tutorials/kohler)
+Place your sample on the stage, focus on the surface of the coverslip/well, navigate to **an empty FOV**, then align the light source into **Kohler illumination** [following these steps](https://www.microscopyu.com/tutorials/kohler).
 
 ### Choose calibration parameters
 Browse for and choose a **Directory** where you calibration and background images will be saved.
