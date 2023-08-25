@@ -60,7 +60,7 @@ Once finished, you will get a calibration assessment and an extinction value. Th
 
 * **Extinction 100 - 200**: Good Extinction. These are the typical values we get on our microscopes.
 
-* **Extinction 200**+: Excellent. Indicates a very well-aligned and clean light path and high sensitivity of the system.
+* **Extinction 200+**: Excellent. Indicates a very well-aligned and clean light path and high sensitivity of the system.
 
 For a deeper discussion of the calibration procedure, swing, and the extinction ratio, see the [calibration guide](./calibration-guide.md).
 
