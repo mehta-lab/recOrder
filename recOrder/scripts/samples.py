@@ -7,7 +7,7 @@ from platformdirs import user_data_dir
 from wget import download
 
 
-def download_and_unzip():  # -> tuple(Path):
+def download_and_unzip() -> tuple[Path]:
     """Downloads sample data .zip from zenodo, unzips, and returns Paths to the .zarr datasets.
 
     Skips the download if the files already exist.
