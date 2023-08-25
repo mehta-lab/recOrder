@@ -16,7 +16,10 @@ Click “Connect to MM”. If the connection succeeds, proceed to calibration. I
 
 ![](./images/connect_to_mm.png)
 
+For polarization imaging, start with the **Calibration** tab. For phase-from-brightfield imaging, you can skip the calibration and go to the **Aquisition / Reconstruction** tab.
+
 ## Calibration tab
+If you only are acquiring brightfield data for phase reconstruction you can skip the calibration and proceed directly to [acquisition](#acquisition-settings) 
 
 The first step in the acquisition process is to calibrate the liquid crystals and measure a background. In the `recOrder` plugin you will see the following options for controlling the calibration:
 
