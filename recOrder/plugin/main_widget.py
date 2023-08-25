@@ -1181,16 +1181,16 @@ class MainWidget(QWidget):
     @Slot(tuple)
     def handle_bg_image_update(self, value):
         data, scale = value
-        self._add_or_update_image_layer(data, "Background Images", scale=scale)
+        self._add_or_update_image_layer(data, "Raw Background", scale=scale)
 
     @Slot(tuple)
     def handle_bg_bire_image_update(self, value):
         data, scale = value
         self._add_or_update_image_layer(
-            data[0], "Background Retardance", scale=scale
+            data[0], "Retardance Background", scale=scale
         )
         self._add_or_update_image_layer(
-            data[1], "Background Orientation", cmap="hsv", scale=scale
+            data[1], "Orientation Background", cmap="hsv", scale=scale
         )
 
     def handle_layers_updated(self, event: Event):
@@ -1209,7 +1209,7 @@ class MainWidget(QWidget):
             orientation_name = layers[-1].name
             suffix = orientation_name.replace("Orientation", "")
             retardance_name = "Retardance" + suffix
-            overlay_name = "BirefringenceOverlay" + suffix
+            overlay_name = "Birefringence Overlay" + suffix
             # if the matching retardance layer is present, generate an overlay
             if retardance_name in layers:
                 logging.info(
