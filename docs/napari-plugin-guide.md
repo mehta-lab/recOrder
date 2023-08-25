@@ -106,7 +106,7 @@ The **Acquisition Mode** sets the target dimensions for the reconstruction. Perh
 | **Phase From BF** | ZYX data | ZYX data | 
 | **Retardance + Orientation + Phase** | CZYX data | CZYX data | 
 
-Unless a **Retardance + Orientation** reconstruction in **2D Acquisition Mode** is requested, `recOrder` uses Micro-Manager's z-stage to acquire 3D data. **Z Start**, **Z End**, and **Z Step** are stage settings for acquiring an image volume, relative to the current position of the stage. Values are in the stage's default units, typically in microns.
+Unless a **Retardance + Orientation** reconstruction in **2D Acquisition Mode** is requested, `recOrder` uses Micro-Manager's z-stage to acquire 3D data. **Z Start**, **Z End**, and **Z Step** are stage settings for acquiring an image volume, relative to the current position of the stage. Values are in the stage's default units, typically in micrometers.
 
 For example, to image a 20 um thick cell the user would focus in the middle of the cell then choose
 
@@ -133,7 +133,7 @@ The remaining parameters are used by the reconstructions:
 * **Wavelength (nm)**: illumination wavelength
 * **Objective NA**: numerical aperture of the objective, typically found next to magnification
 * **Condenser NA**: numerical aperture of the condenser
-* **Camera Pixel Size (um)**: pixel size of the camera in microns (e.g. 6.5 um)
+* **Camera Pixel Size (um)**: pixel size of the camera in micrometers (e.g. 6.5 um)
 * **RI of Obj. Media**: refractive index of the objective media, typical values are 1.0 (air), 1.3 (water), 1.473 (glycerol), or 1.512 (oil)
 * **Magnification**: magnification of the objective
 * **Rotate Orientation (90 deg)**: rotates "Orientation" reconstructions by +90 degrees clockwise and saves the result, most useful when a known-orientation sample is available
