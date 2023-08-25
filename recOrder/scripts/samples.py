@@ -15,7 +15,7 @@ def download_and_unzip() -> tuple[Path]:
     Uses platformdirs.user_data_dir to store data.
     """
     temp_dirpath = Path(user_data_dir("recOrder-sample-v1.4"))
-    temp_dirpath.mkdir(exist_ok=True)
+    temp_dirpath.mkdir(exist_ok=True, parents=True)
     data_dirpath = temp_dirpath / "sample_contribution"
 
     if not data_dirpath.with_suffix(".zip").exists():
