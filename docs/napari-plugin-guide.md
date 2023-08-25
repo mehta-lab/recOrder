@@ -102,7 +102,7 @@ The **Acquisition Mode** sets the target dimensions for the reconstruction. Perh
 
 | **Acquisition** \ Acquisition Mode | 2D mode | 3D mode |  
 | :--- | :--- | :--- |
-| **Retardance + Orientation** | CYX data | CYX data | 
+| **Retardance + Orientation** | CYX data | CZYX data | 
 | **Phase From BF** | ZYX data | ZYX data | 
 | **Retardance + Orientation + Phase** | CZYX data | CZYX data | 
 
