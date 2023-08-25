@@ -133,7 +133,7 @@ The remaining parameters are used by the reconstructions:
 * **Wavelength (nm)**: illumination wavelength
 * **Objective NA**: numerical aperture of the objective, typically found next to magnification
 * **Condenser NA**: numerical aperture of the condenser
-* **Camera Pixel Size (um)**: pixel size of the camera in microns (e.g. 6.5 um)
+* **Camera Pixel Size (um)**: pixel size of the camera in micrometers (e.g. 6.5 μm)
 * **RI of Obj. Media**: refractive index of the objective media, typical values are 1.0 (air), 1.3 (water), 1.473 (glycerol), or 1.512 (oil)
 * **Magnification**: magnification of the objective
 * **Rotate Orientation (90 deg)**: rotates "Orientation" reconstructions by +90 degrees clockwise and saves the result, most useful when a known-orientation sample is available
