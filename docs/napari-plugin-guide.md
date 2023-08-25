@@ -145,7 +145,7 @@ The remaining parameters are used by the reconstructions:
 
 These parameters are used only by phase reconstructions
 
-* **Z Padding**: The number of slices to pad on either end of the stack in order to correct for edge reflection artifacts, necessary if the sample is not fully out of focus on either end of the stack
+* **Z Padding**: The number of slices to pad on either end of the stack, necessary if the sample is not fully out of focus on either end of the stack
 * **Regularizer**: Choose "Tikhonov", the "TV" regularizer is not implemented
 * **Strength**: The Tikhonov regularization strength, too small/large will result in reconstructions that are too noisy/smooth
 
