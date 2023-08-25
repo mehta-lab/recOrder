@@ -52,7 +52,7 @@ The plot shows the intensities over time during calibration. One way to diagnose
 
 ![](./images/ideal_plot.png)
 
-Once finished, you will get a calibration assessment and an extinction value. The extinction value  gives you a metric for calibration quality: the higher the extinction, the cleaner the light path and the greater the sensitivity of QLIPP.
+Once finished, you will get a calibration assessment and an extinction value. The extinction value gives you a metric for calibration quality: the higher the extinction, the cleaner the light path and the greater the sensitivity of QLIPP.
 
 * **Extinction 0 – 50**:  Very poor. The alignment of the universal compensator may be off or the sample chamber may be highly birefringent. 
 
