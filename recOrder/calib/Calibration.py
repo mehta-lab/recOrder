@@ -1081,6 +1081,7 @@ class QLIPP_Calibration:
             yx_list.append(self._capture_state(f"State{channel}", n_avg))
             logging.debug(f"Saving Background State{channel}")
         cyx_data = np.array(yx_list)
+        yx_scale = self.mmc.getPixelSizeUm()
 
         # Save to zarr
         with open_ome_zarr(
@@ -1090,11 +1091,18 @@ class QLIPP_Calibration:
             channel_names=[f"State{i}" for i in range(num_states)],
         ) as dataset:
             position = dataset.create_position("0", "0", "0")
+            from iohub.ngff_meta import TransformationMeta
+
             position.create_zeros(
                 name="0",
                 shape=(1, num_states, 1, cyx_data.shape[1], cyx_data.shape[2]),
                 dtype=np.float32,
                 chunks=(1, 1, 1, cyx_data.shape[1], cyx_data.shape[2]),
+                transform=[
+                    TransformationMeta(
+                        type="scale", scale=[1, 1, 1, yx_scale, yx_scale]
+                    )
+                ],
             )
             position["0"][0, :, 0] = cyx_data  # save to 1C1YX array
 
