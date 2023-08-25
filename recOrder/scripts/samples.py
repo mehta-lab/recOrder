@@ -1,9 +1,9 @@
 import shutil
-import tempfile
 from pathlib import Path
 
 from iohub import open_ome_zarr
 from napari.utils.notifications import show_warning
+from platformdirs import user_data_dir
 from wget import download
 
 
@@ -12,9 +12,10 @@ def download_and_unzip():  # -> tuple(Path):
 
     Skips the download if the files already exist.
 
-    Uses tempfile.gettempdir() to store data.
+    Uses platformdirs.user_data_dir to store data.
     """
-    temp_dirpath = Path(tempfile.gettempdir())
+    temp_dirpath = Path(user_data_dir("recOrder"))
+    temp_dirpath.mkdir(exist_ok=True)
     data_dirpath = temp_dirpath / "sample_contribution"
 
     if not data_dirpath.with_suffix(".zip").exists():
