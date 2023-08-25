@@ -11,7 +11,7 @@ Launch `napari` with `recOrder`
 ```
 napari -w recOrder-napari
 ```
-## Connect to MicroManager
+## Connect to Micro-Manager
 Click “Connect to MM”. If the connection succeeds, proceed to calibration. If not, revisit the [microscope installation guide](./microscope-installation-guide.md).
 
 ![](./images/connect_to_mm.png)
@@ -41,7 +41,7 @@ Choose an **Illumination Scheme** to decides how many polarization states you wi
 
 **Calibration Mode** is set automatically, so the default value is a good place to start. Different modes allow calibrations with voltages, retardances, or hardware sequencing. 
 
-The **Config Group** is set automatically to the MicroManager configuration group that contains the `State*` presets. You can modify this option if you have multple configuration groups with these presets. 
+The **Config Group** is set automatically to the Micro-Manager configuration group that contains the `State*` presets. You can modify this option if you have multple configuration groups with these presets. 
 
 ### Run the calibration
 Start a calibration with **Run Calibration**. 
@@ -65,9 +65,9 @@ Once finished, you will get a calibration assessment and an extinction value. Th
 For a deeper discussion of the calibration procedure, swing, and the extinction ratio, see the [calibration guide](./calibration-guide.md).
 
 ### Optional: Load Calibration
-The **Load Calibration** button allows earlier calibrations to be reused. Select a *polarization_calibration.txt* file and MicroManager's presets will be updated with these settings. `recOrder` will also collect a few images to update the extinction ratio to reflect the current condition of the light path. Once this short acquisition has finished, the user can acquire data as normal.  
+The **Load Calibration** button allows earlier calibrations to be reused. Select a *polarization_calibration.txt* file and Micro-Manager's presets will be updated with these settings. `recOrder` will also collect a few images to update the extinction ratio to reflect the current condition of the light path. Once this short acquisition has finished, the user can acquire data as normal.  
 
-This feature is useful if MicroManager and/or `recOrder` crashes. If the sample and imaging setup haven't changed, it is safe to reuse a calibration. Otherwise, if the sample or the microscope changes, we recommend performing a new calibration.
+This feature is useful if Micro-Manager and/or `recOrder` crashes. If the sample and imaging setup haven't changed, it is safe to reuse a calibration. Otherwise, if the sample or the microscope changes, we recommend performing a new calibration.
 
 ### Optional: Calculate Extinction
 The **Calculate Extinction** button acquires a few images and recalculates the extinction value. 
@@ -86,14 +86,14 @@ It is normal to see background retardance and orientation. We will use these bac
 The advanced tab gives the user a log output which can be useful for debugging purposes. There is a log level “debugging” which serves as a verbose output. Look here for any hints as to what may have gone wrong during calibration or acquisition.
 
 ## Acquisition / Reconstruction Tab
-This acquisition tab is designed to acquire and reconstruct single volumes of both phase and birefringence measurements to allow the user to test their calibration and background. We recommend this tab for quick testing and the Micromanager MDA acquisition for high-throughput data collection.
+This acquisition tab is designed to acquire and reconstruct single volumes of both phase and birefringence measurements to allow the user to test their calibration and background. We recommend this tab for quick testing and the Micro-Manager MDA acquisition for high-throughput data collection.
 
 ### Acquire Buttons
 ![](./images/acquire_buttons.png)
 
-The **Retardance + Orientation**, **Phase From BF**, and **Retardance + Orientation + Phase** buttons set off MicroManager acquisitions that use the upcoming acquisition settings. After the acquisition is complete, these routines will set off `recOrder` reconstructions that estimate the named parameters. 
+The **Retardance + Orientation**, **Phase From BF**, and **Retardance + Orientation + Phase** buttons set off Micro-Manager acquisitions that use the upcoming acquisition settings. After the acquisition is complete, these routines will set off `recOrder` reconstructions that estimate the named parameters. 
 
-The **STOP** button will end the acquisition as soon as possible, though MicroManager acquisitions cannot always be interrupted. 
+The **STOP** button will end the acquisition as soon as possible, though Micro-Manager acquisitions cannot always be interrupted. 
 
 ### Acquisition Settings
 ![](./images/acquisition_settings.png)
@@ -106,7 +106,7 @@ The **Acquisition Mode** sets the target dimensions for the reconstruction. Perh
 | **Phase From BF** | ZYX data | ZYX data | 
 | **Retardance + Orientation + Phase** | CZYX data | CZYX data | 
 
-Unless a **Retardance + Orientation** reconstruction in **2D Acquisition Mode** is requested, `recOrder` uses MicroManager's z-stage to acquire 3D data. **Z Start**, **Z End**, and **Z Step** are stage settings for acquiring an image volume, relative to the current position of the stage. Values are in the stage's default units, typically in microns.
+Unless a **Retardance + Orientation** reconstruction in **2D Acquisition Mode** is requested, `recOrder` uses Micro-Manager's z-stage to acquire 3D data. **Z Start**, **Z End**, and **Z Step** are stage settings for acquiring an image volume, relative to the current position of the stage. Values are in the stage's default units, typically in microns.
 
 For example, to image a 20 um thick cell the user would focus in the middle of the cell then choose
 
@@ -156,7 +156,7 @@ Examples of acquiring 2D birefringence data (kidney tissue) with this snap metho
 ![](./images/acq_finished.png)
 
 ### Recreating reconstructions
-`recOrder`'s GUI acquires data from MicroManager, reads the GUI to generate a configuration file, then uses a CLI to reconstruct the acquired data with the configuration file, which makes all reconstructions exactly reproducible via a CLI. See the terminal that started napari for a log of the exact CLI commands that will reproduce the results in the napari window. 
+`recOrder`'s GUI acquires data from Micro-Manager, reads the GUI to generate a configuration file, then uses a CLI to reconstruct the acquired data with the configuration file, which makes all reconstructions exactly reproducible via a CLI. See the terminal that started napari for a log of the exact CLI commands that will reproduce the results in the napari window. 
 
 See the [reconstruction guide](./reconstruction-guide.md) for CLI usage instructions. 
 
