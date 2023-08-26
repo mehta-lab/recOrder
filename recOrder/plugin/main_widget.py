@@ -1154,7 +1154,8 @@ class MainWidget(QWidget):
         move_to_top : bool, optional
             whether to move the updated layer to the top of layers list, by default True
         """
-        image = np.squeeze(image)
+        if image.shape[0] == 1:
+            image = image.squeeze(axis=0)
         scale = scale[-image.ndim :]  # match shapes
 
         if name in self.viewer.layers:
