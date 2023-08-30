@@ -77,7 +77,7 @@ class MainWidget(QWidget):
     no_bf_msg = "\n".join(
         textwrap.wrap(
             f"No brightfield channel found. If you would like to acquire phase from brightfield,"
-            " please restart recOrder after adding a new channel to MicroManager with one of the"
+            " please restart recOrder after adding a new channel to Micro-Manager with one of the"
             " following case-insensitive keywords: " + ", ".join(bf_keywords),
             width=70,
         )
@@ -394,7 +394,7 @@ class MainWidget(QWidget):
 
         # Hide temporarily unsupported "Overlay" functions
         self.ui.tabWidget.setTabText(
-            self.ui.tabWidget.indexOf(self.ui.Display), "Orientation Legend"
+            self.ui.tabWidget.indexOf(self.ui.Display), "Visualization"
         )
         self.ui.label_orientation_legend.setHidden(True)
         self.ui.DisplayOptions.setHidden(True)
@@ -664,7 +664,7 @@ class MainWidget(QWidget):
 
     def _handle_error(self, exc):
         """
-        Handles errors from calibration and restores micromanager to its state prior to the start of calibration
+        Handles errors from calibration and restores Micro-Manager to its state prior to the start of calibration
         Parameters
         ----------
         exc:        (Error) Propogated error message to display
@@ -900,7 +900,7 @@ class MainWidget(QWidget):
     @Slot(bool)
     def connect_to_mm(self):
         """
-        Establishes the python/java bridge to Micromanager.  Micromanager must be open with a config loaded
+        Establishes the python/java bridge to Micro-Manager.  Micro-Manager must be open with a config loaded
         in order for the connection to be successful.  On connection, it will populate all of the available config
         groups.  Config group choice is used to establish which config group the Polarization states live in.
 
@@ -922,13 +922,13 @@ class MainWidget(QWidget):
             raise EnvironmentError(
                 (
                     "Could not establish pycromanager bridge.\n"
-                    "Is micromanager open?\n"
+                    "Is Micro-Manager open?\n"
                     "Is Tools > Options > Run server on port 4827 checked?\n"
                     f"Are you using nightly build {RECOMMENDED_MM}?"
                 )
             )
 
-        # Warn the user if there is a MicroManager/ZMQ version mismatch
+        # Warn the user if there is a Micro-Manager/ZMQ version mismatch
         # NS: Not quite sure what this is good for, we already know the Core works
         # This code uses undocumented PycroManager features, so may well break in the future
         self.bridge._main_socket.send({"command": "connect", "debug": False})
@@ -943,8 +943,8 @@ class MainWidget(QWidget):
             )
             logging.warning(
                 (
-                    "This version of Micromanager has not been tested with recOrder.\n"
-                    f"Please {upgrade_str} to MicroManager nightly build {RECOMMENDED_MM}."
+                    "This version of Micro-Manager has not been tested with recOrder.\n"
+                    f"Please {upgrade_str} to Micro-Manager nightly build {RECOMMENDED_MM}."
                 )
             )
 
@@ -1154,6 +1154,8 @@ class MainWidget(QWidget):
         move_to_top : bool, optional
             whether to move the updated layer to the top of layers list, by default True
         """
+        if image.shape[0] == 1:
+            image = image.squeeze(axis=0)
         scale = scale[-image.ndim :]  # match shapes
 
         if name in self.viewer.layers:
@@ -1181,16 +1183,16 @@ class MainWidget(QWidget):
     @Slot(tuple)
     def handle_bg_image_update(self, value):
         data, scale = value
-        self._add_or_update_image_layer(data, "Background Images", scale=scale)
+        self._add_or_update_image_layer(data, "Raw Background", scale=scale)
 
     @Slot(tuple)
     def handle_bg_bire_image_update(self, value):
         data, scale = value
         self._add_or_update_image_layer(
-            data[0], "Background Retardance", scale=scale
+            data[0], "Retardance Background", scale=scale
         )
         self._add_or_update_image_layer(
-            data[1], "Background Orientation", cmap="hsv", scale=scale
+            data[1], "Orientation Background", cmap="hsv", scale=scale
         )
 
     def handle_layers_updated(self, event: Event):
@@ -1209,7 +1211,7 @@ class MainWidget(QWidget):
             orientation_name = layers[-1].name
             suffix = orientation_name.replace("Orientation", "")
             retardance_name = "Retardance" + suffix
-            overlay_name = "BirefringenceOverlay" + suffix
+            overlay_name = "Birefringence Overlay" + suffix
             # if the matching retardance layer is present, generate an overlay
             if retardance_name in layers:
                 logging.info(

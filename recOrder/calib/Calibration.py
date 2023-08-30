@@ -9,6 +9,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from importlib_metadata import version
 from iohub import open_ome_zarr
+from iohub.ngff_meta import TransformationMeta
 from mpl_toolkits.axes_grid1.axes_divider import make_axes_locatable
 from napari.utils.notifications import show_warning
 from scipy.interpolate import interp1d
@@ -39,17 +40,17 @@ class QLIPP_Calibration:
         Parameters
         ----------
         mmc : object
-            MicroManager core instance
+            Micro-Manager core instance
         mm : object
-            MicroManager Studio instance
+            Micro-Manager Studio instance
         group : str
-            Name of the MicroManager channel group used defining LC states [State0, State1, State2, ...]
+            Name of the Micro-Manager channel group used defining LC states [State0, State1, State2, ...]
         lc_control_mode : str
             Defined the control mode of the liquid crystals. One of the following:
-            * MM-Retardance: The retardance of the LC is set directly through the MicroManager LC device adapter. The
-            MicroManager device adapter determines the corresponding voltage which is sent to the LC.
+            * MM-Retardance: The retardance of the LC is set directly through the Micro-Manager LC device adapter. The
+            Micro-Manager device adapter determines the corresponding voltage which is sent to the LC.
             * MM-Voltage: The CalibrationData class in recOrder uses the LC calibration data to determine the correct
-            LC voltage for a given retardance. The LC voltage is set through the MicroManager LC device adapter.
+            LC voltage for a given retardance. The LC voltage is set through the Micro-Manager LC device adapter.
             * DAC: The CalibrationData class in recOrder uses the LC calibration data to determine the correct
             LC voltage for a given retardance. The voltage is applied to the IO port of the LC controller through the
             TriggerScope DAC outputs.
@@ -65,7 +66,7 @@ class QLIPP_Calibration:
             Set verbose option
         """
 
-        # Micromanager API
+        # Micro-Manager API
         self.mm = mm
         self.mmc = mmc
         self.snap_manager = mm.getSnapLiveManager()
@@ -1055,7 +1056,7 @@ class QLIPP_Calibration:
         """ "
         This function will capture an image at every state
         and save to specified directory
-        This may throw errors depending on the micromanager config file--
+        This may throw errors depending on the Micro-Manager config file--
         modify 'State_' to match to the corresponding channel preset in config
         :param: n_states (int)
             Number of states used for calibration
@@ -1081,6 +1082,7 @@ class QLIPP_Calibration:
             yx_list.append(self._capture_state(f"State{channel}", n_avg))
             logging.debug(f"Saving Background State{channel}")
         cyx_data = np.array(yx_list)
+        yx_scale = self.mmc.getPixelSizeUm()
 
         # Save to zarr
         with open_ome_zarr(
@@ -1095,6 +1097,11 @@ class QLIPP_Calibration:
                 shape=(1, num_states, 1, cyx_data.shape[1], cyx_data.shape[2]),
                 dtype=np.float32,
                 chunks=(1, 1, 1, cyx_data.shape[1], cyx_data.shape[2]),
+                transform=[
+                    TransformationMeta(
+                        type="scale", scale=[1, 1, 1, yx_scale, yx_scale]
+                    )
+                ],
             )
             position["0"][0, :, 0] = cyx_data  # save to 1C1YX array
 
