@@ -6,7 +6,7 @@
 
 `recOrder` is compatible with OME-Zarr, a chunked next generation file format with an [open specification](https://ngff.openmicroscopy.org/0.4/). All acquisitions completed with the `recOrder` plugin will be automatically converted to `.zarr` format, and existing data can be converted using `iohub`'s `convert` utility. 
 
-Inside a `recOrder` environment, convert a Micro-Manager TIFF sequence, OME-TIFF, or pycromanager NDTiff datasets with
+Inside a `recOrder` environment, convert a Micro-Manager TIFF sequence, OME-TIFF, or pycromanager NDTiff dataset with
 ```
 iohub convert `
     -i ./dataset/ `
