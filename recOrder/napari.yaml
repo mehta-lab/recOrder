@@ -24,8 +24,8 @@ contributions:
   sample_data:
   - command: recOrder-napari.polarization_target_data
     key: polarization-target-data
-    display_name: Polarization Target Data
+    display_name: Polarization Target Data  (10 MB)
   - command: recOrder-napari.polarization_target_reconstruction
     key: polarization-target-reconstruction
-    display_name: Polarization Target Reconstruction
+    display_name: Polarization Target Reconstruction  (10 MB)
 
