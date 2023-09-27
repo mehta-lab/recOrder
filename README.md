@@ -16,9 +16,9 @@ Syuan-Ming Guo, Li-Hao Yeh, Jenny Folkesson, Ivan E Ivanov, Anitha P Krishnan, M
 
 These are the kinds of data you can acquire with `recOrder` and QLIPP:
 
-Zebrafish embryo:
+https://user-images.githubusercontent.com/9554101/271128301-cc71da57-df6f-401b-a955-796750a96d88.mov
 
-https://user-images.githubusercontent.com/9554101/267822774-8b9ad343-ee5b-4648-88a9-a5c3bfa5ed6d.mp4
+https://user-images.githubusercontent.com/9554101/271128510-aa2180af-607f-4c0c-912c-c18dc4f29432.mp4
 
 ## What do I need to use `recOrder`
 `recOrder` is to be used alongside a conventional widefield microscope. For QLIPP, the microscope must be fitted with a universal polarizer (Panel A below). For phase-from-defocus or fluorescence deconvolution methods, the universal polarizer is optional.
