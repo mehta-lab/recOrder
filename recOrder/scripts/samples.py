@@ -37,7 +37,7 @@ def download_and_unzip(data_type: Literal["target", "embryo"]) -> tuple[Path]:
         data_url = "https://zenodo.org/record/8280720/files/sample_contribution.zip?download=1"
     elif data_type == "embryo":
         data_dirpath = temp_dirpath / "sample_contribution_embryo"
-        data_size = "460 MB"
+        data_size = "92 MB"
         data_url = ""
 
     if not data_dirpath.with_suffix(".zip").exists():

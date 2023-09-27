@@ -33,5 +33,5 @@ contributions:
     display_name: Polarization Target Reconstruction (10 MB)
   - command: recOrder-napari.zebrafish_embryo_reconstruction
     key: zebrafish-embryo-reconstruction
-    display_name: Zebrafish Embryo Reconstruction (460 MB)
+    display_name: Zebrafish Embryo Reconstruction (92 MB)
 
