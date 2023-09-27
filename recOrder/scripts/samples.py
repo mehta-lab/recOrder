@@ -40,7 +40,8 @@ def read_polarization_target_data():
 
     dataset = open_ome_zarr(data_path)
     layer_list = []
-    for channel_index, channel_name in enumerate(dataset.channel_names):
+    for channel_name in dataset.channel_names:
+        channel_index = dataset.channel_names.index(channel_name)
         position = dataset["0/0/0"]
         data = (position["0"][0, channel_index],)
         layer_dict = {"name": channel_name, "scale": position.scale[3:]}
@@ -56,9 +57,8 @@ def read_polarization_target_reconstruction():
     dataset = open_ome_zarr(recon_path)
 
     layer_list = []
-    for channel_index, channel_name in enumerate(
-        ["Retardance", "Orientation"]
-    ):
+    for channel_name in ["Phase3D", "Retardance", "Orientation"]:
+        channel_index = dataset.channel_names.index(channel_name)
         position = dataset["0/0/0"]
         data = (position["0"][0, channel_index],)
         layer_dict = {"name": channel_name, "scale": position.scale[3:]}
