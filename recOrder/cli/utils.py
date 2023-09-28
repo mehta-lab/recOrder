@@ -52,7 +52,8 @@ def apply_inverse_to_zyx_and_save(
     func,
     position: Position,
     output_path: Path,
-    channel_indices,
+    input_channel_indices,
+    output_channel_indices,
     t_idx: int = 0,
     **kwargs,
 ) -> None:
@@ -60,7 +61,7 @@ def apply_inverse_to_zyx_and_save(
     click.echo(f"Reconstructing t={t_idx}")
 
     # Load data
-    tczyx_uint16_numpy = position.data.oindex[:, channel_indices]
+    tczyx_uint16_numpy = position.data.oindex[:, input_channel_indices]
     # convert to np.int32 (torch doesn't accept np.uint16), then convert to tensor float32
     czyx_data = torch.tensor(
         np.int32(tczyx_uint16_numpy), dtype=torch.float32
@@ -72,5 +73,5 @@ def apply_inverse_to_zyx_and_save(
     # Write to file
     # for c, recon_zyx in enumerate(reconstruction_zyx):
     with open_ome_zarr(output_path, mode="r+") as output_dataset:
-        output_dataset[0][t_idx] = reconstruction_czyx
+        output_dataset[0].oindex[t_idx, output_channel_indices] = reconstruction_czyx
     click.echo(f"Finished Writing.. t={t_idx}")
