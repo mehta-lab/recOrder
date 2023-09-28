@@ -27,8 +27,9 @@ def create_empty_hcs_zarr(
 
     # Create positions
     for position_key in position_keys:
+        position_key_string = "/".join(position_key)
         # Check if position is already in the store, if not create it
-        if "/".join(position_key) not in output_plate.zgroup:
+        if position_key_string not in output_plate.zgroup:
             position = output_plate.create_position(*position_key)
 
             _ = position.create_zeros(
@@ -39,7 +40,7 @@ def create_empty_hcs_zarr(
                 transform=[TransformationMeta(type="scale", scale=scale)],
             )
         else:
-            position = output_plate[position_key]
+            position = output_plate[position_key_string]
 
         # Check if channel_names are already in the store, if not append them
         for channel_name in channel_names:
