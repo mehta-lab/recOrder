@@ -31,6 +31,18 @@ def test_create_empty_hcs_zarr():
             assert "Channel2" in z.channel_names
 
     # Repeat creation should not fail
+    more_channel_names = ["Channel3"]
     create_empty_hcs_zarr(
-        store_path, position_keys, shape, chunks, scale, channel_names, dtype
+        store_path,
+        position_keys,
+        shape,
+        chunks,
+        scale,
+        more_channel_names,
+        dtype,
     )
+
+    # Verify existence of appended channel names
+    with open_ome_zarr(store_path, mode="r") as z:
+        for position_key in position_keys:
+            assert "Channel3" in z.channel_names
