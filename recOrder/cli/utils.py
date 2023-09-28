@@ -27,6 +27,7 @@ def create_empty_hcs_zarr(
 
     # Create positions
     for position_key in position_keys:
+        # Check if position is already in the store, if not create it
         if "/".join(position_key) not in output_plate.zgroup:
             position = output_plate.create_position(*position_key)
 
@@ -37,6 +38,13 @@ def create_empty_hcs_zarr(
                 dtype=dtype,
                 transform=[TransformationMeta(type="scale", scale=scale)],
             )
+        else:
+            position = output_plate[position_key]
+
+        # Check if channel_names are already in the store, if not append them
+        for channel_name in channel_names:
+            if channel_name not in position.channel_names:
+                position.append_channel(channel_name, resize_arrays=True)
 
 
 def apply_inverse_to_zyx_and_save(
