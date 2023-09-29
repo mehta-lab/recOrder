@@ -28,17 +28,17 @@ def download_and_unzip(data_type: Literal["target", "embryo"]) -> tuple[Path]:
 
     Uses platformdirs.user_data_dir to store data.
     """
-    temp_dirpath = Path(user_data_dir("recOrder-sample-v1.4"))
+    temp_dirpath = Path(user_data_dir("recOrder-sample-v1.5"))
     temp_dirpath.mkdir(exist_ok=True, parents=True)
 
     if data_type == "target":
         data_dirpath = temp_dirpath / "sample_contribution"
         data_size = "10 MB"
-        data_url = "https://zenodo.org/record/8280720/files/sample_contribution.zip?download=1"
+        data_url = "https://zenodo.org/record/8386856/files/sample_contribution.zip?download=1"
     elif data_type == "embryo":
         data_dirpath = temp_dirpath / "sample_contribution_embryo"
         data_size = "92 MB"
-        data_url = ""
+        data_url = "https://zenodo.org/record/8386856/files/sample_contribution_embryo.zip?download=1"
 
     if not data_dirpath.with_suffix(".zip").exists():
         show_warning(
