@@ -33,10 +33,9 @@ class QHLine(QFrame):
 class QNamedSlider(QWidget):
     def __init__(self, name: str):
         super().__init__()
-        self._slider = QSlider(Qt.Orientation.Horizontal)
-        self._max_retardance_slider = QLabeledSlider(Qt.Orientation.Horizontal)
+        self._slider = QLabeledSlider(Qt.Orientation.Horizontal)
         layout = QFormLayout()
-        layout.addRow(name, self._max_retardance_slider)
+        layout.addRow(name, self._slider)
         self.setLayout(layout)
 
 
