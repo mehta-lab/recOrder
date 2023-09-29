@@ -44,7 +44,11 @@ def create_empty_hcs_zarr(
 
         # Check if channel_names are already in the store, if not append them
         for channel_name in channel_names:
-            if channel_name not in position.channel_names:
+            # Read channel names directly from metadata to avoid race conditions
+            metadata_channel_names = [
+                channel.label for channel in position.metadata.omero.channels
+            ]
+            if channel_name not in metadata_channel_names:
                 position.append_channel(channel_name, resize_arrays=True)
 
 
@@ -73,5 +77,7 @@ def apply_inverse_to_zyx_and_save(
     # Write to file
     # for c, recon_zyx in enumerate(reconstruction_zyx):
     with open_ome_zarr(output_path, mode="r+") as output_dataset:
-        output_dataset[0].oindex[t_idx, output_channel_indices] = reconstruction_czyx
+        output_dataset[0].oindex[
+            t_idx, output_channel_indices
+        ] = reconstruction_czyx
     click.echo(f"Finished Writing.. t={t_idx}")
