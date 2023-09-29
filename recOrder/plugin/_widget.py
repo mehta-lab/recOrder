@@ -1,24 +1,27 @@
 from __future__ import annotations
 
 import os
+from inspect import isclass
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union, Literal
 
+import pydantic
+from magicgui import magicgui, widgets
 from qtpy.QtCore import Qt
 from qtpy.QtWidgets import (
     QFileDialog,
     QFormLayout,
     QFrame,
-    QLabel,
     QGridLayout,
+    QLabel,
     QLineEdit,
     QPushButton,
     QVBoxLayout,
     QWidget,
-    QSlider,
 )
+from superqt import QCollapsible, QLabeledSlider
 
-from superqt import QLabeledSlider, QCollapsible
+from recOrder.cli.settings import ReconstructionSettings
 
 if TYPE_CHECKING:
     from napari import Viewer
@@ -37,6 +40,70 @@ class QNamedSlider(QWidget):
         layout = QFormLayout()
         layout.addRow(name, self._slider)
         self.setLayout(layout)
+
+
+class ReconstructionSettingsWidget(QWidget):
+    def __init__(self):
+        super().__init__()
+
+
+def calibrate_lc(
+    calibration_metadata: str, states: Literal["4-states", "5-states"]
+):
+    pass
+
+
+def _filter_annoation(field_type: type):
+    annotation = str
+    if field_type.__name__ in pydantic.types.__all__:
+        if "Float" in str(field_type):
+            annotation = float
+        elif "Int" in str(field_type):
+            annotation = int
+    return annotation
+
+
+def _get_config_field(field: pydantic.fields.ModelField):
+    try:
+        widget = widgets.create_widget(
+            value=field.default, annotation=field.type_, name=field.name
+        )
+    except Exception:
+        widget = widgets.create_widget(
+            value=field.default,
+            annotation=_filter_annoation(field.type_),
+            name=field.name,
+        )
+    return widget
+
+
+def _is_pydantic_model_type(type_: type):
+    if isclass(type_):
+        if issubclass(type_, pydantic.BaseModel):
+            return True
+    return False
+
+
+def _get_config_container(
+    model: Union[pydantic.BaseModel, pydantic.fields.ModelField],
+    scrollable: bool,
+    label: str = None,
+):
+    """Recursively create nested magic GUI widgets for a pydantic model."""
+    if _is_pydantic_model_type(model):
+        widget = widgets.Container(scrollable=scrollable)
+        if label is not None:
+            label = widgets.Label(value=label)
+            widget.append(label)
+        for field in model.__fields__.values():
+            widget.append(_get_config_container(field, scrollable=False))
+    elif _is_pydantic_model_type(model.type_):
+        widget = _get_config_container(
+            model.type_, scrollable=False, label=model.name.replace("_", " ")
+        )
+    else:
+        widget = _get_config_field(model)
+    return widget
 
 
 class MainWidget(QWidget):
@@ -73,7 +140,7 @@ class MainWidget(QWidget):
         )
 
     def _launch_calibration_window(self) -> None:
-        pass
+        magicgui(calibrate_lc).show()
 
     def _add_input_layout(self) -> None:
         self._input_path_le = QLineEdit()
@@ -108,7 +175,10 @@ class MainWidget(QWidget):
         self._main_layout.addWidget(reconstruct_btn)
 
     def _launch_config_window(self) -> None:
-        pass
+        container = _get_config_container(
+            ReconstructionSettings, scrollable=True
+        )
+        container.show()
 
     def _reconstruct(self) -> None:
         pass
