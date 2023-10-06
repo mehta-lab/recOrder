@@ -21,7 +21,11 @@ https://user-images.githubusercontent.com/9554101/271128301-cc71da57-df6f-401b-a
 https://user-images.githubusercontent.com/9554101/271128510-aa2180af-607f-4c0c-912c-c18dc4f29432.mp4
 
 ## What do I need to use `recOrder`
-`recOrder` is to be used alongside a conventional widefield microscope. For QLIPP, the microscope must be fitted with a universal polarizer (Panel A below). For phase-from-defocus or fluorescence deconvolution methods, the universal polarizer is optional.
+`recOrder` is to be used alongside a conventional widefield microscope. For QLIPP, the microscope must be fitted with an analyzer and a universal polarizer: 
+
+https://user-images.githubusercontent.com/9554101/273073475-70afb05a-1eb7-4019-9c42-af3e07bef723.mp4
+
+For phase-from-defocus or fluorescence deconvolution methods, the universal polarizer is optional.
 
 The overall structure of `recOrder` is shown in Panel B, highlighting the structure of the graphical user interface (GUI) through a napari plugin and the command-line interface (CLI) that allows users to perform reconstructions.
 
