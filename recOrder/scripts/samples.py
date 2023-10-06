@@ -28,6 +28,14 @@ def download_and_unzip(data_type: Literal["target", "embryo"]) -> tuple[Path]:
 
     Uses platformdirs.user_data_dir to store data.
     """
+
+    # Delete old data
+    old_data_dirs = ["recOrder-sample-v1.4"]
+    for old_data_dir in old_data_dirs:
+        old_data_path = Path(user_data_dir(old_data_dir))
+        if old_data_path.exists():
+            shutil.rmtree(str(old_data_path))
+
     temp_dirpath = Path(user_data_dir("recOrder-sample-v1.5"))
     temp_dirpath.mkdir(exist_ok=True, parents=True)
 
