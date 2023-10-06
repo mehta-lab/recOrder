@@ -1,5 +1,5 @@
 import os
-from typing import List, Literal, Optional, Union
+from typing import Literal, Optional, Union
 
 from pydantic import (
     BaseModel,
@@ -147,9 +147,9 @@ class FluorescenceSettings(MyBaseModel):
 
 # Top level settings
 class ReconstructionSettings(MyBaseModel):
-    input_channel_names: List[str] = [f"State{i}" for i in range(4)]
+    input_channel_names: list[str] = [f"State{i}" for i in range(4)]
     time_indices: Union[
-        NonNegativeInt, List[NonNegativeInt], Literal["all"]
+        NonNegativeInt, list[NonNegativeInt], Literal["all"]
     ] = "all"
     reconstruction_dimension: Literal[2, 3] = 3
     birefringence: Optional[BirefringenceSettings]
