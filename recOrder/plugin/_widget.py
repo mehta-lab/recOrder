@@ -55,7 +55,10 @@ def calibrate_lc(
 
 def _filter_annoation(field_type: type):
     annotation = str
-    if field_type.__name__ in pydantic.types.__all__:
+    if (
+        getattr(field_type, "__name__", str(field_type))
+        in pydantic.types.__all__
+    ):
         if "Float" in str(field_type):
             annotation = float
         elif "Int" in str(field_type):
