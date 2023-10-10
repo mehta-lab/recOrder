@@ -7,29 +7,11 @@ from pydantic import ValidationError
 def test_reconstruction_settings():
     # Test defaults
     s = settings.ReconstructionSettings(
-        birefringence=settings.BirefringenceSettings()
+        reconstruction_type="Birefringence",
+        reconstruction_settings=settings.BirefringenceSettings(),
     )
     assert len(s.input_channel_names) == 4
-    assert s.birefringence.apply_inverse.background_path == ""
-    assert s.phase == None
-    assert s.fluorescence == None
-
-    # Test logic that "fluorescence" or ("phase" and/or "birefringence")
-    s = settings.ReconstructionSettings(
-        input_channel_names=["GFP"],
-        birefringence=None,
-        phase=None,
-        fluorescence=settings.FluorescenceSettings(),
-    )
-
-    assert s.fluorescence.apply_inverse.reconstruction_algorithm == "Tikhonov"
-
-    # Not allowed to supply both phase/biref and fluorescence
-    with pytest.raises(ValidationError):
-        settings.ReconstructionSettings(
-            phase=settings.PhaseSettings(),
-            fluorescence=settings.FluorescenceSettings(),
-        )
+    assert s.reconstruction_settings.apply_inverse.background_path == ""
 
     # Test incorrect settings
     with pytest.raises(ValidationError):
