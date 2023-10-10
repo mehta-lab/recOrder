@@ -1,5 +1,3 @@
-import os
-
 from click.testing import CliRunner
 
 from recOrder.cli import settings
@@ -16,8 +14,8 @@ def test_compute_transfer(tmp_path, example_plate):
     recon_settings = settings.ReconstructionSettings(
         input_channel_names=[f"State{i}" for i in range(4)],
         reconstruction_dimension=3,
-        birefringence=settings.BirefringenceSettings(),
-        phase=settings.PhaseSettings(),
+        reconstruction_type="Birefringence and Phase",
+        reconstruction_settings=settings.BirefringenceAndPhaseSettings(),
     )
     config_path = tmp_path / "test.yml"
     utils.model_to_yaml(recon_settings, config_path)

@@ -16,11 +16,17 @@ from recOrder.cli.parsing import (
     output_dirpath,
 )
 from recOrder.cli.printing import echo_headline, echo_settings
-from recOrder.cli.settings import ReconstructionSettings
+from recOrder.cli.settings import (
+    ReconstructionSettings,
+    PhaseSettings,
+    BirefringenceSettings,
+)
 from recOrder.io import utils
 
 
-def generate_and_save_birefringence_transfer_function(settings, dataset):
+def generate_and_save_birefringence_transfer_function(
+    settings: ReconstructionSettings, dataset
+):
     """Generates and saves the birefringence transfer function to the dataset, based on the settings.
 
     Parameters
@@ -30,13 +36,13 @@ def generate_and_save_birefringence_transfer_function(settings, dataset):
         The dataset that will be updated.
     """
     echo_headline("Generating birefringence transfer function with settings:")
-    echo_settings(settings.birefringence.transfer_function)
+    echo_settings(settings.reconstruction_settings.transfer_function)
 
     # Calculate transfer functions
     intensity_to_stokes_matrix = (
         inplane_oriented_thick_pol3d.calculate_transfer_function(
             scheme=str(len(settings.input_channel_names)) + "-State",
-            **settings.birefringence.transfer_function.dict(),
+            **settings.reconstruction_settings.transfer_function.dict(),
         )
     )
     # Save
@@ -45,7 +51,9 @@ def generate_and_save_birefringence_transfer_function(settings, dataset):
     ] = intensity_to_stokes_matrix.cpu().numpy()[None, None, None, ...]
 
 
-def generate_and_save_phase_transfer_function(settings, dataset, zyx_shape):
+def generate_and_save_phase_transfer_function(
+    settings: ReconstructionSettings, dataset, zyx_shape
+):
     """Generates and saves the phase transfer function to the dataset, based on the settings.
 
     Parameters
@@ -57,11 +65,13 @@ def generate_and_save_phase_transfer_function(settings, dataset, zyx_shape):
         A tuple of integers specifying the input data's shape in (Z, Y, X) order
     """
     echo_headline("Generating phase transfer function with settings:")
-    echo_settings(settings.phase.transfer_function)
+    echo_settings(settings.reconstruction_settings.transfer_function)
 
     if settings.reconstruction_dimension == 2:
         # Convert zyx_shape and z_pixel_size into yx_shape and z_position_list
-        settings_dict = settings.phase.transfer_function.dict()
+        settings_dict = (
+            settings.reconstruction_settings.transfer_function.dict()
+        )
         settings_dict["yx_shape"] = [zyx_shape[1], zyx_shape[2]]
         settings_dict["z_position_list"] = list(
             -(np.arange(zyx_shape[0]) - zyx_shape[0] // 2)
@@ -95,7 +105,7 @@ def generate_and_save_phase_transfer_function(settings, dataset, zyx_shape):
             imaginary_potential_transfer_function,
         ) = phase_thick_3d.calculate_transfer_function(
             zyx_shape=zyx_shape,
-            **settings.phase.transfer_function.dict(),
+            **settings.reconstruction_settings.transfer_function.dict(),
         )
         # Save
         dataset[
@@ -108,8 +118,44 @@ def generate_and_save_phase_transfer_function(settings, dataset, zyx_shape):
         ]
 
 
+def generate_and_save_birefringence_and_phase_transfer_function(
+    settings: ReconstructionSettings, dataset, zyx_shape
+):
+    """Generates and saves the birefringence and phase transfer functions to the dataset, based on the settings.
+
+    Parameters
+    ----------
+    settings: ReconstructionSettings
+    dataset: NGFF Node
+        The dataset that will be updated.
+    zyx_shape : tuple
+        A tuple of integers specifying the input data's shape in (Z, Y, X) order
+    """
+    phase_only_settings = ReconstructionSettings(
+        input_channel_names=settings.input_channel_names,
+        time_indices=settings.time_indices,
+        reconstruction_dimension=settings.reconstruction_dimension,
+        reconstruction_type="Phase",
+        reconstruction_settings=settings.reconstruction_settings.phase_settings,
+    )
+    generate_and_save_phase_transfer_function(
+        phase_only_settings, dataset, zyx_shape
+    )
+
+    biref_only_settings = ReconstructionSettings(
+        input_channel_names=settings.input_channel_names,
+        time_indices=settings.time_indices,
+        reconstruction_dimension=settings.reconstruction_dimension,
+        reconstruction_type="Birefringence",
+        reconstruction_settings=settings.reconstruction_settings.birefringence_settings,
+    )
+    generate_and_save_birefringence_transfer_function(
+        biref_only_settings, dataset
+    )
+
+
 def generate_and_save_fluorescence_transfer_function(
-    settings, dataset, zyx_shape
+    settings: ReconstructionSettings, dataset, zyx_shape
 ):
     """Generates and saves the fluorescence transfer function to the dataset, based on the settings.
 
@@ -122,7 +168,7 @@ def generate_and_save_fluorescence_transfer_function(
         A tuple of integers specifying the input data's shape in (Z, Y, X) order
     """
     echo_headline("Generating fluorescence transfer function with settings:")
-    echo_settings(settings.fluorescence.transfer_function)
+    echo_settings(settings.reconstruction_settings.transfer_function)
 
     if settings.reconstruction_dimension == 2:
         raise NotImplementedError
@@ -131,7 +177,7 @@ def generate_and_save_fluorescence_transfer_function(
         optical_transfer_function = (
             isotropic_fluorescent_thick_3d.calculate_transfer_function(
                 zyx_shape=zyx_shape,
-                **settings.fluorescence.transfer_function.dict(),
+                **settings.reconstruction_settings.transfer_function.dict(),
             )
         )
         # Save
@@ -176,15 +222,19 @@ def compute_transfer_function_cli(
     )
 
     # Pass settings to appropriate calculate_transfer_function and save
-    if settings.birefringence is not None:
+    if settings.reconstruction_type == "Birefringence":
         generate_and_save_birefringence_transfer_function(
             settings, output_dataset
         )
-    if settings.phase is not None:
+    elif settings.reconstruction_type == "Phase":
         generate_and_save_phase_transfer_function(
             settings, output_dataset, zyx_shape
         )
-    if settings.fluorescence is not None:
+    elif settings.reconstruction_type == "Birefringence and Phase":
+        generate_and_save_birefringence_and_phase_transfer_function(
+            settings, output_dataset, zyx_shape
+        )
+    elif settings.reconstruction_type == "Fluorescence":
         generate_and_save_fluorescence_transfer_function(
             settings, output_dataset, zyx_shape
         )
