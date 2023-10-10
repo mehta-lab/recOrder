@@ -1,6 +1,5 @@
 import os
 from typing import Literal, Optional, Union
-
 from pydantic import (
     BaseModel,
     Extra,
@@ -138,6 +137,11 @@ class PhaseSettings(MyBaseModel):
     apply_inverse: FourierApplyInverseSettings = FourierApplyInverseSettings()
 
 
+class BirefringenceAndPhaseSettings(MyBaseModel):
+    birefringence_settings: BirefringenceSettings
+    phase_settings: PhaseSettings
+
+
 class FluorescenceSettings(MyBaseModel):
     transfer_function: FluorescenceTransferFunctionSettings = (
         FluorescenceTransferFunctionSettings()
@@ -152,30 +156,9 @@ class ReconstructionSettings(MyBaseModel):
         NonNegativeInt, list[NonNegativeInt], Literal["all"]
     ] = "all"
     reconstruction_dimension: Literal[2, 3] = 3
-    birefringence: Optional[BirefringenceSettings]
-    phase: Optional[PhaseSettings]
-    fluorescence: Optional[FluorescenceSettings]
-
-    @root_validator(pre=False)
-    def validate_reconstruction_types(cls, values):
-        if (values.get("birefringence") or values.get("phase")) and values.get(
-            "fluorescence"
-        ) is not None:
-            raise ValueError(
-                '"fluorescence" cannot be present alongside "birefringence" or "phase". Please use one configuration file for a "fluorescence" reconstruction and another configuration file for a "birefringence" and/or "phase" reconstructions.'
-            )
-        num_channel_names = len(values.get("input_channel_names"))
-        if values.get("birefringence") is None:
-            if (
-                values.get("phase") is None
-                and values.get("fluorescence") is None
-            ):
-                raise ValueError(
-                    "Provide settings for either birefringence, phase, birefringence + phase, or fluorescence."
-                )
-            if num_channel_names != 1:
-                raise ValueError(
-                    f"{num_channel_names} channels names provided. Please provide a single channel for fluorescence/phase reconstructions."
-                )
-
-        return values
+    reconstruction_type: Union[
+        BirefringenceSettings,
+        PhaseSettings,
+        BirefringenceAndPhaseSettings,
+        FluorescenceSettings,
+    ] = BirefringenceSettings()
