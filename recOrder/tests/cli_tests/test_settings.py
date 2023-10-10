@@ -91,19 +91,22 @@ def test_generate_example_settings():
     example_path = "./examples/"
 
     s0 = settings.ReconstructionSettings(
-        birefringence=settings.BirefringenceSettings(),
-        phase=settings.PhaseSettings(),
+        reconstruction_type="Birefringence and Phase",
+        reconstruction_settings=settings.BirefringenceAndPhaseSettings(),
     )
     s1 = settings.ReconstructionSettings(
         input_channel_names=["BF"],
-        phase=settings.PhaseSettings(),
+        reconstruction_type="Phase",
+        reconstruction_settings=settings.PhaseSettings(),
     )
     s2 = settings.ReconstructionSettings(
-        birefringence=settings.BirefringenceSettings(),
+        reconstruction_type="Birefringence",
+        reconstruction_settings=settings.BirefringenceSettings(),
     )
     s3 = settings.ReconstructionSettings(
         input_channel_names=["GFP"],
-        fluorescence=settings.FluorescenceSettings(),
+        reconstruction_type="Fluorescence",
+        reconstruction_settings=settings.FluorescenceSettings(),
     )
     file_names = [
         "birefringence-and-phase.yml",

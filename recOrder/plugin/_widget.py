@@ -22,18 +22,10 @@ from qtpy.QtWidgets import (
 from superqt import QCollapsible, QLabeledSlider
 
 from recOrder.cli import settings
+from recOrder.cli.settings import OPTION_TO_MODEL_DICT, RECONSTRUCTION_TYPES
 
 if TYPE_CHECKING:
     from napari import Viewer
-
-OPTION_TO_MODEL_DICT = {
-    "Birefringence": settings.BirefringenceSettings,
-    "Phase": settings.PhaseSettings,
-    "Birefringence and Phase": settings.BirefringenceAndPhaseSettings,
-    "Fluorescence": settings.FluorescenceSettings,
-}
-
-RECONSTRUCTION_TYPES = Literal[tuple(OPTION_TO_MODEL_DICT.keys())]
 
 
 class QHLine(QFrame):
