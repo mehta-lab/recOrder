@@ -123,7 +123,6 @@ class MainWidget(QWidget):
         super().__init__()
         self.viewer = napari_viewer
         self.cwd = os.getcwd()
-        self.widget_count = 0
         self._input_path = None
         self._reconstruct_config_path = None
         self._main_layout = QVBoxLayout()
@@ -188,18 +187,14 @@ class MainWidget(QWidget):
         self._main_layout.addWidget(reconstruct_btn)
 
     def _update_config_window(self) -> None:
-        # Remove previous
-        for i in range(self.widget_count):
-            self.container.pop()
-
+        if isinstance(self.container[-1], widgets.Container):
+            self.container.pop(-1)
         # Get model from combo box
         option = self.reconstruction_type_combo_box.value
         model = OPTION_TO_MODEL_DICT[option]
-
-        # Add widgets and count them for deletion next time
-        before_count = len(self.container)
-        _add_widget_to_container(self.container, model)
-        self.widget_count = len(self.container) - before_count
+        channel_settings = widgets.Container()
+        _add_widget_to_container(channel_settings, model)
+        self.container.append(channel_settings)
 
     def _launch_config_window(self) -> None:
         self.container = widgets.Container(scrollable=True)
