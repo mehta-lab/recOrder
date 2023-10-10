@@ -33,12 +33,7 @@ OPTION_TO_MODEL_DICT = {
     "Fluorescence": settings.FluorescenceSettings,
 }
 
-RECONSTRUCTION_TYPES = Literal[
-    "Birefringence",
-    "Phase",
-    "Birefringence and Phase",
-    "Fluorescence",
-]
+RECONSTRUCTION_TYPES = Literal[tuple(OPTION_TO_MODEL_DICT.keys())]
 
 
 class QHLine(QFrame):
