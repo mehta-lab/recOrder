@@ -201,7 +201,7 @@ class MainWidget(QWidget):
                     self._update_config_window
                 )
                 self.container.append(self.reconstruction_type_combo_box)
-            else:
+            elif field.name != "reconstruction_settings":
                 self.container.append(_get_config_field(field))
 
         self._update_config_window()
