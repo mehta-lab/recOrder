@@ -22,6 +22,7 @@ from qtpy.QtWidgets import (
 from superqt import QCollapsible, QLabeledSlider
 
 from recOrder.cli import settings
+from recOrder.io.utils import model_to_yaml
 
 if TYPE_CHECKING:
     from napari import Viewer
@@ -54,6 +55,59 @@ class QNamedSlider(QWidget):
 class ReconstructionSettingsWidget(QWidget):
     def __init__(self):
         super().__init__()
+        self.cwd = os.getcwd()
+        self.parent_layout = QVBoxLayout()
+        self.container = widgets.Container(scrollable=True)
+
+        for field in settings.ReconstructionSettings.__fields__.values():
+            if field.name == "reconstruction_type":
+                self.reconstruction_type_combo_box = widgets.create_widget(
+                    annotation=RECONSTRUCTION_TYPES,
+                    name=field.name,
+                )
+                self.reconstruction_type_combo_box.changed.connect(
+                    self._update_config_window
+                )
+                self.container.append(self.reconstruction_type_combo_box)
+            else:
+                self.container.append(_get_config_field(field))
+
+        self.parent_layout.addWidget(self.container.native)
+        save_btn = QPushButton("Save")
+        self.parent_layout.addWidget(save_btn)
+        save_btn.clicked.connect(self._save_dataset)
+        self.setLayout(self.parent_layout)
+    
+    def _update_config_window(self) -> None:
+        if isinstance(self.container[-1], widgets.Container):
+            self.container.pop(-1)
+        # Get model from combo box
+        option = self.reconstruction_type_combo_box.value
+        model = OPTION_TO_MODEL_DICT[option]
+        channel_settings = widgets.Container()
+        _add_widget_to_container(channel_settings, model)
+        self.container.append(channel_settings)
+        pass
+
+    def _save_dataset(self) -> None:
+        path = QFileDialog.getSaveFileName(
+            parent=self,
+            caption="Open a directory containing a dataset",
+            directory=self.cwd,
+        )
+        self._input_path_le.setText(path)
+        self._input_path = Path(path)
+
+
+    def _select_dataset(self) -> None:
+        path = QFileDialog.getOpenFileName(
+            parent=self,
+            caption="Open a directory containing a dataset",
+            directory=self.cwd,
+        )
+        self._input_path_le.setText(path)
+        self._input_path = Path(path)
+
 
 
 def calibrate_lc(
@@ -186,34 +240,9 @@ class MainWidget(QWidget):
         reconstruct_btn.clicked.connect(self._reconstruct)
         self._main_layout.addWidget(reconstruct_btn)
 
-    def _update_config_window(self) -> None:
-        if isinstance(self.container[-1], widgets.Container):
-            self.container.pop(-1)
-        # Get model from combo box
-        option = self.reconstruction_type_combo_box.value
-        model = OPTION_TO_MODEL_DICT[option]
-        channel_settings = widgets.Container()
-        _add_widget_to_container(channel_settings, model)
-        self.container.append(channel_settings)
-
     def _launch_config_window(self) -> None:
-        self.container = widgets.Container(scrollable=True)
-
-        for field in settings.ReconstructionSettings.__fields__.values():
-            if field.name == "reconstruction_type":
-                self.reconstruction_type_combo_box = widgets.create_widget(
-                    annotation=RECONSTRUCTION_TYPES,
-                    name=field.name,
-                )
-                self.reconstruction_type_combo_box.changed.connect(
-                    self._update_config_window
-                )
-                self.container.append(self.reconstruction_type_combo_box)
-            else:
-                self.container.append(_get_config_field(field))
-
-        self._update_config_window()
-        self.container.show()
+        self.popup = ReconstructionSettingsWidget()
+        self.popup.show()
 
     def _reconstruct(self) -> None:
         pass
