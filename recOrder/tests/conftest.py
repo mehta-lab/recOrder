@@ -32,9 +32,10 @@ def example_plate(tmp_path):
 @pytest.fixture(scope="function")
 def birefringence_phase_recon_settings_function(tmp_path):
     recon_settings = settings.ReconstructionSettings(
-        birefringence=settings.BirefringenceSettings(),
-        phase=settings.PhaseSettings(),
+        reconstruction_type="Birefringence and Phase",
+        reconstruction_settings=settings.BirefringenceAndPhaseSettings(),
     )
+
     dataset = open_ome_zarr(
         tmp_path,
         layout="fov",
@@ -48,7 +49,8 @@ def birefringence_phase_recon_settings_function(tmp_path):
 def fluorescence_recon_settings_function(tmp_path):
     recon_settings = settings.ReconstructionSettings(
         input_channel_names=["GFP"],
-        fluorescence=settings.FluorescenceSettings(),
+        reconstruction_type="Fluorescence",
+        reconstruction_settings=settings.FluorescenceSettings(),
     )
     dataset = open_ome_zarr(
         tmp_path,
