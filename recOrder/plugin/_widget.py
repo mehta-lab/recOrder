@@ -3,7 +3,7 @@ from __future__ import annotations
 import os
 from inspect import isclass
 from pathlib import Path
-from typing import TYPE_CHECKING, Union, Literal
+from typing import TYPE_CHECKING, Union, Literal, get_args
 
 import pydantic
 from magicgui import magicgui, widgets
@@ -77,6 +77,7 @@ def _get_config_field(field: pydantic.fields.ModelField):
             annotation=_filter_annoation(field.type_),
             name=field.name,
         )
+
     return widget
 
 
@@ -93,19 +94,29 @@ def _get_config_container(
     label: str = None,
 ):
     """Recursively create nested magic GUI widgets for a pydantic model."""
-    if _is_pydantic_model_type(model):
+    if _is_pydantic_model_type(model):  # top-level to create
         widget = widgets.Container(scrollable=scrollable)
         if label is not None:
             label = widgets.Label(value=label)
             widget.append(label)
         for field in model.__fields__.values():
             widget.append(_get_config_container(field, scrollable=False))
-    elif _is_pydantic_model_type(model.type_):
+    elif _is_pydantic_model_type(model.type_):  # sublevels
         widget = _get_config_container(
             model.type_, scrollable=False, label=model.name.replace("_", " ")
         )
-    else:
-        widget = _get_config_field(model)
+    else:  # individual fields
+        if model.name == "reconstruction_type":
+            type_names = [
+                x.__name__.split("Settings")[0] for x in get_args(model.type_)
+            ]
+            widget = widgets.create_widget(
+                annotation=Literal[tuple(type_names)],
+                name=model.name,
+            )
+            # connect to _on_click_function
+        else:
+            widget = _get_config_field(model)
     return widget
 
 
