@@ -18,8 +18,8 @@ from qtpy.QtWidgets import (
 )
 
 DATASET_PATH = "img.zarr"
-MAX_ITERATIONS = 10
-INTERVAL_SECONDS = 1
+MAX_ITERATIONS = 5
+INTERVAL_SECONDS = 2
 
 
 class VBoxBase(QWidget):
@@ -53,17 +53,17 @@ class WriterWorker(QObject):
             DATASET_PATH, mode="w", layout="fov", channel_names=["BF"]
         ) as dataset:
             for i in range(MAX_ITERATIONS):
-                data = np.ones((1,) * 5, dtype=np.uint16) * i
-                value = data.flatten()[0]
+                data = np.random.rand(1, 1, 20, 1024, 1024) * i * 2
+                value = data.mean()
                 if "0" not in dataset:
                     dataset.create_image("0", data)
                 else:
                     dataset["0"].append(data, axis=0)
                 print(f"Wrote: {value}")
-                self.written.emit(str(value))
+                self.written.emit(f"{value:.1f}")
                 if i < MAX_ITERATIONS - 1:
                     sleep(INTERVAL_SECONDS)
-            self.written.emit(f"Wrote last value: {value}")
+            self.written.emit(f"Wrote last value: {value:.1f}")
             self.finished.emit()
 
 
@@ -99,15 +99,16 @@ class ZarrWatcher(VBoxBase):
 
     @Slot()
     def _data_changed(self):
+        sleep(0.5)
         with open_ome_zarr(DATASET_PATH) as dataset:
             if dataset["0"].shape[0] <= self.num_values:
                 return
+            value = dataset["0"].numpy()[self.num_values].mean()
             self.num_values += 1
-            value = dataset["0"].numpy().flatten()[self.num_values - 1]
             print(f"Read: {value}")
-            self.le.setText(str(value))
+            self.le.setText(f"{value:.1f}")
         if value == MAX_ITERATIONS - 1:
-            self.le.setText(f"Read last value: {value}")
+            self.le.setText(f"Read last value: {value:.1f}")
 
 
 class PairedWidget(QWidget):
