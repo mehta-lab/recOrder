@@ -125,6 +125,12 @@ class MainWidget(QWidget):
         self._add_visualization_layout()
         self.setLayout(self._main_layout)
 
+        # Temporary
+        self._input_path_le.setText("/Users/talon.chandler/Desktop/0.4.0-release/zenodo-v1.4.0/sample_contribution/raw_data.zarr/0/0/0")
+        self._input_config_path_le.setText("/Users/talon.chandler/recOrder/examples/birefringence.yml")
+        self._output_path_le.setText("/Users/talon.chandler/Downloads/test.zarr")
+
+
     def _add_labelled_row(
         self, label: str, left: QWidget, right: QWidget
     ) -> None:
