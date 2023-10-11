@@ -115,12 +115,11 @@ class MainWidget(QWidget):
         super().__init__()
         self.viewer = napari_viewer
         self.cwd = os.getcwd()
-        self._input_data_path = None
-        self._input_config_path = None
-        self._reconstruct_config_path = None
         self._main_layout = QVBoxLayout()
         self._add_calibration_layout()
         self._add_input_layout()
+        self._add_config_layout()
+        self._add_output_layout()
         self._add_reconstruct_layout()
         self._add_visualization_layout()
         self.setLayout(self._main_layout)
@@ -149,9 +148,9 @@ class MainWidget(QWidget):
 
     def _add_input_layout(self) -> None:
         self._input_path_le = QLineEdit()
-        self._input_path_le.setReadOnly(True)
-        self._input_path_le.setText("<Not set>")
-        input_btn = QPushButton("Open")
+        self._input_path_le.setReadOnly(False)
+        self._input_path_le.setText("")
+        input_btn = QPushButton("Browse")
         input_btn.clicked.connect(self._select_dataset)
         self._add_labelled_row("Input dataset", self._input_path_le, input_btn)
 
@@ -162,22 +161,12 @@ class MainWidget(QWidget):
             directory=self.cwd,
         )
         self._input_path_le.setText(path)
-        self._input_data_path = Path(path)
 
-    def _select_config(self) -> None:
-        path, _ = QFileDialog.getOpenFileName(
-            parent=self,
-            caption="Open a configuration yaml file",
-            directory=self.cwd,
-        )
-        self._input_config_path_le.setText(path)
-        self._input_config_path = Path(path)
-
-    def _add_reconstruct_layout(self) -> None:
+    def _add_config_layout(self) -> None:
         self._input_config_path_le = QLineEdit()
-        self._input_config_path_le.setReadOnly(True)
-        self._input_config_path_le.setText("<Not set>")
-        config_open_btn = QPushButton("Open")
+        self._input_config_path_le.setReadOnly(False)
+        self._input_config_path_le.setText("")
+        config_open_btn = QPushButton("Browse")
         config_open_btn.clicked.connect(self._select_config)
 
         reconstruct_config_btn = QPushButton("Edit")
@@ -191,9 +180,31 @@ class MainWidget(QWidget):
         grid_layout.addWidget(reconstruct_config_btn, 0, 3)
         self._main_layout.addLayout(grid_layout)
 
-        reconstruct_btn = QPushButton("Reconstruct")
-        reconstruct_btn.clicked.connect(self._reconstruct)
-        self._main_layout.addWidget(reconstruct_btn)
+    def _select_config(self) -> None:
+        path, _ = QFileDialog.getOpenFileName(
+            parent=self,
+            caption="Open a configuration yaml file",
+            directory=self.cwd,
+        )
+        self._input_config_path_le.setText(path)
+
+    def _add_output_layout(self) -> None:
+        self._output_path_le = QLineEdit()
+        self._output_path_le.setReadOnly(False)
+        self._output_path_le.setText("")
+        output_btn = QPushButton("Browse")
+        output_btn.clicked.connect(self._select_output)
+        self._add_labelled_row(
+            "Output dataset", self._output_path_le, output_btn
+        )
+
+    def _select_output(self) -> None:
+        path, _ = QFileDialog.getOpenFileName(
+            parent=self,
+            caption="Choose an output .zarr",
+            directory=self.cwd,
+        )
+        self._output_path_le.setText(path)
 
     def _update_config_window(self) -> None:
         if isinstance(self.container[-1], widgets.Container):
@@ -225,13 +236,22 @@ class MainWidget(QWidget):
         self.container.show()
 
     def _reconstruct(self) -> None:
+        # Set off reconstruction
         reconstruct.reconstruct_cli(
-            input_position_dirpaths=self._input_data_path,
-            config_filepath=self._input_config,
-            output_dirpath=self.cwd / "test-output.zarr",
+            input_position_dirpaths=[Path(self._input_path_le.text())],
+            config_filepath=Path(self._input_config_path_le.text()),
+            output_dirpath=Path(self._output_path_le.text()),
             num_processes=1,
         )
+
+        # TODO: Add .zarr store to napari layer
+
         pass
+
+    def _add_reconstruct_layout(self) -> None:
+        reconstruct_btn = QPushButton("Reconstruct")
+        reconstruct_btn.clicked.connect(self._reconstruct)
+        self._main_layout.addWidget(reconstruct_btn)
 
     def _add_visualization_layout(self) -> None:
         self._main_layout.addWidget(QHLine())
