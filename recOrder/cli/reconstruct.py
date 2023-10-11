@@ -17,7 +17,10 @@ from recOrder.cli.parsing import (
 
 
 def reconstruct_cli(
-    input_position_dirpaths, config_filepath, output_dirpath, num_processes
+    input_position_dirpaths: list[Path],
+    config_filepath: Path,
+    output_dirpath: Path,
+    num_processes: int,
 ):
     # Handle transfer function path
     transfer_function_path = output_dirpath.parent / Path(
