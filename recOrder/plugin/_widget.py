@@ -3,7 +3,7 @@ from __future__ import annotations
 import os
 from inspect import isclass
 from pathlib import Path
-from typing import TYPE_CHECKING, Union, Literal, get_args
+from typing import TYPE_CHECKING, Union, Literal
 
 import pydantic
 from magicgui import magicgui, widgets
