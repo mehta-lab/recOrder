@@ -5,7 +5,8 @@ input_channel_names:
 - State3
 time_indices: all
 reconstruction_dimension: 3
-birefringence:
+reconstruction_type: Birefringence
+reconstruction_settings:
   transfer_function:
     swing: 0.1
   apply_inverse:

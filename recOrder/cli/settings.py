@@ -1,12 +1,11 @@
 import os
-from typing import Literal, Optional, Union
+from typing import Literal, Union
 from pydantic import (
     BaseModel,
     Extra,
     NonNegativeFloat,
     NonNegativeInt,
     PositiveFloat,
-    root_validator,
     validator,
 )
 
@@ -138,8 +137,8 @@ class PhaseSettings(MyBaseModel):
 
 
 class BirefringenceAndPhaseSettings(MyBaseModel):
-    birefringence_settings: BirefringenceSettings
-    phase_settings: PhaseSettings
+    birefringence_settings: BirefringenceSettings = BirefringenceSettings()
+    phase_settings: PhaseSettings = PhaseSettings()
 
 
 class FluorescenceSettings(MyBaseModel):
@@ -149,6 +148,16 @@ class FluorescenceSettings(MyBaseModel):
     apply_inverse: FourierApplyInverseSettings = FourierApplyInverseSettings()
 
 
+OPTION_TO_MODEL_DICT = {
+    "Birefringence": BirefringenceSettings,
+    "Phase": PhaseSettings,
+    "Birefringence and Phase": BirefringenceAndPhaseSettings,
+    "Fluorescence": FluorescenceSettings,
+}
+
+RECONSTRUCTION_TYPES = Literal[tuple(OPTION_TO_MODEL_DICT.keys())]
+
+
 # Top level settings
 class ReconstructionSettings(MyBaseModel):
     input_channel_names: list[str] = [f"State{i}" for i in range(4)]
@@ -156,9 +165,19 @@ class ReconstructionSettings(MyBaseModel):
         NonNegativeInt, list[NonNegativeInt], Literal["all"]
     ] = "all"
     reconstruction_dimension: Literal[2, 3] = 3
-    reconstruction_type: Union[
+    reconstruction_type: RECONSTRUCTION_TYPES = "Birefringence"
+    reconstruction_settings: Union[
         BirefringenceSettings,
         PhaseSettings,
         BirefringenceAndPhaseSettings,
         FluorescenceSettings,
     ] = BirefringenceSettings()
+
+    @validator("reconstruction_settings")
+    def validate_reconstruction_settings(cls, v, values):
+        recon_type = values.get("reconstruction_type")
+        if OPTION_TO_MODEL_DICT[recon_type] != type(v):
+            raise ValueError(
+                f"reconstruction_type = {recon_type} needs to match reconstruction_settings = {type(v)}"
+            )
+        return v

@@ -39,26 +39,21 @@ def get_reconstruction_output_metadata(position_path: Path, config_path: Path):
     T, _, Z, Y, X = input_dataset.data.shape
 
     settings = utils.yaml_to_model(config_path, ReconstructionSettings)
-
-    # Simplify important settings names
-    recon_biref = settings.birefringence is not None
-    recon_phase = settings.phase is not None
-    recon_fluo = settings.fluorescence is not None
     recon_dim = settings.reconstruction_dimension
 
     # Prepare output dataset
     channel_names = []
-    if recon_biref:
+    if "Birefringence" in settings.reconstruction_type:
         channel_names.append("Retardance")
         channel_names.append("Orientation")
         channel_names.append("BF")
         channel_names.append("Pol")
-    if recon_phase:
+    if "Phase" in settings.reconstruction_type:
         if recon_dim == 2:
             channel_names.append("Phase2D")
         elif recon_dim == 3:
             channel_names.append("Phase3D")
-    if recon_fluo:
+    if settings.reconstruction_type == "Fluorescence":
         fluor_name = settings.input_channel_names[0]
         if recon_dim == 2:
             channel_names.append(fluor_name + "_Density2D")
@@ -125,19 +120,20 @@ def apply_inverse_transfer_function_single_position(
             f"time_indices = {time_indices} includes a time index beyond the maximum index of the dataset = {time_ubound}"
         )
 
-    # Simplify important settings names
-    recon_biref = settings.birefringence is not None
-    recon_phase = settings.phase is not None
-    recon_fluo = settings.fluorescence is not None
-    recon_dim = settings.reconstruction_dimension
-
     # Prepare birefringence parameters
-    if settings.birefringence is not None:
+    if "Birefringence" in settings.reconstruction_type:
         # settings.birefringence has more parameters than waveorder needs,
         # so this section converts the settings to a dict and separates the
         # waveorder parameters (biref_inverse_dict) from the recorder
         # parameters (cyx_no_sample_data, and wavelength_illumination)
-        biref_inverse_dict = settings.birefringence.apply_inverse.dict()
+        if settings.reconstruction_type == "Birefringence":
+            biref_inverse_dict = (
+                settings.reconstruction_settings.apply_inverse.dict()
+            )
+        elif settings.reconstruction_type == "Birefringence and Phase":
+            biref_inverse_dict = (
+                settings.reconstruction_settings.birefringence_settings.apply_inverse.dict()
+            )
 
         # Resolve background path into array
         background_path = biref_inverse_dict.pop("background_path")
@@ -157,38 +153,42 @@ def apply_inverse_transfer_function_single_position(
     # Prepare the apply_inverse_model_function and its arguments
 
     # [biref only]
-    if recon_biref and (not recon_phase):
+    if settings.reconstruction_type == "Birefringence":
         echo_headline("Reconstructing birefringence with settings:")
-        echo_settings(settings.birefringence)
+        echo_settings(settings.reconstruction_settings)
 
         # Setup parameters for apply_inverse_to_zyx_and_save
         apply_inverse_model_function = apply_inverse_models.birefringence
         apply_inverse_args = {
             "cyx_no_sample_data": cyx_no_sample_data,
             "wavelength_illumination": biref_wavelength_illumination,
-            "recon_dim": recon_dim,
+            "recon_dim": settings.reconstruction_dimension,
             "biref_inverse_dict": biref_inverse_dict,
             "transfer_function_dataset": transfer_function_dataset,
         }
 
     # [phase only]
-    if recon_phase and (not recon_biref):
+    if settings.reconstruction_type == "Phase":
         echo_headline("Reconstructing phase with settings:")
-        echo_settings(settings.phase.apply_inverse)
+        echo_settings(settings.reconstruction_settings.apply_inverse)
 
         # Setup parameters for apply_inverse_to_zyx_and_save
         apply_inverse_model_function = apply_inverse_models.phase
         apply_inverse_args = {
-            "recon_dim": recon_dim,
-            "settings_phase": settings.phase,
+            "recon_dim": settings.reconstruction_dimension,
+            "settings_phase": settings.reconstruction_settings,
             "transfer_function_dataset": transfer_function_dataset,
         }
 
     # [biref and phase]
-    if recon_biref and recon_phase:
+    if settings.reconstruction_type == "Birefringence and Phase":
         echo_headline("Reconstructing birefringence and phase with settings:")
-        echo_settings(settings.birefringence.apply_inverse)
-        echo_settings(settings.phase.apply_inverse)
+        echo_settings(
+            settings.reconstruction_settings.birefringence_settings.apply_inverse
+        )
+        echo_settings(
+            settings.reconstruction_settings.phase_settings.apply_inverse
+        )
 
         # Setup parameters for apply_inverse_to_zyx_and_save
         apply_inverse_model_function = (
@@ -197,22 +197,22 @@ def apply_inverse_transfer_function_single_position(
         apply_inverse_args = {
             "cyx_no_sample_data": cyx_no_sample_data,
             "wavelength_illumination": biref_wavelength_illumination,
-            "recon_dim": recon_dim,
+            "recon_dim": settings.reconstruction_dimension,
             "biref_inverse_dict": biref_inverse_dict,
-            "settings_phase": settings.phase,
+            "settings_phase": settings.reconstruction_settings.phase_settings,
             "transfer_function_dataset": transfer_function_dataset,
         }
 
     # [fluo]
-    if recon_fluo:
+    if settings.reconstruction_type == "Fluorescence":
         echo_headline("Reconstructing fluorescence with settings:")
-        echo_settings(settings.fluorescence.apply_inverse)
+        echo_settings(settings.reconstruction_settings.apply_inverse)
 
         # Setup parameters for apply_inverse_to_zyx_and_save
         apply_inverse_model_function = apply_inverse_models.fluorescence
         apply_inverse_args = {
-            "recon_dim": recon_dim,
-            "settings_fluorescence": settings.fluorescence,
+            "recon_dim": settings.reconstruction_dimension,
+            "settings_fluorescence": settings.reconstruction_settings,
             "transfer_function_dataset": transfer_function_dataset,
         }
 
