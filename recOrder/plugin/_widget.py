@@ -3,7 +3,7 @@ from __future__ import annotations
 import os
 from inspect import isclass
 from pathlib import Path
-from typing import TYPE_CHECKING, Union, Literal, get_args
+from typing import TYPE_CHECKING, Union, Literal
 
 import pydantic
 from magicgui import magicgui, widgets
@@ -21,7 +21,7 @@ from qtpy.QtWidgets import (
 )
 from superqt import QCollapsible, QLabeledSlider
 
-from recOrder.cli import settings
+from recOrder.cli import settings, reconstruct
 from recOrder.cli.settings import OPTION_TO_MODEL_DICT, RECONSTRUCTION_TYPES
 
 if TYPE_CHECKING:
@@ -115,11 +115,11 @@ class MainWidget(QWidget):
         super().__init__()
         self.viewer = napari_viewer
         self.cwd = os.getcwd()
-        self._input_path = None
-        self._reconstruct_config_path = None
         self._main_layout = QVBoxLayout()
         self._add_calibration_layout()
         self._add_input_layout()
+        self._add_config_layout()
+        self._add_output_layout()
         self._add_reconstruct_layout()
         self._add_visualization_layout()
         self.setLayout(self._main_layout)
@@ -148,9 +148,9 @@ class MainWidget(QWidget):
 
     def _add_input_layout(self) -> None:
         self._input_path_le = QLineEdit()
-        self._input_path_le.setReadOnly(True)
-        self._input_path_le.setText("<Not set>")
-        input_btn = QPushButton("Open")
+        self._input_path_le.setReadOnly(False)
+        self._input_path_le.setText("")
+        input_btn = QPushButton("Browse")
         input_btn.clicked.connect(self._select_dataset)
         self._add_labelled_row("Input dataset", self._input_path_le, input_btn)
 
@@ -161,22 +161,50 @@ class MainWidget(QWidget):
             directory=self.cwd,
         )
         self._input_path_le.setText(path)
-        self._input_path = Path(path)
 
-    def _add_reconstruct_layout(self) -> None:
-        self._reconstruct_config_path_le = QLineEdit()
-        self._reconstruct_config_path_le.setReadOnly(True)
-        self._reconstruct_config_path_le.setText("<Not set>")
+    def _add_config_layout(self) -> None:
+        self._input_config_path_le = QLineEdit()
+        self._input_config_path_le.setReadOnly(False)
+        self._input_config_path_le.setText("")
+        config_open_btn = QPushButton("Browse")
+        config_open_btn.clicked.connect(self._select_config)
+
         reconstruct_config_btn = QPushButton("Edit")
         reconstruct_config_btn.clicked.connect(self._launch_config_window)
-        self._add_labelled_row(
-            "Reconstruction parameters",
-            self._reconstruct_config_path_le,
-            reconstruct_config_btn,
+
+        # Add config editing row
+        grid_layout = QGridLayout()
+        grid_layout.addWidget(QLabel("Reconstruction parameters"), 0, 0)
+        grid_layout.addWidget(self._input_config_path_le, 0, 1)
+        grid_layout.addWidget(config_open_btn, 0, 2)
+        grid_layout.addWidget(reconstruct_config_btn, 0, 3)
+        self._main_layout.addLayout(grid_layout)
+
+    def _select_config(self) -> None:
+        path, _ = QFileDialog.getOpenFileName(
+            parent=self,
+            caption="Open a configuration yaml file",
+            directory=self.cwd,
         )
-        reconstruct_btn = QPushButton("Reconstruct")
-        reconstruct_btn.clicked.connect(self._reconstruct)
-        self._main_layout.addWidget(reconstruct_btn)
+        self._input_config_path_le.setText(path)
+
+    def _add_output_layout(self) -> None:
+        self._output_path_le = QLineEdit()
+        self._output_path_le.setReadOnly(False)
+        self._output_path_le.setText("")
+        output_btn = QPushButton("Browse")
+        output_btn.clicked.connect(self._select_output)
+        self._add_labelled_row(
+            "Output dataset", self._output_path_le, output_btn
+        )
+
+    def _select_output(self) -> None:
+        path, _ = QFileDialog.getSaveFileName(
+            parent=self,
+            caption="Choose an output .zarr",
+            directory=self.cwd,
+        )
+        self._output_path_le.setText(path)
 
     def _update_config_window(self) -> None:
         if isinstance(self.container[-1], widgets.Container):
@@ -208,7 +236,21 @@ class MainWidget(QWidget):
         self.container.show()
 
     def _reconstruct(self) -> None:
-        pass
+        # Set off reconstruction
+        reconstruct.reconstruct_cli(
+            input_position_dirpaths=[Path(self._input_path_le.text())],
+            config_filepath=Path(self._input_config_path_le.text()),
+            output_dirpath=Path(self._output_path_le.text()),
+            num_processes=1,
+        )
+
+        # Add reconstruction to viewer
+        self.viewer.open(self._output_path_le.text(), plugin="napari-ome-zarr")
+
+    def _add_reconstruct_layout(self) -> None:
+        reconstruct_btn = QPushButton("Reconstruct")
+        reconstruct_btn.clicked.connect(self._reconstruct)
+        self._main_layout.addWidget(reconstruct_btn)
 
     def _add_visualization_layout(self) -> None:
         self._main_layout.addWidget(QHLine())
