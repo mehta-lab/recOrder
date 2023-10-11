@@ -199,7 +199,7 @@ class MainWidget(QWidget):
         )
 
     def _select_output(self) -> None:
-        path, _ = QFileDialog.getOpenFileName(
+        path, _ = QFileDialog.getSaveFileName(
             parent=self,
             caption="Choose an output .zarr",
             directory=self.cwd,
