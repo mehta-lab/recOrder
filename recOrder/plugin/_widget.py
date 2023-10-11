@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, Union, Literal
 
 import pydantic
 from magicgui import magicgui, widgets
-from qtpy.QtCore import Qt
+from qtpy.QtCore import Qt, QFileSystemWatcher
 from qtpy.QtWidgets import (
     QFileDialog,
     QFormLayout,
@@ -126,10 +126,15 @@ class MainWidget(QWidget):
         self.setLayout(self._main_layout)
 
         # Temporary
-        self._input_path_le.setText("/Users/talon.chandler/Desktop/0.4.0-release/zenodo-v1.4.0/sample_contribution/raw_data.zarr/0/0/0")
-        self._input_config_path_le.setText("/Users/talon.chandler/recOrder/examples/birefringence.yml")
-        self._output_path_le.setText("/Users/talon.chandler/Downloads/test.zarr")
-
+        self._input_path_le.setText(
+            "/Users/talon.chandler/Desktop/0.4.0-release/zenodo-v1.4.0/sample_contribution/raw_data.zarr/0/0/0"
+        )
+        self._input_config_path_le.setText(
+            "/Users/talon.chandler/recOrder/examples/birefringence.yml"
+        )
+        self._output_path_le.setText(
+            "/Users/talon.chandler/Downloads/test.zarr"
+        )
 
     def _add_labelled_row(
         self, label: str, left: QWidget, right: QWidget
@@ -259,7 +264,11 @@ class MainWidget(QWidget):
                 self._output_path_le.text(), plugin="napari-ome-zarr"
             )
         else:
-            pass
+            self.watcher = QFileSystemWatcher([str(input_zarr_path)])
+            self.watcher.directoryChanged.connect(self._data_changed)
+
+    def _data_changed(self):
+        print("FILE CHANGED")
 
     def _add_reconstruct_layout(self) -> None:
         grid_layout = QGridLayout()
