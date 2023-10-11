@@ -39,26 +39,21 @@ def get_reconstruction_output_metadata(position_path: Path, config_path: Path):
     T, _, Z, Y, X = input_dataset.data.shape
 
     settings = utils.yaml_to_model(config_path, ReconstructionSettings)
-
-    # Simplify important settings names
-    recon_biref = settings.birefringence is not None
-    recon_phase = settings.phase is not None
-    recon_fluo = settings.fluorescence is not None
     recon_dim = settings.reconstruction_dimension
 
     # Prepare output dataset
     channel_names = []
-    if recon_biref:
+    if "Birefringence" in settings.reconstruction_type:
         channel_names.append("Retardance")
         channel_names.append("Orientation")
         channel_names.append("BF")
         channel_names.append("Pol")
-    if recon_phase:
+    if "Phase" in settings.reconstruction_type:
         if recon_dim == 2:
             channel_names.append("Phase2D")
         elif recon_dim == 3:
             channel_names.append("Phase3D")
-    if recon_fluo:
+    if settings.reconstruction_type == "Fluorescence":
         fluor_name = settings.input_channel_names[0]
         if recon_dim == 2:
             channel_names.append(fluor_name + "_Density2D")
@@ -124,7 +119,7 @@ def apply_inverse_transfer_function_single_position(
         raise ValueError(
             f"time_indices = {time_indices} includes a time index beyond the maximum index of the dataset = {time_ubound}"
         )
-    
+
     # Prepare birefringence parameters
     if "Birefringence" in settings.reconstruction_type:
         # settings.birefringence has more parameters than waveorder needs,
@@ -188,8 +183,12 @@ def apply_inverse_transfer_function_single_position(
     # [biref and phase]
     if settings.reconstruction_type == "Birefringence and Phase":
         echo_headline("Reconstructing birefringence and phase with settings:")
-        echo_settings(settings.reconstruction_settings.birefringence_settings.apply_inverse)
-        echo_settings(settings.reconstruction_settings.phase_settings.apply_inverse)
+        echo_settings(
+            settings.reconstruction_settings.birefringence_settings.apply_inverse
+        )
+        echo_settings(
+            settings.reconstruction_settings.phase_settings.apply_inverse
+        )
 
         # Setup parameters for apply_inverse_to_zyx_and_save
         apply_inverse_model_function = (
