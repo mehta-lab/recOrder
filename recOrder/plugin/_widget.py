@@ -18,6 +18,7 @@ from qtpy.QtWidgets import (
     QPushButton,
     QVBoxLayout,
     QWidget,
+    QCheckBox,
 )
 from superqt import QCollapsible, QLabeledSlider
 
@@ -236,21 +237,35 @@ class MainWidget(QWidget):
         self.container.show()
 
     def _reconstruct(self) -> None:
-        # Set off reconstruction
-        reconstruct.reconstruct_cli(
-            input_position_dirpaths=[Path(self._input_path_le.text())],
-            config_filepath=Path(self._input_config_path_le.text()),
-            output_dirpath=Path(self._output_path_le.text()),
-            num_processes=1,
-        )
+        input_zarr_path = Path(self._input_path_le.text())
 
-        # Add reconstruction to viewer
-        self.viewer.open(self._output_path_le.text(), plugin="napari-ome-zarr")
+        if not self.in_progress_cb.isChecked():
+            # Set off reconstruction
+            reconstruct.reconstruct_cli(
+                input_position_dirpaths=[input_zarr_path],
+                config_filepath=Path(self._input_config_path_le.text()),
+                output_dirpath=Path(self._output_path_le.text()),
+                num_processes=1,
+            )
+
+            # Add reconstruction to viewer
+            self.viewer.open(
+                self._output_path_le.text(), plugin="napari-ome-zarr"
+            )
+        else:
+            pass
 
     def _add_reconstruct_layout(self) -> None:
+        grid_layout = QGridLayout()
+
         reconstruct_btn = QPushButton("Reconstruct")
         reconstruct_btn.clicked.connect(self._reconstruct)
-        self._main_layout.addWidget(reconstruct_btn)
+        grid_layout.addWidget(reconstruct_btn, 0, 0)
+
+        self.in_progress_cb = QCheckBox("In progress")
+        grid_layout.addWidget(self.in_progress_cb, 0, 2)
+
+        self._main_layout.addLayout(grid_layout)
 
     def _add_visualization_layout(self) -> None:
         self._main_layout.addWidget(QHLine())
