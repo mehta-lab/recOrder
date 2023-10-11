@@ -16,6 +16,31 @@ from recOrder.cli.parsing import (
 )
 
 
+def reconstruct_cli(
+    input_position_dirpaths, config_filepath, output_dirpath, num_processes
+):
+    # Handle transfer function path
+    transfer_function_path = output_dirpath.parent / Path(
+        "transfer_function.zarr"
+    )
+
+    # Compute transfer function
+    compute_transfer_function_cli(
+        input_position_dirpaths[0],
+        config_filepath,
+        transfer_function_path,
+    )
+
+    # Apply inverse transfer function
+    apply_inverse_transfer_function_cli(
+        input_position_dirpaths,
+        transfer_function_path,
+        config_filepath,
+        output_dirpath,
+        num_processes,
+    )
+
+
 @click.command()
 @input_position_dirpaths()
 @config_filepath()
@@ -38,24 +63,6 @@ def reconstruct(
 
     >> recorder reconstruct -i ./input.zarr/*/*/* -c ./examples/birefringence.yml -o ./output.zarr
     """
-
-    # Handle transfer function path
-    transfer_function_path = output_dirpath.parent / Path(
-        "transfer_function.zarr"
-    )
-
-    # Compute transfer function
-    compute_transfer_function_cli(
-        input_position_dirpaths[0],
-        config_filepath,
-        transfer_function_path,
-    )
-
-    # Apply inverse transfer function
-    apply_inverse_transfer_function_cli(
-        input_position_dirpaths,
-        transfer_function_path,
-        config_filepath,
-        output_dirpath,
-        num_processes,
+    reconstruct_cli(
+        input_position_dirpaths, config_filepath, output_dirpath, num_processes
     )

@@ -21,7 +21,7 @@ from qtpy.QtWidgets import (
 )
 from superqt import QCollapsible, QLabeledSlider
 
-from recOrder.cli import settings
+from recOrder.cli import settings, reconstruct
 from recOrder.cli.settings import OPTION_TO_MODEL_DICT, RECONSTRUCTION_TYPES
 
 if TYPE_CHECKING:
@@ -115,7 +115,8 @@ class MainWidget(QWidget):
         super().__init__()
         self.viewer = napari_viewer
         self.cwd = os.getcwd()
-        self._input_path = None
+        self._input_data_path = None
+        self._input_config_path = None
         self._reconstruct_config_path = None
         self._main_layout = QVBoxLayout()
         self._add_calibration_layout()
@@ -161,19 +162,35 @@ class MainWidget(QWidget):
             directory=self.cwd,
         )
         self._input_path_le.setText(path)
-        self._input_path = Path(path)
+        self._input_data_path = Path(path)
+
+    def _select_config(self) -> None:
+        path, _ = QFileDialog.getOpenFileName(
+            parent=self,
+            caption="Open a configuration yaml file",
+            directory=self.cwd,
+        )
+        self._input_config_path_le.setText(path)
+        self._input_config_path = Path(path)
 
     def _add_reconstruct_layout(self) -> None:
-        self._reconstruct_config_path_le = QLineEdit()
-        self._reconstruct_config_path_le.setReadOnly(True)
-        self._reconstruct_config_path_le.setText("<Not set>")
+        self._input_config_path_le = QLineEdit()
+        self._input_config_path_le.setReadOnly(True)
+        self._input_config_path_le.setText("<Not set>")
+        config_open_btn = QPushButton("Open")
+        config_open_btn.clicked.connect(self._select_config)
+
         reconstruct_config_btn = QPushButton("Edit")
         reconstruct_config_btn.clicked.connect(self._launch_config_window)
-        self._add_labelled_row(
-            "Reconstruction parameters",
-            self._reconstruct_config_path_le,
-            reconstruct_config_btn,
-        )
+
+        # Add config editing row
+        grid_layout = QGridLayout()
+        grid_layout.addWidget(QLabel("Reconstruction parameters"), 0, 0)
+        grid_layout.addWidget(self._input_config_path_le, 0, 1)
+        grid_layout.addWidget(config_open_btn, 0, 2)
+        grid_layout.addWidget(reconstruct_config_btn, 0, 3)
+        self._main_layout.addLayout(grid_layout)
+
         reconstruct_btn = QPushButton("Reconstruct")
         reconstruct_btn.clicked.connect(self._reconstruct)
         self._main_layout.addWidget(reconstruct_btn)
@@ -208,6 +225,12 @@ class MainWidget(QWidget):
         self.container.show()
 
     def _reconstruct(self) -> None:
+        reconstruct.reconstruct_cli(
+            input_position_dirpaths=self._input_data_path,
+            config_filepath=self._input_config,
+            output_dirpath=self.cwd / "test-output.zarr",
+            num_processes=1,
+        )
         pass
 
     def _add_visualization_layout(self) -> None:
