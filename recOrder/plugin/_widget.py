@@ -244,9 +244,8 @@ class MainWidget(QWidget):
             num_processes=1,
         )
 
-        # TODO: Add .zarr store to napari layer
-
-        pass
+        # Add reconstruction to viewer
+        self.viewer.open(self._output_path_le.text(), plugin="napari-ome-zarr")
 
     def _add_reconstruct_layout(self) -> None:
         reconstruct_btn = QPushButton("Reconstruct")
