@@ -5,7 +5,7 @@ from inspect import isclass
 from pathlib import Path
 from queue import Queue
 from time import sleep
-from typing import TYPE_CHECKING, Generator, Literal, Union
+from typing import TYPE_CHECKING, Literal, Union
 
 import pydantic
 from iohub.ngff import open_ome_zarr
@@ -127,11 +127,14 @@ def _add_widget_to_container(
     return container
 
 
-def _reconstruct_queued(queue: Queue[dict]) -> Generator[None, None, None]:
+@thread_worker
+def _reconstruct_queued(queue: Queue[dict]):
     while True:
-        reconstruct_cli(**queue.get())
-        yield
-        queue.task_done()
+        if not queue.empty():
+            reconstruct_cli(**queue.get())
+            queue.task_done()
+            yield None
+        sleep(INTERVAL_SECONDS)
 
 
 class MainWidget(QWidget):
@@ -292,18 +295,19 @@ class MainWidget(QWidget):
             )
         else:
             self._reconstructions = Queue()
-            self._reconstruct_worker = thread_worker(
-                _reconstruct_queued, self._reconstructions
+            self._reconstruct_worker = _reconstruct_queued(
+                self._reconstructions
             )
-            self._reconstruct_worker.yielded.connect(
-                lambda _: print("finished a task")
-            )
+            self._reconstruct_worker.yielded.connect(self._view_reconstruction)
             self._reconstruct_worker.start()
             while not input_zarr_path.exists():
                 sleep(INTERVAL_SECONDS)
 
             # Start watching
-            self.watcher = QFileSystemWatcher([str(input_zarr_path / "0")])
+            self.watcher = QFileSystemWatcher(
+                [str(input_zarr_path.resolve() / "0")]
+            )
+            print(f"watching {self.watcher.directories()}")
             self.watcher.directoryChanged.connect(self._data_changed)
 
     def _data_changed(self):
@@ -331,15 +335,19 @@ class MainWidget(QWidget):
             )
             self._reconstructions.put(reconstruction_kwargs)
 
-            # Add reconstruction to viewer after first reconstruction
-            if self.last_reconstructed_time_point == 0:
-                self.viewer.open(
-                    output_zarr_path, plugin="napari-ome-zarr", cache=False
-                )
-
             self.last_reconstructed_time_point += 1
 
         input_dataset.close()
+
+    def _view_reconstruction(self):
+        print(f"checking for time {self.last_reconstructed_time_point}")
+        # Add reconstruction to viewer after first reconstruction
+        if self.last_reconstructed_time_point == 1:
+            self.viewer.open(
+                Path(self._output_path_le.text()),
+                plugin="napari-ome-zarr",
+                cache=False,
+            )
 
     def _add_reconstruct_layout(self) -> None:
         grid_layout = QGridLayout()
