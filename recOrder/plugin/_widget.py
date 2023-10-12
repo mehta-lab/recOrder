@@ -5,7 +5,6 @@ from time import sleep
 from inspect import isclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Union, Literal
-import numpy as np
 import pydantic
 from magicgui import magicgui, widgets
 from qtpy.QtCore import Qt, QFileSystemWatcher
@@ -276,7 +275,9 @@ class MainWidget(QWidget):
 
             # Add reconstruction to viewer
             self.viewer.open(
-                self._output_path_le.text(), plugin="napari-ome-zarr"
+                self._output_path_le.text(),
+                plugin="napari-ome-zarr",
+                cache=False,
             )
         else:
             while not input_zarr_path.exists():
@@ -287,73 +288,38 @@ class MainWidget(QWidget):
             self.watcher.directoryChanged.connect(self._data_changed)
 
     def _data_changed(self):
+        print("DATA CHANGED")
         input_zarr_path = Path(self._input_path_le.text())
         input_config_path = Path(self._input_config_path_le.text())
+        output_zarr_path = Path(self._output_path_le.text())
 
-        if not Path(self._output_path_le.text()).exists():
-            # Prepare the output zarr
-            output_dict = get_reconstruction_output_metadata(
-                input_zarr_path, input_config_path
+        input_dataset = open_ome_zarr(input_zarr_path)
+        while self.last_reconstructed_time_point < input_dataset["0"].shape[0]:
+            print(f"RECONSTRUCTING t={self.last_reconstructed_time_point}")
+            # Create time-specific configuration file object
+            settings = utils.yaml_to_model(
+                input_config_path, ReconstructionSettings
             )
-            self.output_dataset = open_ome_zarr(
-                self._output_path_le.text(),
-                mode="a",
-                layout="fov",
-                channel_names=output_dict["channel_names"],
-            )
-            self.output_dataset.create_zeros(
-                name="0",
-                shape=output_dict["shape"],
-                chunks=output_dict["chunks"],
-                dtype=output_dict["dtype"],
-                transform=[
-                    TransformationMeta(
-                        type="scale", scale=output_dict["scale"]
-                    )
-                ],
-            )
-        else:
-            self.output_dataset = open_ome_zarr(
-                self._output_path_le.text(), mode="a"
+            settings.time_indices = self.last_reconstructed_time_point
+            utils.model_to_yaml(settings, "./tmp.yaml")
+
+            # Set off reconstruction
+            reconstruct.reconstruct_cli(
+                input_position_dirpaths=[input_zarr_path],
+                config_filepath=Path("./tmp.yaml"),
+                output_dirpath=output_zarr_path,
+                num_processes=1,
             )
 
-            dataset = open_ome_zarr(input_zarr_path)
-            while self.last_reconstructed_time_point < dataset["0"].shape[0]:
-                # Create time-specific ReconstructionSettings object
-                settings = utils.yaml_to_model(
-                    self._input_config_path_le.text(), ReconstructionSettings
-                )
-                settings.time_indices = self.last_reconstructed_time_point
-
-                utils.model_to_yaml(settings, "./tmp.yaml")
-
-                # Set off reconstruction
-                reconstruct.reconstruct_cli(
-                    input_position_dirpaths=[input_zarr_path],
-                    config_filepath=Path("./tmp.yaml"),
-                    output_dirpath=Path("./tmp.zarr"),
-                    num_processes=1,
-                )
-
-                # Append result into output zarr
-                with open_ome_zarr("./tmp.zarr") as temp_dataset:
-                    # @Ziwen is there a better way?
-                    if self.output_dataset["0"].shape[0] == 1:
-                        self.output_dataset["0"][:] = np.array(
-                            temp_dataset["0/0/0"]["0"]
-                        )
-                    else:
-                        self.output_dataset["0"].append(
-                            temp_dataset["0/0/0"]["0"], axis=0
-                        )
-
+            # Add reconstruction to viewer after first reconstruction
+            if self.last_reconstructed_time_point == 0:
                 self.viewer.open(
-                    self._output_path_le.text(), plugin="napari-ome-zarr"
+                    output_zarr_path, plugin="napari-ome-zarr", cache=False
                 )
 
-                # Add reconstruction to viewer after first reconstruction
-                self.last_reconstructed_time_point += 1
-            dataset.close()
+            self.last_reconstructed_time_point += 1
+
+        input_dataset.close()
 
     def _add_reconstruct_layout(self) -> None:
         grid_layout = QGridLayout()
