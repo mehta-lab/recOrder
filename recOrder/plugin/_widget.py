@@ -127,9 +127,9 @@ def _add_widget_to_container(
     return container
 
 
-def _reconstruct_queued(queue: Queue) -> Generator[None, None, None]:
+def _reconstruct_queued(queue: Queue[dict]) -> Generator[None, None, None]:
     while True:
-        reconstruct_cli(*queue.get())
+        reconstruct_cli(**queue.get())
         yield
         queue.task_done()
 
@@ -274,11 +274,6 @@ class MainWidget(QWidget):
     def _reconstruct(self) -> None:
         input_zarr_path = Path(self._input_path_le.text())
         input_config_path = Path(self._input_config_path_le.text())
-        self._reconstructions = Queue()
-        self._reconstruct_worker = thread_worker(
-            _reconstruct_queued, self._reconstructions
-        )
-        self._reconstruct_worker.start()
 
         if not self.in_progress_cb.isChecked():
             # Set off reconstruction
@@ -296,6 +291,14 @@ class MainWidget(QWidget):
                 cache=False,
             )
         else:
+            self._reconstructions = Queue()
+            self._reconstruct_worker = thread_worker(
+                _reconstruct_queued, self._reconstructions
+            )
+            self._reconstruct_worker.yielded.connect(
+                lambda _: print("finished a task")
+            )
+            self._reconstruct_worker.start()
             while not input_zarr_path.exists():
                 sleep(INTERVAL_SECONDS)
 
@@ -320,12 +323,13 @@ class MainWidget(QWidget):
             utils.model_to_yaml(settings, "./tmp.yaml")
 
             # Set off reconstruction
-            reconstruct.reconstruct_cli(
+            reconstruction_kwargs = dict(
                 input_position_dirpaths=[input_zarr_path],
                 config_filepath=Path("./tmp.yaml"),
                 output_dirpath=output_zarr_path,
                 num_processes=1,
             )
+            self._reconstructions.put(reconstruction_kwargs)
 
             # Add reconstruction to viewer after first reconstruction
             if self.last_reconstructed_time_point == 0:
