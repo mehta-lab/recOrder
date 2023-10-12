@@ -128,13 +128,21 @@ def _add_widget_to_container(
 
 
 @thread_worker
-def _reconstruct_queued(queue: Queue[dict]):
+def _reconstruct_queued(queue: Queue[dict, int], input_config_path: Path):
     while True:
+        sleep(INTERVAL_SECONDS)
         if not queue.empty():
-            reconstruct_cli(**queue.get())
+            reconstruction_kwargs, time_index = queue.get()
+            print(f"RECONSTRUCTING t={time_index}")
+            # Create time-specific configuration file object
+            settings = utils.yaml_to_model(
+                input_config_path, ReconstructionSettings
+            )
+            settings.time_indices = time_index
+            utils.model_to_yaml(settings, "./tmp.yaml")
+            reconstruct_cli(**reconstruction_kwargs)
             queue.task_done()
             yield None
-        sleep(INTERVAL_SECONDS)
 
 
 class MainWidget(QWidget):
@@ -152,15 +160,9 @@ class MainWidget(QWidget):
         self.setLayout(self._main_layout)
 
         # Temporary
-        self._input_path_le.setText(
-            "/Users/talon.chandler/Desktop/0.4.0-release/zenodo-v1.4.0/sample_contribution/raw_data.zarr/0/0/0"
-        )
-        self._input_config_path_le.setText(
-            "/Users/talon.chandler/recOrder/examples/birefringence.yml"
-        )
-        self._output_path_le.setText(
-            "/Users/talon.chandler/Downloads/test.zarr"
-        )
+        self._input_path_le.setText("img.zarr/0/0/0")
+        self._input_config_path_le.setText("examples/phase.yml")
+        self._output_path_le.setText("test.zarr")
         self.last_reconstructed_time_point = 0
 
     def _add_labelled_row(
@@ -294,9 +296,10 @@ class MainWidget(QWidget):
                 cache=False,
             )
         else:
+            self.showing_result = False
             self._reconstructions = Queue()
             self._reconstruct_worker = _reconstruct_queued(
-                self._reconstructions
+                self._reconstructions, input_config_path
             )
             self._reconstruct_worker.yielded.connect(self._view_reconstruction)
             self._reconstruct_worker.start()
@@ -304,28 +307,21 @@ class MainWidget(QWidget):
                 sleep(INTERVAL_SECONDS)
 
             # Start watching
-            self.watcher = QFileSystemWatcher(
-                [str(input_zarr_path.resolve() / "0")]
-            )
+            self.watcher = QFileSystemWatcher([str(input_zarr_path / "0")])
             print(f"watching {self.watcher.directories()}")
             self.watcher.directoryChanged.connect(self._data_changed)
 
     def _data_changed(self):
         print("DATA CHANGED")
         input_zarr_path = Path(self._input_path_le.text())
-        input_config_path = Path(self._input_config_path_le.text())
         output_zarr_path = Path(self._output_path_le.text())
 
         input_dataset = open_ome_zarr(input_zarr_path)
         while self.last_reconstructed_time_point < input_dataset["0"].shape[0]:
-            print(f"RECONSTRUCTING t={self.last_reconstructed_time_point}")
-            # Create time-specific configuration file object
-            settings = utils.yaml_to_model(
-                input_config_path, ReconstructionSettings
-            )
-            settings.time_indices = self.last_reconstructed_time_point
-            utils.model_to_yaml(settings, "./tmp.yaml")
-
+            while not (
+                input_zarr_path / "0" / str(self.last_reconstructed_time_point)
+            ).exists():
+                sleep(INTERVAL_SECONDS)
             # Set off reconstruction
             reconstruction_kwargs = dict(
                 input_position_dirpaths=[input_zarr_path],
@@ -333,21 +329,22 @@ class MainWidget(QWidget):
                 output_dirpath=output_zarr_path,
                 num_processes=1,
             )
-            self._reconstructions.put(reconstruction_kwargs)
-
+            self._reconstructions.put(
+                [reconstruction_kwargs, self.last_reconstructed_time_point]
+            )
             self.last_reconstructed_time_point += 1
 
         input_dataset.close()
 
     def _view_reconstruction(self):
-        print(f"checking for time {self.last_reconstructed_time_point}")
         # Add reconstruction to viewer after first reconstruction
-        if self.last_reconstructed_time_point == 1:
+        if not self.showing_result:
             self.viewer.open(
                 Path(self._output_path_le.text()),
                 plugin="napari-ome-zarr",
                 cache=False,
             )
+        self.showing_result = True
 
     def _add_reconstruct_layout(self) -> None:
         grid_layout = QGridLayout()
