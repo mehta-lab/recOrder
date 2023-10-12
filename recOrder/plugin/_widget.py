@@ -203,6 +203,7 @@ class ReconstructionSettingsWidget(QWidget):
         model_to_yaml(self.model, path)
 
     def _load_dataset(self) -> None:
+        # panel should be clear first then re-added the widgets
         path, _ = QFileDialog.getOpenFileName(
             parent=self,
             caption="Open a directory containing a dataset",
@@ -216,13 +217,27 @@ class ReconstructionSettingsWidget(QWidget):
                 if field.name == field_name:
                     return field.type_
         
+        def get_reconstruction_type_model(value: any):
+            keys = value.__dict__.keys()
+            if 'birefringence_settings' in keys and 'phase_settings' in keys:
+                return settings.BirefringenceAndPhaseSettings(**value.dict())
+            else:
+                transfer_func_keys = value.__dict__.get('transfer_function').__annotations__.keys()
+                if 'swing' in transfer_func_keys:
+                    return settings.BirefringenceSettings(**value.dict())
+                elif 'numerical_aperture_illumination' in transfer_func_keys:
+                    return settings.PhaseSettings(**value.dict())
+                else:
+                    return settings.FluorescenceSettings(**value.dict())
+
         for field_name in self.model.__dict__:
             value = self.model.__dict__.get(field_name)
             if field_name == "input_channel_names":
                 self.container.append(widgets.ListEdit(value, name=field_name))
             elif field_name == "reconstruction_type":
+                # TODO: correctly show the reconstruction type from load
                 self.container.append(self.reconstruction_type_combo_box)
-                reconstruction_type_model = settings.BirefringenceAndPhaseSettings(**value.dict())
+                reconstruction_type_model = get_reconstruction_type_model(value)
                 channel_settings = widgets.Container()
                 _add_widget_to_container(channel_settings, reconstruction_type_model)
                 self.container.append(channel_settings)
