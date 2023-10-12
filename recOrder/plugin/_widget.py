@@ -1,14 +1,19 @@
 from __future__ import annotations
 
 import os
-from time import sleep
 from inspect import isclass
 from pathlib import Path
-from typing import TYPE_CHECKING, Union, Literal
+from queue import Queue
+from time import sleep
+from typing import TYPE_CHECKING, Generator, Literal, Union
+
 import pydantic
+from iohub.ngff import open_ome_zarr
+from iohub.ngff_meta import TransformationMeta
 from magicgui import magicgui, widgets
-from qtpy.QtCore import Qt, QFileSystemWatcher
+from qtpy.QtCore import QFileSystemWatcher, Qt
 from qtpy.QtWidgets import (
+    QCheckBox,
     QFileDialog,
     QFormLayout,
     QFrame,
@@ -18,22 +23,21 @@ from qtpy.QtWidgets import (
     QPushButton,
     QVBoxLayout,
     QWidget,
-    QCheckBox,
 )
 from superqt import QCollapsible, QLabeledSlider
+from superqt.utils import thread_worker
 
-from recOrder.cli import settings, reconstruct
+from recOrder.cli import reconstruct, settings
 from recOrder.cli.apply_inverse_transfer_function import (
     get_reconstruction_output_metadata,
 )
+from recOrder.cli.reconstruct import reconstruct_cli
 from recOrder.cli.settings import (
     OPTION_TO_MODEL_DICT,
     RECONSTRUCTION_TYPES,
     ReconstructionSettings,
 )
 from recOrder.io import utils
-from iohub.ngff import open_ome_zarr
-from iohub.ngff_meta import TransformationMeta
 
 INTERVAL_SECONDS = 2
 
@@ -121,6 +125,13 @@ def _add_widget_to_container(
     else:  # bottom level fields
         container.append(_get_config_field(model))
     return container
+
+
+def _reconstruct_queued(queue: Queue) -> Generator[None, None, None]:
+    while True:
+        reconstruct_cli(*queue.get())
+        yield
+        queue.task_done()
 
 
 class MainWidget(QWidget):
@@ -263,6 +274,11 @@ class MainWidget(QWidget):
     def _reconstruct(self) -> None:
         input_zarr_path = Path(self._input_path_le.text())
         input_config_path = Path(self._input_config_path_le.text())
+        self._reconstructions = Queue()
+        self._reconstruct_worker = thread_worker(
+            _reconstruct_queued, self._reconstructions
+        )
+        self._reconstruct_worker.start()
 
         if not self.in_progress_cb.isChecked():
             # Set off reconstruction
