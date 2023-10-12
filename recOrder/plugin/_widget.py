@@ -11,7 +11,7 @@ import pydantic
 from iohub.ngff import open_ome_zarr
 from iohub.ngff_meta import TransformationMeta
 from magicgui import magicgui, widgets
-from qtpy.QtCore import QFileSystemWatcher, Qt
+from qtpy.QtCore import QFileSystemWatcher, Qt, Slot
 from qtpy.QtWidgets import (
     QCheckBox,
     QFileDialog,
@@ -336,6 +336,7 @@ class MainWidget(QWidget):
 
         input_dataset.close()
 
+    @Slot()
     def _view_reconstruction(self):
         # Add reconstruction to viewer after first reconstruction
         if not self.showing_result:
