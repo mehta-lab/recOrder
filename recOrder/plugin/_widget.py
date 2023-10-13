@@ -340,12 +340,12 @@ class MainWidget(QWidget):
     def _view_reconstruction(self):
         # Add reconstruction to viewer after first reconstruction
         if not self.showing_result:
+            self.showing_result = True
             self.viewer.open(
                 Path(self._output_path_le.text()),
                 plugin="napari-ome-zarr",
                 cache=False,
             )
-        self.showing_result = True
 
     def _add_reconstruct_layout(self) -> None:
         grid_layout = QGridLayout()
