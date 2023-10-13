@@ -5,7 +5,7 @@ import napari
 viewer = napari.Viewer()
 
 
-NUM_Z_STEPS = 2
+NUM_Z_STEPS = 10
 Z_INTERVAL_UM = 2
 Z_STEP_INTERVAL_SECONDS = 1
 NUM_TIME_POINTS = 2

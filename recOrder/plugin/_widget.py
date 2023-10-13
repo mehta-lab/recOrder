@@ -310,6 +310,7 @@ class MainWidget(QWidget):
             sleep(5)
             print("READING")
             self.watcher = QFileSystemWatcher([str(input_zarr_path / "0")])
+            assert (input_zarr_path / "0").exists()
             print(f"watching {self.watcher.directories()}")
             self.watcher.directoryChanged.connect(self._data_changed)
 
