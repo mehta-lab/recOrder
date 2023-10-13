@@ -6,6 +6,7 @@ from pathlib import Path
 from queue import Queue
 from time import sleep
 from typing import TYPE_CHECKING, Literal, Union
+from PyQt6 import QtGui
 
 import pydantic
 from iohub.ngff import open_ome_zarr
@@ -374,3 +375,7 @@ class MainWidget(QWidget):
         collapsible = QCollapsible("Visualization tools")
         collapsible.addWidget(QNamedSlider("Max retardance"))
         self._main_layout.addWidget(collapsible)
+
+    def hideEvent(self, a0) -> None:
+        self._reconstruct_worker.quit()
+        super().hideEvent(a0)
