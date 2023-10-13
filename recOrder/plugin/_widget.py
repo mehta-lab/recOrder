@@ -314,6 +314,7 @@ class MainWidget(QWidget):
             print(f"watching {self.watcher.directories()}")
             self.watcher.directoryChanged.connect(self._data_changed)
 
+    @Slot()
     def _data_changed(self):
         print("DATA CHANGED")
         input_zarr_path = Path(self._input_path_le.text())
