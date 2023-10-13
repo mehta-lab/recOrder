@@ -3,12 +3,17 @@ from __future__ import annotations
 import os
 from inspect import isclass
 from pathlib import Path
-from typing import TYPE_CHECKING, Union, Literal
+from queue import Queue
+from time import sleep
+from typing import TYPE_CHECKING, Literal, Union
 
 import pydantic
+from iohub.ngff import open_ome_zarr
+from iohub.ngff_meta import TransformationMeta
 from magicgui import magicgui, widgets
-from qtpy.QtCore import Qt
+from qtpy.QtCore import QFileSystemWatcher, Qt, Slot
 from qtpy.QtWidgets import (
+    QCheckBox,
     QFileDialog,
     QFormLayout,
     QFrame,
@@ -20,9 +25,21 @@ from qtpy.QtWidgets import (
     QWidget,
 )
 from superqt import QCollapsible, QLabeledSlider
+from superqt.utils import thread_worker
 
-from recOrder.cli import settings, reconstruct
-from recOrder.cli.settings import OPTION_TO_MODEL_DICT, RECONSTRUCTION_TYPES
+from recOrder.cli import reconstruct, settings
+from recOrder.cli.apply_inverse_transfer_function import (
+    get_reconstruction_output_metadata,
+)
+from recOrder.cli.reconstruct import reconstruct_cli
+from recOrder.cli.settings import (
+    OPTION_TO_MODEL_DICT,
+    RECONSTRUCTION_TYPES,
+    ReconstructionSettings,
+)
+from recOrder.io import utils
+
+INTERVAL_SECONDS = 2
 
 if TYPE_CHECKING:
     from napari import Viewer
@@ -110,6 +127,24 @@ def _add_widget_to_container(
     return container
 
 
+@thread_worker
+def _reconstruct_queued(queue: Queue[dict, int], input_config_path: Path):
+    while True:
+        sleep(INTERVAL_SECONDS)
+        if not queue.empty():
+            reconstruction_kwargs, time_index = queue.get()
+            print(f"RECONSTRUCTING t={time_index}")
+            # Create time-specific configuration file object
+            settings = utils.yaml_to_model(
+                input_config_path, ReconstructionSettings
+            )
+            settings.time_indices = time_index
+            utils.model_to_yaml(settings, "./tmp.yaml")
+            reconstruct_cli(**reconstruction_kwargs)
+            queue.task_done()
+            yield None
+
+
 class MainWidget(QWidget):
     def __init__(self, napari_viewer: Viewer):
         super().__init__()
@@ -123,6 +158,12 @@ class MainWidget(QWidget):
         self._add_reconstruct_layout()
         self._add_visualization_layout()
         self.setLayout(self._main_layout)
+
+        # Temporary
+        self._input_path_le.setText("img.zarr/0/0/0")
+        self._input_config_path_le.setText("examples/phase.yml")
+        self._output_path_le.setText("test.zarr")
+        self.last_reconstructed_time_point = 0
 
     def _add_labelled_row(
         self, label: str, left: QWidget, right: QWidget
@@ -236,21 +277,87 @@ class MainWidget(QWidget):
         self.container.show()
 
     def _reconstruct(self) -> None:
-        # Set off reconstruction
-        reconstruct.reconstruct_cli(
-            input_position_dirpaths=[Path(self._input_path_le.text())],
-            config_filepath=Path(self._input_config_path_le.text()),
-            output_dirpath=Path(self._output_path_le.text()),
-            num_processes=1,
-        )
+        input_zarr_path = Path(self._input_path_le.text())
+        input_config_path = Path(self._input_config_path_le.text())
 
-        # Add reconstruction to viewer
-        self.viewer.open(self._output_path_le.text(), plugin="napari-ome-zarr")
+        if not self.in_progress_cb.isChecked():
+            # Set off reconstruction
+            reconstruct.reconstruct_cli(
+                input_position_dirpaths=[input_zarr_path],
+                config_filepath=input_config_path,
+                output_dirpath=Path(self._output_path_le.text()),
+                num_processes=1,
+            )
+
+            # Add reconstruction to viewer
+            self.viewer.open(
+                self._output_path_le.text(),
+                plugin="napari-ome-zarr",
+                cache=False,
+            )
+        else:
+            self.showing_result = False
+            self._reconstructions = Queue()
+            self._reconstruct_worker = _reconstruct_queued(
+                self._reconstructions, input_config_path
+            )
+            self._reconstruct_worker.yielded.connect(self._view_reconstruction)
+            self._reconstruct_worker.start()
+            while not input_zarr_path.exists():
+                sleep(INTERVAL_SECONDS)
+
+            # Start watching
+            self.watcher = QFileSystemWatcher([str(input_zarr_path / "0")])
+            print(f"watching {self.watcher.directories()}")
+            self.watcher.directoryChanged.connect(self._data_changed)
+
+    def _data_changed(self):
+        print("DATA CHANGED")
+        input_zarr_path = Path(self._input_path_le.text())
+        output_zarr_path = Path(self._output_path_le.text())
+
+        input_dataset = open_ome_zarr(input_zarr_path)
+        while self.last_reconstructed_time_point < input_dataset["0"].shape[0]:
+            while not (
+                input_zarr_path / "0" / str(self.last_reconstructed_time_point)
+            ).exists():
+                sleep(INTERVAL_SECONDS)
+            # Set off reconstruction
+            reconstruction_kwargs = dict(
+                input_position_dirpaths=[input_zarr_path],
+                config_filepath=Path("./tmp.yaml"),
+                output_dirpath=output_zarr_path,
+                num_processes=1,
+            )
+            self._reconstructions.put(
+                [reconstruction_kwargs, self.last_reconstructed_time_point]
+            )
+            self.last_reconstructed_time_point += 1
+
+        input_dataset.close()
+
+    @Slot()
+    def _view_reconstruction(self):
+        # Add reconstruction to viewer after first reconstruction
+        if not self.showing_result:
+            self.viewer.open(
+                Path(self._output_path_le.text()),
+                plugin="napari-ome-zarr",
+                cache=False,
+            )
+        self.showing_result = True
 
     def _add_reconstruct_layout(self) -> None:
+        grid_layout = QGridLayout()
+
         reconstruct_btn = QPushButton("Reconstruct")
         reconstruct_btn.clicked.connect(self._reconstruct)
-        self._main_layout.addWidget(reconstruct_btn)
+        grid_layout.addWidget(reconstruct_btn, 0, 0)
+
+        self.in_progress_cb = QCheckBox("In progress")
+        grid_layout.addWidget(self.in_progress_cb, 0, 2)
+
+        self._main_layout.addLayout(grid_layout)
 
     def _add_visualization_layout(self) -> None:
         self._main_layout.addWidget(QHLine())

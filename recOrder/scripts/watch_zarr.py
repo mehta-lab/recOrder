@@ -50,15 +50,19 @@ class WriterWorker(QObject):
     @Slot()
     def run(self):
         with open_ome_zarr(
-            DATASET_PATH, mode="w", layout="fov", channel_names=["BF"]
+            DATASET_PATH, mode="w", layout="hcs", channel_names=["BF"]
         ) as dataset:
+            position = dataset.create_position("0", "0", "0")
             for i in range(MAX_ITERATIONS):
-                data = np.random.rand(1, 1, 20, 1024, 1024) * i * 2
+                data = np.random.rand(1, 20, 1024, 1024) * i * 2
                 value = data.mean()
-                if "0" not in dataset:
-                    dataset.create_image("0", data)
-                else:
-                    dataset["0"].append(data, axis=0)
+                if "0" not in position:
+                    img = position.create_zeros(
+                        "0",
+                        (MAX_ITERATIONS, *data.shape),
+                        dtype=data.dtype,
+                    )
+                img[i] = data
                 print(f"Wrote: {value}")
                 self.written.emit(f"{value:.1f}")
                 if i < MAX_ITERATIONS - 1:
@@ -89,7 +93,7 @@ class ZarrWatcher(VBoxBase):
 
     @Slot()
     def _watch(self):
-        img_path = Path(DATASET_PATH) / "0"
+        img_path = Path(DATASET_PATH) / "0" / "0" / "0" / "0"
         while not img_path.exists():
             sleep(INTERVAL_SECONDS)
         img_path = str(Path(img_path).absolute())
@@ -101,9 +105,10 @@ class ZarrWatcher(VBoxBase):
     def _data_changed(self):
         sleep(0.5)
         with open_ome_zarr(DATASET_PATH) as dataset:
-            if dataset["0"].shape[0] <= self.num_values:
+            image = dataset["0/0/0/0"]
+            if image.shape[0] <= self.num_values:
                 return
-            value = dataset["0"].numpy()[self.num_values].mean()
+            value = image.numpy()[self.num_values].mean()
             self.num_values += 1
             print(f"Read: {value}")
             self.le.setText(f"{value:.1f}")
