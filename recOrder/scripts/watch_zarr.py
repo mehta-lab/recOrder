@@ -3,6 +3,7 @@ import sys
 from pathlib import Path
 from time import sleep
 from typing import Callable
+from pycromanager import Core
 
 import numpy as np
 from iohub import open_ome_zarr
@@ -19,7 +20,11 @@ from qtpy.QtWidgets import (
 
 DATASET_PATH = "img.zarr"
 MAX_ITERATIONS = 5
-INTERVAL_SECONDS = 2
+INTERVAL_SECONDS = 5
+
+NUM_Z_STEPS = 2
+Z_INTERVAL_UM = 2
+Z_STEP_INTERVAL_SECONDS = 1
 
 
 class VBoxBase(QWidget):
@@ -49,12 +54,24 @@ class WriterWorker(QObject):
 
     @Slot()
     def run(self):
+        mmc = Core(convert_camel_case=False)
         with open_ome_zarr(
             DATASET_PATH, mode="w", layout="hcs", channel_names=["BF"]
         ) as dataset:
             position = dataset.create_position("0", "0", "0")
             for i in range(MAX_ITERATIONS):
-                data = np.random.rand(1, 20, 1024, 1024) * i * 2
+                stack = []
+                for z_step in range(NUM_Z_STEPS):
+                    mmc.setPosition(Z_INTERVAL_UM * z_step)
+                    print(f"Z position = {mmc.getPosition()}")
+                    sleep(Z_STEP_INTERVAL_SECONDS)
+                    # WRITE T = t_step, Z = z_step HERE
+                    mmc.snapImage()
+                    im = mmc.getImage().reshape(
+                        (mmc.getImageHeight(), mmc.getImageWidth())
+                    )
+                    stack.append(im)
+                data = np.array(stack)[None, :]
                 value = data.mean()
                 if "0" not in position:
                     img = position.create_zeros(
