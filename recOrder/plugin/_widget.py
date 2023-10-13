@@ -337,6 +337,8 @@ class MainWidget(QWidget):
             )
             self.last_reconstructed_time_point += 1
 
+        if input_dataset["0"].shape[0] == self.last_reconstructed_time_point:
+            self._reconstruct_worker.quit()
         input_dataset.close()
 
     @Slot()
