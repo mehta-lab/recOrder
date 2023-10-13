@@ -63,7 +63,7 @@ class WriterWorker(QObject):
                 if "0" not in position:
                     img = position.create_zeros(
                         "0",
-                        (MAX_ITERATIONS, 1, NUM_Z_STEPS, 2048, 2048),
+                        (MAX_ITERATIONS, 1, NUM_Z_STEPS, mmc.getImageHeight(), mmc.getImageWidth()),
                         dtype=np.uint16,
                     )
                 stack = []
