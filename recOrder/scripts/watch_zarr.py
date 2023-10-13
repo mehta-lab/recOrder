@@ -60,6 +60,12 @@ class WriterWorker(QObject):
         ) as dataset:
             position = dataset.create_position("0", "0", "0")
             for i in range(MAX_ITERATIONS):
+                if "0" not in position:
+                    img = position.create_zeros(
+                        "0",
+                        (MAX_ITERATIONS, NUM_Z_STEPS, 2048, 2048),
+                        dtype=np.uint16,
+                    )
                 stack = []
                 for z_step in range(NUM_Z_STEPS):
                     mmc.setPosition(Z_INTERVAL_UM * z_step)
@@ -73,12 +79,6 @@ class WriterWorker(QObject):
                     stack.append(im)
                 data = np.array(stack)[None, :]
                 value = data.mean()
-                if "0" not in position:
-                    img = position.create_zeros(
-                        "0",
-                        (MAX_ITERATIONS, *data.shape),
-                        dtype=data.dtype,
-                    )
                 img[i] = data
                 print(f"Wrote: {value}")
                 self.written.emit(f"{value:.1f}")

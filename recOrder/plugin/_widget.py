@@ -307,7 +307,6 @@ class MainWidget(QWidget):
                 sleep(INTERVAL_SECONDS)
 
             # Start watching
-            sleep(5)
             print("READING")
             self.watcher = QFileSystemWatcher([str(input_zarr_path / "0")])
             assert (input_zarr_path / "0").exists()
