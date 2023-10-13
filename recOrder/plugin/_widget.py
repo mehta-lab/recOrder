@@ -377,5 +377,5 @@ class MainWidget(QWidget):
         self._main_layout.addWidget(collapsible)
 
     def hideEvent(self, a0) -> None:
-        super().hideEvent(a0)
         self._reconstruct_worker.quit()
+        super().hideEvent(a0)
