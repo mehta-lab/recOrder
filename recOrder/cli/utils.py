@@ -56,8 +56,8 @@ def apply_inverse_to_zyx_and_save(
     func,
     position: Position,
     output_path: Path,
-    input_channel_indices,
-    output_channel_indices,
+    input_channel_indices: list[int],
+    output_channel_indices: list[int],
     t_idx: int = 0,
     **kwargs,
 ) -> None:
