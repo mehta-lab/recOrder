@@ -92,7 +92,7 @@ def apply_inverse_transfer_function_single_position(
     # Load datasets
     transfer_function_dataset = open_ome_zarr(transfer_function_dirpath)
     input_dataset = open_ome_zarr(input_position_dirpath)
-    output_dataset = open_ome_zarr(output_position_dirpath)
+    output_dataset = open_ome_zarr(output_position_dirpath, mode="r+")
 
     # Load config file
     settings = utils.yaml_to_model(config_filepath, ReconstructionSettings)
@@ -253,11 +253,10 @@ def apply_inverse_transfer_function_single_position(
             partial_apply_inverse_to_zyx_and_save(t_idx)
 
     # Save metadata at position level
-    with open_ome_zarr(output_position_dirpath, mode="r+") as output_dataset:
-        output_dataset.zattrs["settings"] = settings.dict()
+    output_dataset.zattrs["settings"] = settings.dict()
 
     echo_headline(f"Closing {output_position_dirpath}\n")
-    # output_dataset.close()
+    output_dataset.close()
     transfer_function_dataset.close()
     input_dataset.close()
 
