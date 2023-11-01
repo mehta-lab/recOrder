@@ -2,7 +2,8 @@ input_channel_names:
 - GFP
 time_indices: all
 reconstruction_dimension: 3
-fluorescence:
+reconstruction_type: Fluorescence
+reconstruction_settings:
   transfer_function:
     yx_pixel_size: 0.325
     z_pixel_size: 2.0

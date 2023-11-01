@@ -12,7 +12,8 @@ from recOrder.io.utils import add_index_to_path, model_to_yaml
 def model():
     # Create a sample model object
     return settings.ReconstructionSettings(
-        birefringence=settings.BirefringenceSettings()
+        reconstruction_type="Birefringence",
+        reconstruction_settings=settings.BirefringenceSettings(),
     )
 
 

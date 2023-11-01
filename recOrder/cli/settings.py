@@ -1,13 +1,11 @@
 import os
-from typing import List, Literal, Optional, Union
-
+from typing import Literal, Union
 from pydantic import (
     BaseModel,
     Extra,
     NonNegativeFloat,
     NonNegativeInt,
     PositiveFloat,
-    root_validator,
     validator,
 )
 
@@ -138,6 +136,11 @@ class PhaseSettings(MyBaseModel):
     apply_inverse: FourierApplyInverseSettings = FourierApplyInverseSettings()
 
 
+class BirefringenceAndPhaseSettings(MyBaseModel):
+    birefringence_settings: BirefringenceSettings = BirefringenceSettings()
+    phase_settings: PhaseSettings = PhaseSettings()
+
+
 class FluorescenceSettings(MyBaseModel):
     transfer_function: FluorescenceTransferFunctionSettings = (
         FluorescenceTransferFunctionSettings()
@@ -145,37 +148,36 @@ class FluorescenceSettings(MyBaseModel):
     apply_inverse: FourierApplyInverseSettings = FourierApplyInverseSettings()
 
 
+OPTION_TO_MODEL_DICT = {
+    "Birefringence": BirefringenceSettings,
+    "Phase": PhaseSettings,
+    "Birefringence and Phase": BirefringenceAndPhaseSettings,
+    "Fluorescence": FluorescenceSettings,
+}
+
+RECONSTRUCTION_TYPES = Literal[tuple(OPTION_TO_MODEL_DICT.keys())]
+
+
 # Top level settings
 class ReconstructionSettings(MyBaseModel):
-    input_channel_names: List[str] = [f"State{i}" for i in range(4)]
+    input_channel_names: list[str] = [f"State{i}" for i in range(4)]
     time_indices: Union[
-        NonNegativeInt, List[NonNegativeInt], Literal["all"]
+        NonNegativeInt, list[NonNegativeInt], Literal["all"]
     ] = "all"
     reconstruction_dimension: Literal[2, 3] = 3
-    birefringence: Optional[BirefringenceSettings]
-    phase: Optional[PhaseSettings]
-    fluorescence: Optional[FluorescenceSettings]
+    reconstruction_type: RECONSTRUCTION_TYPES = "Birefringence"
+    reconstruction_settings: Union[
+        BirefringenceSettings,
+        PhaseSettings,
+        BirefringenceAndPhaseSettings,
+        FluorescenceSettings,
+    ] = BirefringenceSettings()
 
-    @root_validator(pre=False)
-    def validate_reconstruction_types(cls, values):
-        if (values.get("birefringence") or values.get("phase")) and values.get(
-            "fluorescence"
-        ) is not None:
+    @validator("reconstruction_settings")
+    def validate_reconstruction_settings(cls, v, values):
+        recon_type = values.get("reconstruction_type")
+        if OPTION_TO_MODEL_DICT[recon_type] != type(v):
             raise ValueError(
-                '"fluorescence" cannot be present alongside "birefringence" or "phase". Please use one configuration file for a "fluorescence" reconstruction and another configuration file for a "birefringence" and/or "phase" reconstructions.'
+                f"reconstruction_type = {recon_type} needs to match reconstruction_settings = {type(v)}"
             )
-        num_channel_names = len(values.get("input_channel_names"))
-        if values.get("birefringence") is None:
-            if (
-                values.get("phase") is None
-                and values.get("fluorescence") is None
-            ):
-                raise ValueError(
-                    "Provide settings for either birefringence, phase, birefringence + phase, or fluorescence."
-                )
-            if num_channel_names != 1:
-                raise ValueError(
-                    f"{num_channel_names} channels names provided. Please provide a single channel for fluorescence/phase reconstructions."
-                )
-
-        return values
+        return v

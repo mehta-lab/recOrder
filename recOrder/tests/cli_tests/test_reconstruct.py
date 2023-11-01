@@ -23,12 +23,12 @@ birefringence_settings = settings.BirefringenceSettings(
     transfer_function=settings.BirefringenceTransferFunctionSettings()
 )
 
-# birefringence_option, time_indices, phase_option, dimension_option, time_length_target
+# time_indices, dimension_option, time_length_target
 all_options = [
-    (birefringence_settings, [0, 3, 4], None, 2, 5),
-    (birefringence_settings, 0, settings.PhaseSettings(), 2, 5),
-    (birefringence_settings, [0, 1], None, 3, 5),
-    (birefringence_settings, "all", settings.PhaseSettings(), 3, 5),
+    ([0, 3, 4], 2, 5),
+    (0, 2, 5),
+    ([0, 1], 3, 5),
+    ("all", 3, 5),
 ]
 
 
@@ -59,22 +59,17 @@ def test_reconstruct(tmp_input_path_zarr):
     )
 
     for i, (
-        birefringence_option,
         time_indices,
-        phase_option,
         dimension_option,
         time_length_target,
     ) in enumerate(all_options):
-        if (birefringence_option is None) and (phase_option is None):
-            continue
-
         # Generate recon settings
         recon_settings = settings.ReconstructionSettings(
             input_channel_names=channel_names,
             time_indices=time_indices,
             reconstruction_dimension=dimension_option,
-            birefringence=birefringence_option,
-            phase=phase_option,
+            reconstruction_type="Birefringence and Phase",
+            reconstruction_settings=settings.BirefringenceAndPhaseSettings(),
         )
         config_path = tmp_config_yml.with_name(f"{i}.yml")
         utils.model_to_yaml(recon_settings, config_path)
@@ -147,15 +142,10 @@ def test_cli_apply_inv_tf_output(tmp_input_path_zarr, capsys):
     input_path = tmp_input_zarr / "0" / "0" / "0"
 
     for i, (
-        birefringence_option,
         time_indices,
-        phase_option,
         dimension_option,
         time_length_target,
     ) in enumerate(all_options):
-        if (birefringence_option is None) and (phase_option is None):
-            continue
-
         result_path = tmp_input_zarr.with_name(f"result{i}.zarr").resolve()
 
         tf_path = tmp_input_zarr.with_name(f"tf_{i}.zarr")

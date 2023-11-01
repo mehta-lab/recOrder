@@ -1,10 +1,9 @@
-import os
-
 from click.testing import CliRunner
 
 from recOrder.cli import settings
 from recOrder.cli.compute_transfer_function import (
     generate_and_save_birefringence_transfer_function,
+    generate_and_save_birefringence_and_phase_transfer_function,
     generate_and_save_fluorescence_transfer_function,
     generate_and_save_phase_transfer_function,
 )
@@ -16,8 +15,8 @@ def test_compute_transfer(tmp_path, example_plate):
     recon_settings = settings.ReconstructionSettings(
         input_channel_names=[f"State{i}" for i in range(4)],
         reconstruction_dimension=3,
-        birefringence=settings.BirefringenceSettings(),
-        phase=settings.PhaseSettings(),
+        reconstruction_type="Birefringence and Phase",
+        reconstruction_settings=settings.BirefringenceAndPhaseSettings(),
     )
     config_path = tmp_path / "test.yml"
     utils.model_to_yaml(recon_settings, config_path)
@@ -63,7 +62,8 @@ def test_compute_transfer_output_file(tmp_path, example_plate):
     recon_settings = settings.ReconstructionSettings(
         input_channel_names=["BF"],
         reconstruction_dimension=3,
-        phase=settings.PhaseSettings(),
+        reconstruction_type="Phase",
+        reconstruction_settings=settings.PhaseSettings(),
     )
     config_path = tmp_path / "test.yml"
     utils.model_to_yaml(recon_settings, config_path)
@@ -92,7 +92,9 @@ def test_compute_transfer_output_file(tmp_path, example_plate):
 
 def test_stokes_matrix_write(birefringence_phase_recon_settings_function):
     settings, dataset = birefringence_phase_recon_settings_function
-    generate_and_save_birefringence_transfer_function(settings, dataset)
+    generate_and_save_birefringence_and_phase_transfer_function(
+        settings, dataset, (1, 2, 3)
+    )
     assert dataset["intensity_to_stokes_matrix"]
 
 
@@ -100,7 +102,9 @@ def test_absorption_and_phase_write(
     birefringence_phase_recon_settings_function,
 ):
     settings, dataset = birefringence_phase_recon_settings_function
-    generate_and_save_phase_transfer_function(settings, dataset, (3, 4, 5))
+    generate_and_save_birefringence_and_phase_transfer_function(
+        settings, dataset, (3, 4, 5)
+    )
     assert dataset["real_potential_transfer_function"]
     assert dataset["imaginary_potential_transfer_function"]
     assert dataset["imaginary_potential_transfer_function"].shape == (
@@ -117,7 +121,9 @@ def test_absorption_and_phase_write(
 def test_phase_3dim_write(birefringence_phase_recon_settings_function):
     settings, dataset = birefringence_phase_recon_settings_function
     settings.reconstruction_dimension = 2
-    generate_and_save_phase_transfer_function(settings, dataset, (3, 4, 5))
+    generate_and_save_birefringence_and_phase_transfer_function(
+        settings, dataset, (3, 4, 5)
+    )
     assert dataset["absorption_transfer_function"]
     assert dataset["phase_transfer_function"]
     assert dataset["phase_transfer_function"].shape == (1, 1, 3, 4, 5)
