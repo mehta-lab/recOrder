@@ -3,6 +3,7 @@ import sys
 from pathlib import Path
 from time import sleep
 from typing import Callable
+from pycromanager import Core, Studio
 
 import numpy as np
 from iohub import open_ome_zarr
@@ -18,8 +19,12 @@ from qtpy.QtWidgets import (
 )
 
 DATASET_PATH = "img.zarr"
-MAX_ITERATIONS = 5
-INTERVAL_SECONDS = 2
+MAX_ITERATIONS = 10
+INTERVAL_SECONDS = 3
+
+NUM_Z_STEPS = 10
+Z_INTERVAL_UM = 2
+Z_STEP_INTERVAL_SECONDS = 0.2
 
 
 class VBoxBase(QWidget):
@@ -49,19 +54,47 @@ class WriterWorker(QObject):
 
     @Slot()
     def run(self):
+        mmc = Core(convert_camel_case=False)
+        mm = Studio()
+        snap_manager = mm.getSnapLiveManager()
         with open_ome_zarr(
             DATASET_PATH, mode="w", layout="hcs", channel_names=["BF"]
         ) as dataset:
             position = dataset.create_position("0", "0", "0")
             for i in range(MAX_ITERATIONS):
-                data = np.random.rand(1, 20, 1024, 1024) * i * 2
-                value = data.mean()
                 if "0" not in position:
                     img = position.create_zeros(
                         "0",
-                        (MAX_ITERATIONS, *data.shape),
-                        dtype=data.dtype,
+                        (MAX_ITERATIONS, 1, NUM_Z_STEPS, mmc.getImageHeight(), mmc.getImageWidth()),
+                        dtype=np.uint16,
                     )
+                stack = []
+                for z_step in range(NUM_Z_STEPS):
+                    #mmc.setChannelGroup("Channel")
+                    mmc.setConfig("Channel", "BF") # falcon only
+                    mmc.setExposure(200.0)
+                    mmc.setPosition(Z_INTERVAL_UM * z_step)
+
+                    #print(f"Z position = {mmc.getPosition()}")
+                    print(f"Exposure = {mmc.getExposure()}")
+                    sleep(Z_STEP_INTERVAL_SECONDS)
+                    # WRITE T = t_step, Z = z_step HERE
+                    #mmc.snapImage()
+                    #im = mmc.getImage().reshape(
+                    #    (mmc.getImageHeight(), mmc.getImageWidth())
+                    #)
+                    snap_manager.snap(True)
+                    sleep(0.3) # sleep after snap to make sure the image we grab is the correct one                   
+                    # get pixels + dimensions
+                    height = snap_manager.getDisplay().getDisplayedImages().get(0).getHeight()
+                    width = snap_manager.getDisplay().getDisplayedImages().get(0).getWidth()
+                    array = (
+                        snap_manager.getDisplay().getDisplayedImages().get(0).getRawPixels()
+                    )
+                    im = np.reshape(array, (height, width))
+                    stack.append(im)
+                data = np.array(stack)[None, :]
+                value = data.mean()
                 img[i] = data
                 print(f"Wrote: {value}")
                 self.written.emit(f"{value:.1f}")

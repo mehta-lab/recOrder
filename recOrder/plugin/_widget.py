@@ -6,6 +6,7 @@ from pathlib import Path
 from queue import Queue
 from time import sleep
 from typing import TYPE_CHECKING, Literal, Union
+from PyQt6 import QtGui
 
 import pydantic
 from iohub.ngff import open_ome_zarr
@@ -130,7 +131,7 @@ def _add_widget_to_container(
 @thread_worker
 def _reconstruct_queued(queue: Queue[dict, int], input_config_path: Path):
     while True:
-        sleep(INTERVAL_SECONDS)
+        sleep(0.1)
         if not queue.empty():
             reconstruction_kwargs, time_index = queue.get()
             print(f"RECONSTRUCTING t={time_index}")
@@ -308,30 +309,40 @@ class MainWidget(QWidget):
 
             # Start watching
             self.watcher = QFileSystemWatcher([str(input_zarr_path / "0")])
+            assert (input_zarr_path / "0").exists()
             print(f"watching {self.watcher.directories()}")
             self.watcher.directoryChanged.connect(self._data_changed)
 
+    @thread_worker
+    def _wait_for_next_timepoint(self, time_index: int):
+        input_zarr_path = Path(self._input_path_le.text())
+        output_zarr_path = Path(self._output_path_le.text())
+        while not (input_zarr_path / "0" / str(time_index)).exists():
+            sleep(INTERVAL_SECONDS)
+        # Set off reconstruction
+        reconstruction_kwargs = dict(
+            input_position_dirpaths=[input_zarr_path],
+            config_filepath=Path("./tmp.yaml"),
+            output_dirpath=output_zarr_path,
+            num_processes=1,
+        )
+        self._reconstructions.put([reconstruction_kwargs, time_index])
+        print(self._reconstructions.qsize())
+
+    @Slot()
     def _data_changed(self):
         print("DATA CHANGED")
         input_zarr_path = Path(self._input_path_le.text())
-        output_zarr_path = Path(self._output_path_le.text())
 
         input_dataset = open_ome_zarr(input_zarr_path)
-        while self.last_reconstructed_time_point < input_dataset["0"].shape[0]:
-            while not (
-                input_zarr_path / "0" / str(self.last_reconstructed_time_point)
-            ).exists():
-                sleep(INTERVAL_SECONDS)
-            # Set off reconstruction
-            reconstruction_kwargs = dict(
-                input_position_dirpaths=[input_zarr_path],
-                config_filepath=Path("./tmp.yaml"),
-                output_dirpath=output_zarr_path,
-                num_processes=1,
+        while (
+            self.last_reconstructed_time_point
+            < input_dataset["0"].nchunks_initialized
+        ):
+            worker = self._wait_for_next_timepoint(
+                self.last_reconstructed_time_point
             )
-            self._reconstructions.put(
-                [reconstruction_kwargs, self.last_reconstructed_time_point]
-            )
+            worker.start()
             self.last_reconstructed_time_point += 1
 
         input_dataset.close()
@@ -364,3 +375,7 @@ class MainWidget(QWidget):
         collapsible = QCollapsible("Visualization tools")
         collapsible.addWidget(QNamedSlider("Max retardance"))
         self._main_layout.addWidget(collapsible)
+
+    def hideEvent(self, a0) -> None:
+        self._reconstruct_worker.quit()
+        super().hideEvent(a0)
