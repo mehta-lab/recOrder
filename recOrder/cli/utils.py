@@ -18,7 +18,25 @@ def create_empty_hcs_zarr(
     channel_names: list[str],
     dtype: DTypeLike,
 ) -> None:
-    """Create an empty zarr plate, appending position if they do not exist"""
+    """If the plate does not exist, create an empty zarr plate.
+
+    If the plate exists, append positions and channels if they are not
+    already in the plate.
+
+    Parameters
+    ----------
+    store_path : Path
+        hcs plate path
+    position_keys : list[Tuple[str]]
+        Position keys, will append if not present in the plate.
+        e.g. [("A", "1", "0"), ("A", "1", "1")]
+    shape : Tuple[int]
+    chunks : Tuple[int]
+    scale : Tuple[float]
+    channel_names : list[str]
+        Channel names, will append if not present in metadata.
+    dtype : DTypeLike
+    """
 
     # Create plate
     output_plate = open_ome_zarr(
