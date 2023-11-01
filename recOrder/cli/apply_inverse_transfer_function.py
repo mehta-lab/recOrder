@@ -119,7 +119,6 @@ def apply_inverse_transfer_function_single_position(
             output_dataset.channel_names.index(output_channel_name)
         )
 
-
     # Find time indices
     if settings.time_indices == "all":
         time_indices = range(input_dataset.data.shape[0])
@@ -314,6 +313,8 @@ def apply_inv_tf(
 
     Applies a transfer function to all positions in the list `input-position-dirpaths`,
     so all positions must have the same TCZYX shape.
+
+    Appends channels to ./output.zarr, so multiple reconstructions can fill a single store.
 
     See /examples for example configuration files.
 
