@@ -100,17 +100,15 @@ def test_absorption_and_phase_write(
     birefringence_phase_recon_settings_function,
 ):
     settings, dataset = birefringence_phase_recon_settings_function
-    generate_and_save_phase_transfer_function(
-        settings, dataset, (100, 2000, 2001)
-    )
+    generate_and_save_phase_transfer_function(settings, dataset, (3, 4, 5))
     assert dataset["real_potential_transfer_function"]
     assert dataset["imaginary_potential_transfer_function"]
     assert dataset["imaginary_potential_transfer_function"].shape == (
         1,
         1,
-        100,
-        2000,
-        2001,
+        3,
+        4,
+        5,
     )
     assert "absorption_transfer_function" not in dataset
     assert "phase_transfer_function" not in dataset
@@ -119,12 +117,10 @@ def test_absorption_and_phase_write(
 def test_phase_3dim_write(birefringence_phase_recon_settings_function):
     settings, dataset = birefringence_phase_recon_settings_function
     settings.reconstruction_dimension = 2
-    generate_and_save_phase_transfer_function(
-        settings, dataset, (100, 2000, 2001)
-    )
+    generate_and_save_phase_transfer_function(settings, dataset, (3, 4, 5))
     assert dataset["absorption_transfer_function"]
     assert dataset["phase_transfer_function"]
-    assert dataset["phase_transfer_function"].shape == (1, 1, 100, 2000, 2001)
+    assert dataset["phase_transfer_function"].shape == (1, 1, 3, 4, 5)
     assert "real_potential_transfer_function" not in dataset
     assert "imaginary_potential_transfer_function" not in dataset
 
@@ -132,15 +128,9 @@ def test_phase_3dim_write(birefringence_phase_recon_settings_function):
 def test_fluorescence_write(fluorescence_recon_settings_function):
     settings, dataset = fluorescence_recon_settings_function
     generate_and_save_fluorescence_transfer_function(
-        settings, dataset, (100, 2000, 2001)
+        settings, dataset, (3, 4, 5)
     )
     assert dataset["optical_transfer_function"]
-    assert dataset["optical_transfer_function"].shape == (
-        1,
-        1,
-        100,
-        2000,
-        2001,
-    )
+    assert dataset["optical_transfer_function"].shape == (1, 1, 3, 4, 5)
     assert "real_potential_transfer_function" not in dataset
     assert "imaginary_potential_transfer_function" not in dataset
