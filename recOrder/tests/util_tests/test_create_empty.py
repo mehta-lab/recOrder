@@ -12,14 +12,21 @@ def test_create_empty_hcs_zarr():
         ("A", "0", "3"),
         ("B", "10", "4"),
     ]
-    shape = (1, 2, 1, 1024, 1024)
+
+    shape = (1, 2, 100, 1024, 1024)
     chunks = (1, 1, 1, 256, 256)
     scale = (1, 1, 1, 0.5, 0.5)
     channel_names = ["Channel1", "Channel2"]
     dtype = np.uint16
 
     create_empty_hcs_zarr(
-        store_path, position_keys, shape, chunks, scale, channel_names, dtype
+        store_path=store_path,
+        position_keys=position_keys,
+        shape=shape,
+        chunks=chunks,
+        scale=scale,
+        channel_names=channel_names,
+        dtype=dtype,
     )
 
     # Verify existence of positions and channels
@@ -32,13 +39,13 @@ def test_create_empty_hcs_zarr():
     # Repeat creation should not fail
     more_channel_names = ["Channel3"]
     create_empty_hcs_zarr(
-        store_path,
-        position_keys,
-        shape,
-        chunks,
-        scale,
-        more_channel_names,
-        dtype,
+        store_path=store_path,
+        position_keys=position_keys,
+        shape=shape,
+        chunks=chunks,
+        scale=scale,
+        channel_names=more_channel_names,
+        dtype=dtype,
     )
 
     # Verify existence of appended channel names
@@ -49,3 +56,30 @@ def test_create_empty_hcs_zarr():
             position_path /= element
         with open_ome_zarr(position_path, mode="r") as position:
             assert position.channel_names == channel_names
+
+    # Creation with larger chunks should not fail
+    store_path = Path("./test_store3.zarr")
+
+    # Target size in bytes (2,147,483,648 bytes = 2 GB)
+    target_size_bytes = 2147483648
+
+    # Size of each element in bytes
+    element_size_bytes = np.uint16().itemsize
+
+    # Calculate the total number of elements needed
+    total_elements = target_size_bytes // element_size_bytes
+
+    # Find the cube root of the total number of elements to get one dimension
+    one_dimension = int(round(total_elements ** (1 / 3)))
+
+    # Chunk > target_size_bytes
+    chunks = (1, 1, one_dimension + 10, one_dimension, one_dimension)
+    create_empty_hcs_zarr(
+        store_path=store_path,
+        position_keys=position_keys,
+        shape=shape,
+        chunks=chunks,
+        scale=scale,
+        channel_names=channel_names,
+        dtype=dtype,
+    )

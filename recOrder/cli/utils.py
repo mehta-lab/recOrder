@@ -8,15 +8,18 @@ from iohub.ngff import Position, open_ome_zarr
 from iohub.ngff_meta import TransformationMeta
 from numpy.typing import DTypeLike
 
+CODEC_MAX_BYTES = 2147483647
+
 
 def create_empty_hcs_zarr(
     store_path: Path,
     position_keys: list[Tuple[str]],
     shape: Tuple[int],
-    chunks: Tuple[int],
     scale: Tuple[float],
     channel_names: list[str],
     dtype: DTypeLike,
+    chunks: Tuple[int] = None,
+    max_chunk_size_bytes= 500e6,
 ) -> None:
     """If the plate does not exist, create an empty zarr plate.
 
@@ -26,16 +29,22 @@ def create_empty_hcs_zarr(
     Parameters
     ----------
     store_path : Path
-        hcs plate path
+        The path to the hcs plate.
     position_keys : list[Tuple[str]]
-        Position keys, will append if not present in the plate.
-        e.g. [("A", "1", "0"), ("A", "1", "1")]
+        The position keys to append if not present in the plate.
+        Example: [("A", "1", "0"), ("A", "1", "1")]
     shape : Tuple[int]
-    chunks : Tuple[int]
+        The shape of the plate.
     scale : Tuple[float]
+        The scale of the plate.
     channel_names : list[str]
-        Channel names, will append if not present in metadata.
+        The channel names to append if not present in the metadata.
     dtype : DTypeLike
+        The data type of the plate.
+    chunks : Tuple[int], optional
+        The chunk size of the plate (ZYX). If None, it will be calculated based on the shape (ZYX) and max_chunk_size_bytes, by default None.
+    max_chunk_size_bytes : float, optional
+        The maximum chunk size in bytes, by default 500e6.
     """
 
     # Create plate
@@ -43,6 +52,27 @@ def create_empty_hcs_zarr(
         str(store_path), layout="hcs", mode="a", channel_names=channel_names
     )
 
+    bytes_per_pixel = np.dtype(dtype).itemsize
+
+    # Limiting the chunking to max_chunk_size_bytes and CODEC_MAX_BYTES
+    if chunks is None or np.prod(chunks) * bytes_per_pixel > CODEC_MAX_BYTES:
+        chunk_zyx_shape = list(shape[-3:])
+        # chunk_zyx_shape[-3] > 1 ensures while loop will not stall if single
+        # XY image is larger than max_chunk_size_bytes
+        while (
+            chunk_zyx_shape[-3] > 1
+            and np.prod(chunk_zyx_shape) * bytes_per_pixel > max_chunk_size_bytes
+        ):
+            chunk_zyx_shape[-3] = np.ceil(chunk_zyx_shape[-3] / 2).astype(int)
+        chunk_zyx_shape = tuple(chunk_zyx_shape)
+        chunks = 2 * (1,) + chunk_zyx_shape
+
+        # Raise warning if chunks are too large
+        if np.prod(chunks) * bytes_per_pixel > CODEC_MAX_BYTES:
+            raise Warning(
+                f"Chunks size is too large. Chunks size < {CODEC_MAX_BYTES} bytes. Changing chunks to {chunks}"
+            )
+    
     # Create positions
     for position_key in position_keys:
         position_key_string = "/".join(position_key)
