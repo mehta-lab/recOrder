@@ -46,8 +46,7 @@ def create_empty_hcs_zarr(
     )
 
     # Pass metadata
-    for key in plate_metadata.keys():
-        output_plate.zattrs[key] = plate_metadata[key]
+    output_plate.zattrs.update(plate_metadata)
 
     # Create positions
     for position_key in position_keys:
