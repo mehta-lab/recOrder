@@ -41,11 +41,8 @@ def get_reconstruction_output_metadata(position_path: Path, config_path: Path):
         input_plate = open_ome_zarr(
             position_path.parent.parent.parent, mode="r"
         )
-        all_plate_metadata = dict(input_plate.zattrs)
-
-        for key in all_plate_metadata.keys():
-            if key != "plate":  # exclude OME-Zarr metadata
-                plate_metadata[key] = all_plate_metadata[key]
+        plate_metadata = dict(input_plate.zattrs)
+        plate_metadata.pop("plate")
     except RuntimeError:
         warnings.warn(
             "Position is not part of a plate...no plate metadata will be copied."
