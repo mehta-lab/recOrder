@@ -29,7 +29,7 @@ from recOrder.io import utils
 def _check_background_consistency(background_shape, data_shape):
     data_cyx_shape = (data_shape[1],) + data_shape[3:]
     if background_shape != data_cyx_shape:
-        raise ValueError(
+        warnings.warn(
             f"Background shape {background_shape} does not match data shape {data_cyx_shape}"
         )
 
