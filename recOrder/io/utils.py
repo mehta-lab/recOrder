@@ -133,7 +133,7 @@ def ret_ori_overlay(
     retardance,
     orientation,
     ret_max: Union[float, Literal["auto"]] = 10,
-    cmap: Literal["JCh", "HSV"] = "JCh",
+    cmap: Literal["JCh", "HSV"] = "HSV",
 ):
     """
     This function will create an overlay of retardance and orientation with two different colormap options.
