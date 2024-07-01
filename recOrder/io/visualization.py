@@ -3,6 +3,8 @@ import numpy as np
 from typing import Literal, Union
 from colorspacious import cspace_convert
 from matplotlib.colors import hsv_to_rgb
+from skimage.color import hsv2rgb
+from skimage.exposure import rescale_intensity
 
 
 # Commenting for 0.3.0. Consider debugging or deleting for 1.0.0.
@@ -135,3 +137,61 @@ def ret_ori_overlay(
     return np.moveaxis(
         overlay_final, source=-1, destination=0
     )  # .shape = (3, ...)
+
+
+def ret_ori_phase_overlay(
+    czyx, channel_order, max_val_V: float = 1.0, max_val_S: float = 1.0
+):
+    """
+    HSV encoding of retardance + orientation + phase image with hsv colormap (orientation in h, retardance in s, phase in v)
+    Parameters
+    ----------
+        czyx        : numpy.ndarray
+                    czyx[0] corresponds to the retardance image
+                    czyx[1]is the orientation image (range from 0 to pi)
+                    czyx[2] is the the phase image
+
+        max_val_V   : float
+                      raise the brightness of the phase channel by 1/max_val_V
+
+        max_val_S   : float
+                      raise the brightness of the retardance channel by 1/max_val_S
+
+    Returns:
+        RGB with HSV (rerientation, Retardance, Phase)
+    """
+
+    C, Z, Y, X = czyx.shape
+    assert C == 3, "The input array must have 3 channels"
+
+    czyx_out = np.zeros((3, Z, Y, X), dtype=np.float32)
+    # Normalize the stack
+    ordered_stack = np.stack(
+        (
+            # Normalize the first channel by dividing by pi
+            czyx[channel_order[0]] / np.pi,
+            # Normalize the second channel and rescale intensity
+            rescale_intensity(
+                czyx[channel_order[1]],
+                in_range=(
+                    np.min(czyx[channel_order[1]]),
+                    np.max(czyx[channel_order[1]]),
+                ),
+                out_range=(0, 1),
+            )
+            / max_val_S,
+            # Normalize the third channel and rescale intensity
+            rescale_intensity(
+                czyx[channel_order[2]],
+                in_range=(
+                    np.min(czyx[channel_order[2]]),
+                    np.max(czyx[channel_order[2]]),
+                ),
+                out_range=(0, 1),
+            )
+            / max_val_V,
+        ),
+        axis=0,
+    )
+    czyx_out = hsv2rgb(ordered_stack, channel_axis=0)
+    return czyx_out
