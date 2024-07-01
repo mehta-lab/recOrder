@@ -55,32 +55,35 @@ from matplotlib.colors import hsv_to_rgb
 
 
 def ret_ori_overlay(
-    retardance,
-    orientation,
+    czyx,
     ret_max: Union[float, Literal["auto"]] = 10,
     cmap: Literal["JCh", "HSV"] = "JCh",
 ):
     """
-    This function will create an overlay of retardance and orientation with two different colormap options.
+    Creates an overlay of retardance and orientation with two different colormap options.
     HSV is the standard Hue, Saturation, Value colormap while JCh is a similar colormap but is perceptually uniform.
 
     Parameters
     ----------
-    retardance:             (nd-array) retardance array in nanometers (shape must match orientation)
-    orientation:            (nd-array) orientation array in radian [0, pi] (shape must match retardance)
+    czyx:                   (nd-array) czyx[0] is retardance in nanometers, czyx[1] is orientation in radians [0, pi],
+                            czyx.shape = (2, ...)
+
     ret_max:                (float) maximum displayed retardance. Typically use adjusted contrast limits.
+
     cmap:                   (str) 'JCh' or 'HSV'
 
     Returns
     -------
-    overlay                 (nd-array) RGB image with shape retardance.shape + (3,)
+    overlay                 (nd-array) RGB image with shape (3, ...)
 
     """
-    if retardance.shape != orientation.shape:
+    if czyx.shape[0] != 2:
         raise ValueError(
-            "Retardance and Orientation shapes do not match: "
-            f"{retardance.shape} vs. {orientation.shape}"
+            f"Input must have shape (2, ...) instead of ({czyx.shape[9]}, ...)"
         )
+
+    retardance = czyx[0]
+    orientation = czyx[1]
 
     if ret_max == "auto":
         ret_max = np.percentile(np.ravel(retardance), 99.99)
@@ -129,4 +132,6 @@ def ret_ori_overlay(
     else:
         raise ValueError(f"Colormap {cmap} not understood")
 
-    return overlay_final
+    return np.moveaxis(
+        overlay_final, source=-1, destination=0
+    )  # .shape = (3, ...)

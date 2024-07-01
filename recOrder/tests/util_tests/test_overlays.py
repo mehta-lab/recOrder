@@ -51,11 +51,11 @@ def test_ret_ori_overlay(briefringence: tuple[NDArray, NDArray], jch: bool):
     orientation_copy = orientation.copy()
     cmap = "JCh" if jch else "HSV"
     overlay = ret_ori_overlay(
-        retardance,
-        orientation,
+        np.stack((retardance, orientation)),
         ret_max=np.percentile(retardance, 99),
         cmap=cmap,
     )
+
     # check that the function did not mutate input data
     assert_equal(retardance, retardance_copy)
     assert_equal(orientation, orientation_copy)
@@ -63,4 +63,4 @@ def test_ret_ori_overlay(briefringence: tuple[NDArray, NDArray], jch: bool):
     # output contains NaN, pending further investigation
     # assert overlay.min() >= 0
     # assert overlay.max() <= 1
-    assert overlay.shape == retardance.shape + (3,)
+    assert overlay.shape == (3,) + retardance.shape
