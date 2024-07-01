@@ -7,55 +7,6 @@ from skimage.color import hsv2rgb
 from skimage.exposure import rescale_intensity
 
 
-# Commenting for 0.3.0. Consider debugging or deleting for 1.0.0.
-# def generic_hsv_overlay(
-#     H, S, V, H_scale=None, S_scale=None, V_scale=None, mode="2D"
-# ):
-#     """
-#     Generates a generic HSV overlay in either 2D or 3D
-
-#     Parameters
-#     ----------
-#     H:          (nd-array) data to use in the Hue channel
-#     S:          (nd-array) data to use in the Saturation channel
-#     V:          (nd-array) data to use in the Value channel
-#     H_scale:    (tuple) values at which to clip the hue data for display
-#     S_scale:    (tuple) values at which to clip the saturation data for display
-#     V_scale:    (tuple) values at which to clip the value data for display
-#     mode:       (str) '3D' or '2D'
-
-#     Returns
-#     -------
-#     overlay:    (nd-array) RGB overlay array of shape (Z, Y, X, 3) or (Y, X, 3)
-
-#     """
-
-#     if H.shape != S.shape or H.shape != S.shape or S.shape != V.shape:
-#         raise ValueError(
-#             f"Channel shapes do not match: {H.shape} vs. {S.shape} vs. {V.shape}"
-#         )
-
-#     if mode == "3D":
-#         overlay_final = np.zeros((H.shape[0], H.shape[1], H.shape[2], 3))
-#         slices = H.shape[0]
-#     else:
-#         overlay_final = np.zeros((1, H.shape[-2], H.shape[-1], 3))
-#         H = np.expand_dims(H, axis=0)
-#         S = np.expand_dims(S, axis=0)
-#         V = np.expand_dims(V, axis=0)
-#         slices = 1
-
-#     for i in range(slices):
-#         H_ = np.interp(H[i], H_scale, (0, 1))
-#         S_ = np.interp(S[i], S_scale, (0, 1))
-#         V_ = np.interp(V[i], V_scale, (0, 1))
-
-#         hsv = np.transpose(np.stack([H_, S_, V_]), (1, 2, 0))
-#         overlay_final[i] = hsv_to_rgb(hsv)
-
-#     return overlay_final[0] if mode == "2D" else overlay_final
-
-
 def ret_ori_overlay(
     czyx,
     ret_max: Union[float, Literal["auto"]] = 10,
@@ -63,7 +14,7 @@ def ret_ori_overlay(
 ):
     """
     Creates an overlay of retardance and orientation with two different colormap options.
-    "HSV" maps orientation to hue and retardance to value with maximum saturation.  
+    "HSV" maps orientation to hue and retardance to value with maximum saturation.
     "JCh" is a similar colormap but is perceptually uniform.
 
     Parameters
@@ -147,7 +98,7 @@ def ret_ori_phase_overlay(
     Creates an overlay of retardance, orientation, and phase.
     Maps orientation to hue, retardance to saturation, and phase to value.
 
-    HSV encoding of retardance + orientation + phase image with hsv colormap 
+    HSV encoding of retardance + orientation + phase image with hsv colormap
     (orientation in h, retardance in s, phase in v)
     Parameters
     ----------
@@ -164,7 +115,7 @@ def ret_ori_phase_overlay(
 
     Returns
     -------
-    overlay                 (nd-array) RGB image with shape (3, ...)                      
+    overlay                 (nd-array) RGB image with shape (3, ...)
 
     Returns:
         RGB with HSV
