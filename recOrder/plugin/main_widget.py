@@ -43,7 +43,7 @@ from recOrder.calib.calibration_workers import (
 )
 from recOrder.io.core_functions import set_lc_state, snap_and_average
 from recOrder.io.metadata_reader import MetadataReader
-from recOrder.io.utils import ret_ori_overlay
+from recOrder.io.visualization import ret_ori_overlay
 from recOrder.plugin import gui
 
 # avoid runtime import error
