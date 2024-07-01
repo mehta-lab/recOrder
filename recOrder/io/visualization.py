@@ -63,7 +63,8 @@ def ret_ori_overlay(
 ):
     """
     Creates an overlay of retardance and orientation with two different colormap options.
-    HSV is the standard Hue, Saturation, Value colormap while JCh is a similar colormap but is perceptually uniform.
+    "HSV" maps orientation to hue and retardance to value with maximum saturation.  
+    "JCh" is a similar colormap but is perceptually uniform.
 
     Parameters
     ----------
@@ -81,7 +82,7 @@ def ret_ori_overlay(
     """
     if czyx.shape[0] != 2:
         raise ValueError(
-            f"Input must have shape (2, ...) instead of ({czyx.shape[9]}, ...)"
+            f"Input must have shape (2, ...) instead of ({czyx.shape[0]}, ...)"
         )
 
     retardance = czyx[0]
@@ -140,10 +141,14 @@ def ret_ori_overlay(
 
 
 def ret_ori_phase_overlay(
-    czyx, channel_order, max_val_V: float = 1.0, max_val_S: float = 1.0
+    czyx, max_val_V: float = 1.0, max_val_S: float = 1.0
 ):
     """
-    HSV encoding of retardance + orientation + phase image with hsv colormap (orientation in h, retardance in s, phase in v)
+    Creates an overlay of retardance, orientation, and phase.
+    Maps orientation to hue, retardance to saturation, and phase to value.
+
+    HSV encoding of retardance + orientation + phase image with hsv colormap 
+    (orientation in h, retardance in s, phase in v)
     Parameters
     ----------
         czyx        : numpy.ndarray
@@ -157,35 +162,46 @@ def ret_ori_phase_overlay(
         max_val_S   : float
                       raise the brightness of the retardance channel by 1/max_val_S
 
+    Returns
+    -------
+    overlay                 (nd-array) RGB image with shape (3, ...)                      
+
     Returns:
-        RGB with HSV (rerientation, Retardance, Phase)
+        RGB with HSV
     """
 
-    C, Z, Y, X = czyx.shape
-    assert C == 3, "The input array must have 3 channels"
+    if czyx.shape[0] != 3:
+        raise ValueError(
+            f"Input must have shape (3, ...) instead of ({czyx.shape[0]}, ...)"
+        )
 
-    czyx_out = np.zeros((3, Z, Y, X), dtype=np.float32)
+    czyx_out = np.zeros_like(czyx, dtype=np.float32)
+
+    retardance = czyx[0]
+    orientation = czyx[1]
+    phase = czyx[2]
+
     # Normalize the stack
     ordered_stack = np.stack(
         (
             # Normalize the first channel by dividing by pi
-            czyx[channel_order[0]] / np.pi,
+            orientation / np.pi,
             # Normalize the second channel and rescale intensity
             rescale_intensity(
-                czyx[channel_order[1]],
+                retardance,
                 in_range=(
-                    np.min(czyx[channel_order[1]]),
-                    np.max(czyx[channel_order[1]]),
+                    np.min(retardance),
+                    np.max(retardance),
                 ),
                 out_range=(0, 1),
             )
             / max_val_S,
             # Normalize the third channel and rescale intensity
             rescale_intensity(
-                czyx[channel_order[2]],
+                phase,
                 in_range=(
-                    np.min(czyx[channel_order[2]]),
-                    np.max(czyx[channel_order[2]]),
+                    np.min(phase),
+                    np.max(phase),
                 ),
                 out_range=(0, 1),
             )
