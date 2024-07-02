@@ -48,13 +48,6 @@ def ret_ori_overlay(
     ori_ = orientation * 360 / np.pi
     overlay_final = np.zeros_like(retardance)
 
-    # FIX ME: this binning code leads to artifacts.
-    # levels = 32
-    # ori_binned = (
-    #     np.round(orientation[i] / 180 * levels + 0.5) / levels - 1 / levels
-    # ) # bin orientation into 32 levels.
-    # ori_ = np.interp(ori_binned, (0, 1), (0, 360))
-
     if cmap == "JCh":
         noise_level = 1
 
