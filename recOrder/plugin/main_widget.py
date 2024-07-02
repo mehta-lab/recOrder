@@ -241,44 +241,6 @@ class MainWidget(QWidget):
             self.handle_ret_max_slider_move
         )
 
-        # Commenting for 0.3.0. Consider debugging or deleting for 1.0.0.
-        # self.ui.cb_colormap.currentIndexChanged[int].connect(
-        #     self.enter_colormap
-        # )
-        # self.ui.chb_display_volume.stateChanged[int].connect(
-        #     self.enter_use_full_volume
-        # )
-        # self.ui.le_overlay_slice.editingFinished.connect(
-        #     self.enter_display_slice
-        # )
-        # self.ui.slider_value.sliderMoved[tuple].connect(
-        #     self.handle_val_slider_move
-        # )
-        # self.ui.slider_saturation.sliderMoved[tuple].connect(
-        #     self.handle_sat_slider_move
-        # )
-
-        # Display Tab (Commenting to suppress warnings. Consider debugging or deleting for 1.0.0.)
-        # self.viewer.layers.events.inserted.connect(
-        #    self._add_layer_to_display_boxes
-        # )
-        # self.viewer.layers.events.removed.connect(
-        #    self._remove_layer_from_display_boxes
-        # )
-        # self.ui.qbutton_create_overlay.clicked[bool].connect(
-        #    self.create_overlay
-        # )
-        # self.ui.cb_saturation.currentIndexChanged[int].connect(
-        #    self.update_sat_scale
-        # )
-        # self.ui.cb_value.currentIndexChanged[int].connect(
-        #    self.update_value_scale
-        # )
-        # self.ui.le_sat_max.editingFinished.connect(self.enter_sat_max)
-        # self.ui.le_sat_min.editingFinished.connect(self.enter_sat_min)
-        # self.ui.le_val_max.editingFinished.connect(self.enter_val_max)
-        # self.ui.le_val_min.editingFinished.connect(self.enter_val_min)
-
         # Reconstruction tab
         self.ui.cb_phase_denoiser.currentIndexChanged[int].connect(
             self.enter_phase_denoiser
@@ -717,62 +679,6 @@ class MainWidget(QWidget):
 
     def _update_calib(self, val):
         self.calib = val
-
-    # Commenting for 0.3.0. Consider debuging or removing for 1.0.0.
-    # def _add_layer_to_display_boxes(self, val):
-    #     """
-    #     When a new napari layer is added to recOrder, update the Display Tab combo boxes with these layers.
-    #     This will allow the user to then choose which layers it wants to use for the overlay.  Will skip over
-    #     any layers that are already an 'Overlay'.  This function is connected to a napari.Layer signal
-
-    #     Parameters
-    #     ----------
-    #     val:            (napari.Layer) layer that was added [not used]
-
-    #     Returns
-    #     -------
-
-    #     """
-
-    #     for layer in self.viewer.layers:
-    #         if "Overlay" in layer.name:
-    #             continue
-    #         if layer.name not in [
-    #             self.ui.cb_hue.itemText(i)
-    #             for i in range(self.ui.cb_hue.count())
-    #         ]:
-    #             self.ui.cb_hue.addItem(layer.name)
-    #         if layer.name not in [
-    #             self.ui.cb_saturation.itemText(i)
-    #             for i in range(self.ui.cb_saturation.count())
-    #         ]:
-    #             self.ui.cb_saturation.addItem(layer.name)
-    #         if layer.name not in [
-    #             self.ui.cb_value.itemText(i)
-    #             for i in range(self.ui.cb_value.count())
-    #         ]:
-    #             self.ui.cb_value.addItem(layer.name)
-
-    # def _remove_layer_from_display_boxes(self, val):
-    #     """
-    #     When a napari layer is removed from napari, remove the corresponding layer from Display Tab combo boxes.
-
-    #     Parameters
-    #     ----------
-    #     val:            (napari.Layer) layer that was removed by the user
-
-    #     Returns
-    #     -------
-
-    #     """
-
-    #     for i in range(self.ui.cb_hue.count()):
-    #         if val.value.name in self.ui.cb_hue.itemText(i):
-    #             self.ui.cb_hue.removeItem(i)
-    #         if val.value.name in self.ui.cb_saturation.itemText(i):
-    #             self.ui.cb_saturation.removeItem(i)
-    #         if val.value.name in self.ui.cb_value.itemText(i):
-    #             self.ui.cb_value.removeItem(i)
 
     def _check_line_edit(self, name):
         """
@@ -1804,88 +1710,6 @@ class MainWidget(QWidget):
         else:
             self.ui.le_calibration_metadata.setStyleSheet("")
             self.calib_path = entry
-
-    # Comment for 0.3.0. Consider debugging or deleting for 1.0.0.
-    # @Slot()
-    # def enter_colormap(self):
-    #     """
-    #     Handles the update of the display colormap.  Will display different png image legend
-    #     depending on the colormap choice.
-
-    #     Returns
-    #     -------
-
-    #     """
-
-    #     prev_cmap = self.colormap
-    #     state = self.ui.cb_colormap.currentIndex()
-    #     if state == 0:
-    #         self.ui.label_orientation_image.setPixmap(self.jch_pixmap)
-    #         self.colormap = "JCh"
-    #     else:
-    #         self.ui.label_orientation_image.setPixmap(self.hsv_pixmap)
-    #         self.colormap = "HSV"
-
-    #     # Update the birefringence overlay to new colormap if the colormap has changed
-    #     if prev_cmap != self.colormap:
-    #         # TODO: Handle case where there are multiple snaps
-    #         if "BirefringenceOverlay2D" in self.viewer.layers:
-    #             if (
-    #                 "Retardance2D" in self.viewer.layers
-    #                 and "Orientation2D" in self.viewer.layers
-    #             ):
-
-    #                 overlay = ret_ori_overlay(
-    #                     retardance=self.viewer.layers["Retardance2D"].data,
-    #                     orientation=self.viewer.layers["Orientation2D"].data,
-    #                     ret_max=np.percentile(
-    #                         self.viewer.layers["Retardance2D"].data, 99.99
-    #                     ),
-    #                     cmap=self.colormap,
-    #                 )
-
-    #                 self.viewer.layers["BirefringenceOverlay2D"].data = overlay
-
-    # @Slot(int)
-    # def enter_use_full_volume(self):
-    #     state = self.ui.chb_display_volume.checkState()
-
-    #     if state == 2:
-    #         self.ui.le_overlay_slice.clear()
-    #         self.ui.le_overlay_slice.setEnabled(False)
-    #         self.use_full_volume = False
-    #     else:
-    #         self.ui.le_overlay_slice.setEnabled(True)
-    #         self.use_full_volume = True
-
-    # @Slot()
-    # def enter_display_slice(self):
-    #     slice = int(self.ui.le_overlay_slice.text())
-    #     self.display_slice = slice
-
-    # @Slot()
-    # def enter_sat_min(self):
-    #     val = float(self.ui.le_sat_min.text())
-    #     slider_val = self.ui.slider_saturation.value()
-    #     self.ui.slider_saturation.setValue((val, slider_val[1]))
-
-    # @Slot()
-    # def enter_sat_max(self):
-    #     val = float(self.ui.le_sat_max.text())
-    #     slider_val = self.ui.slider_saturation.value()
-    #     self.ui.slider_saturation.setValue((slider_val[0], val))
-
-    # @Slot()
-    # def enter_val_min(self):
-    #     val = float(self.ui.le_val_min.text())
-    #     slider_val = self.ui.slider_value.value()
-    #     self.ui.slider_value.setValue((val, slider_val[1]))
-
-    # @Slot()
-    # def enter_val_max(self):
-    #     val = float(self.ui.le_val_max.text())
-    #     slider_val = self.ui.slider_value.value()
-    #     self.ui.slider_value.setValue((slider_val[0], val))
 
     @Slot(bool)
     def push_note(self):
