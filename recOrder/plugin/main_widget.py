@@ -1264,19 +1264,23 @@ class MainWidget(QWidget):
 
     def update_overlay_dask_array(self):
         self.rgb_chunks = (
-            (self.overlay_retardance.ndim - 2) * (1,)
+            (3,)
+            + (self.overlay_retardance.ndim - 2) * (1,)
             + self.overlay_retardance.shape[-2:]
-            + (3,)
         )
         overlay = da.map_blocks(
             ret_ori_overlay,
-            self.overlay_retardance,
-            self.overlay_orientation,
-            chunks=self.rgb_chunks,
-            new_axis=-1,
+            np.stack((self.overlay_retardance, self.overlay_orientation)),
             ret_max=self.ret_max,
             cmap=self.colormap,
+            chunks=self.rgb_chunks,
+            dtype=np.float32,
+            drop_axis=0,
+            new_axis=0,
         )
+
+        overlay = da.moveaxis(overlay, source=0, destination=-1)
+
         self._add_or_update_image_layer(
             overlay, self.overlay_name, cmap="rgb", scale=self.overlay_scale
         )
