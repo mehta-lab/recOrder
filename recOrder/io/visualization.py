@@ -9,6 +9,7 @@ from skimage.exposure import rescale_intensity
 
 def ret_ori_overlay(
     czyx,
+    ret_min: float = 1,
     ret_max: Union[float, Literal["auto"]] = 10,
     cmap: Literal["JCh", "HSV"] = "JCh",
 ):
@@ -22,7 +23,8 @@ def ret_ori_overlay(
     czyx:                   (nd-array) czyx[0] is retardance in nanometers, czyx[1] is orientation in radians [0, pi],
                             czyx.shape = (2, ...)
 
-    ret_max:                (float) maximum displayed retardance. Typically use adjusted contrast limits.
+    ret_min:                (float) minimum displayed retardance. Typically a noise floor. 
+    ret_max:                (float) maximum displayed retardance. Typically used to adjust contrast limits.
 
     cmap:                   (str) 'JCh' or 'HSV'
 
@@ -49,11 +51,9 @@ def ret_ori_overlay(
     overlay_final = np.zeros_like(retardance)
 
     if cmap == "JCh":
-        noise_level = 1
-
         J = ret_
         C = np.ones_like(J) * 60
-        C[ret_ < noise_level] = 0
+        C[ret_ < ret_min] = 0
         h = ori_
 
         JCh = np.stack((J, C, h), axis=-1)
