@@ -179,7 +179,7 @@ def compute_transfer_function_cli(
         input_dataset.channel_names
     ):
         raise ValueError(
-            f"Each of the input_channel_names = {settings.input_channel_names} in {config_filepath} must appear in the dataset {input_position_dirpaths[0]} which currently contains channel_names = {input_dataset.channel_names}."
+            f"Each of the input_channel_names = {settings.input_channel_names} in {config_filepath} must appear in the dataset {input_position_dirpath} which currently contains channel_names = {input_dataset.channel_names}."
         )
 
     # Prepare output dataset
