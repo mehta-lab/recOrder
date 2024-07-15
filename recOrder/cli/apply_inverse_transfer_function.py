@@ -7,6 +7,7 @@ import click
 import numpy as np
 import torch
 import torch.multiprocessing as mp
+import submitit
 from iohub import open_ome_zarr
 
 from recOrder.cli import apply_inverse_models
@@ -303,15 +304,25 @@ def apply_inverse_transfer_function_cli(
         torch.set_num_threads(1)
         torch.set_num_interop_threads(1)
 
-    for input_position_dirpath in input_position_dirpaths:
-        apply_inverse_transfer_function_single_position(
-            input_position_dirpath,
-            transfer_function_dirpath,
-            config_filepath,
-            output_dirpath / Path(*input_position_dirpath.parts[-3:]),
-            num_processes,
-            output_metadata["channel_names"],
-        )
+    executor = submitit.AutoExecutor(folder="logs")
+    executor.update_parameters(
+        slurm_array_parallelism=len(input_position_dirpaths),  # for batch jobs
+        slurm_mem_per_cpu="32G",  # more slurm_*** resource parameters here
+    )
+    jobs = []
+
+    with executor.batch():  # submits batch on exit
+        for input_position_dirpath in input_position_dirpaths:
+            job = executor.submit(
+                apply_inverse_transfer_function_single_position,
+                input_position_dirpath,
+                transfer_function_dirpath,
+                config_filepath,
+                output_dirpath / Path(*input_position_dirpath.parts[-3:]),
+                num_processes,
+                output_metadata["channel_names"],
+            )
+            jobs.append(job)  # use for managing dependencies
 
 
 @click.command()
