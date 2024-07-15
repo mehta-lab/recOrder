@@ -5,9 +5,11 @@ from pathlib import Path
 
 import click
 import numpy as np
+import time
 import torch
 import torch.multiprocessing as mp
 import submitit
+import sys
 from iohub import open_ome_zarr
 
 from recOrder.cli import apply_inverse_models
@@ -304,10 +306,22 @@ def apply_inverse_transfer_function_cli(
         torch.set_num_threads(1)
         torch.set_num_interop_threads(1)
 
+    # Estimate resources
+    num_jobs = len(input_position_dirpaths)
+    gb_ram_request = int(32)
+    cpu_request = 1
+
+    echo_headline(
+        f"Preparing {num_jobs} jobs, each with {gb_ram_request} GB of memory and {cpu_request} CPU."
+    )
+
+    # Prepare and submit jobs
     executor = submitit.AutoExecutor(folder="logs")
     executor.update_parameters(
-        slurm_array_parallelism=len(input_position_dirpaths),  # for batch jobs
-        slurm_mem_per_cpu="32G",  # more slurm_*** resource parameters here
+        slurm_array_parallelism=num_jobs,
+        slurm_mem_per_cpu=f"{gb_ram_request}G",
+        slurm_cpus_per_task=cpu_request,
+        # more slurm_*** resource parameters here
     )
     jobs = []
 
@@ -323,6 +337,60 @@ def apply_inverse_transfer_function_cli(
                 output_metadata["channel_names"],
             )
             jobs.append(job)  # use for managing dependencies
+
+    # Monitor jobs (will move elsewhere)
+    def clear_status(jobs):
+        for job in jobs:
+            sys.stdout.write("\033[F")  # Move cursor up
+            sys.stdout.write("\033[K")  # Clear line
+
+    def print_status(jobs, input_position_dirpaths):
+        for job, input_position_dirpath in zip(jobs, input_position_dirpaths):
+            if job.state == "COMPLETED":
+                color = "\033[32m"  # green
+            elif job.state == "RUNNING":
+                color = "\033[93m"  # yellow
+            else:
+                color = "\033[91m"  # red
+
+            try:
+                node_name = job.get_info()["NodeList"]
+            except:
+                node_name = "SUBMITTED"
+
+            sys.stdout.write(
+                f"{color}{job.job_id}"
+                f"\033[15G {'/'.join(input_position_dirpath.parts[-3:])}"
+                f"\033[30G {job.state}"
+                f"\033[40G {node_name}"
+                f"\033[50G {time.time() - job.watcher._start_time:.0f} s\n"
+            )
+            sys.stdout.flush()
+
+    def print_header():
+        sys.stdout.write(
+            "ID\033[15G WELL \033[30G STATUS \033[40G NODE \033[50G ELAPSED\n"
+        )
+        sys.stdout.flush()
+
+    echo_headline(f"{num_jobs} jobs submitted.")
+    try:
+        print_header()
+        print_status(jobs, input_position_dirpaths)
+        while not all(job.done() for job in jobs):
+            time.sleep(1)
+            clear_status(jobs)
+            print_status(jobs, input_position_dirpaths)
+
+        # Print final status
+        time.sleep(3)
+        clear_status(jobs)
+        print_status(jobs, input_position_dirpaths)
+
+    except KeyboardInterrupt:
+        for job in jobs:
+            job.cancel()
+        print("All jobs cancelled.")
 
 
 @click.command()
