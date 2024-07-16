@@ -291,6 +291,7 @@ def apply_inverse_transfer_function_cli(
     config_filepath: Path,
     output_dirpath: Path,
     num_processes: int = 1,
+    ram_multiplier: float = 1.0,
 ) -> None:
     output_metadata = get_reconstruction_output_metadata(
         input_position_dirpaths[0], config_filepath
@@ -321,8 +322,8 @@ def apply_inverse_transfer_function_cli(
         gb_ram_request += input_memory * fourier_resource_multiplier
     if settings.fluorescence is not None:
         gb_ram_request += input_memory * fourier_resource_multiplier
-    gb_ram_request = np.ceil(gb_ram_request).astype(int)
 
+    gb_ram_request = np.ceil(ram_multiplier * gb_ram_request).astype(int)
     cpu_request = np.min([32, T * C])
     num_jobs = len(input_position_dirpaths)
 
@@ -336,6 +337,7 @@ def apply_inverse_transfer_function_cli(
         slurm_mem_per_cpu=f"{gb_ram_request}G",
         slurm_cpus_per_task=cpu_request,
         slurm_time=60,
+        slurm_partition="gpu",
         # more slurm_*** resource parameters here
     )
     jobs = [
@@ -361,12 +363,20 @@ def apply_inverse_transfer_function_cli(
 @config_filepath()
 @output_dirpath()
 @processes_option(default=1)
+@click.option(
+    "--ram-multiplier",
+    "-rx",
+    default=1.0,
+    type=float,
+    help="SLURM RAM multiplier.",
+)
 def apply_inv_tf(
     input_position_dirpaths: list[Path],
     transfer_function_dirpath: Path,
     config_filepath: Path,
     output_dirpath: Path,
     num_processes,
+    ram_multiplier: float = 1.0,
 ) -> None:
     """
     Apply an inverse transfer function to a dataset using a configuration file.
@@ -386,4 +396,5 @@ def apply_inv_tf(
         config_filepath,
         output_dirpath,
         num_processes,
+        ram_multiplier,
     )
