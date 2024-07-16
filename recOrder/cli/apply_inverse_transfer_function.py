@@ -23,7 +23,7 @@ from recOrder.cli.settings import ReconstructionSettings
 from recOrder.cli.utils import (
     apply_inverse_to_zyx_and_save,
     create_empty_hcs_zarr,
-    monitor_jobs
+    monitor_jobs,
 )
 from recOrder.io import utils
 
@@ -306,42 +306,54 @@ def apply_inverse_transfer_function_cli(
         torch.set_num_interop_threads(1)
 
     # Estimate resources
-    num_jobs = len(input_position_dirpaths)
-    gb_ram_request = int(32)
-    cpu_request = 1
+    with open_ome_zarr(input_position_dirpaths[0]) as input_dataset:
+        T, C, Z, Y, X = input_dataset["0"].shape
 
+    settings = utils.yaml_to_model(config_filepath, ReconstructionSettings)
+    gb_ram_request = 0
+    gb_per_element = 4 / 2**30  # bytes_per_float32 / bytes_per_gb
+    voxel_resource_multiplier = 4
+    fourier_resource_multiplier = 32
+    input_memory = Z * Y * X * gb_per_element
+    if settings.birefringence is not None:
+        gb_ram_request += input_memory * voxel_resource_multiplier
+    if settings.phase is not None:
+        gb_ram_request += input_memory * fourier_resource_multiplier
+    if settings.fluorescence is not None:
+        gb_ram_request += input_memory * fourier_resource_multiplier
+    gb_ram_request = np.ceil(gb_ram_request).astype(int)
+
+    cpu_request = np.min([32, T * C])
+    num_jobs = len(input_position_dirpaths)
+
+    # Prepare and submit jobs
     echo_headline(
         f"Preparing {num_jobs} jobs, each with {gb_ram_request} GB of memory and {cpu_request} CPU."
     )
-
-    # Prepare and submit jobs
     executor = submitit.AutoExecutor(folder="logs")
     executor.update_parameters(
         slurm_array_parallelism=num_jobs,
         slurm_mem_per_cpu=f"{gb_ram_request}G",
         slurm_cpus_per_task=cpu_request,
+        slurm_time=60,
         # more slurm_*** resource parameters here
     )
-    jobs = []
+    jobs = [
+        executor.submit(
+            apply_inverse_transfer_function_single_position,
+            input_position_dirpath,
+            transfer_function_dirpath,
+            config_filepath,
+            output_dirpath / Path(*input_position_dirpath.parts[-3:]),
+            num_processes,
+            output_metadata["channel_names"],
+        )
+        for input_position_dirpath in input_position_dirpaths
+    ]
+    echo_headline(f"{num_jobs} jobs submitted.")
 
-    with executor.batch():  # submits batch on exit
-        for input_position_dirpath in input_position_dirpaths:
-            job = executor.submit(
-                apply_inverse_transfer_function_single_position,
-                input_position_dirpath,
-                transfer_function_dirpath,
-                config_filepath,
-                output_dirpath / Path(*input_position_dirpath.parts[-3:]),
-                num_processes,
-                output_metadata["channel_names"],
-            )
-            jobs.append(job)  # use for managing dependencies
+    monitor_jobs(jobs, input_position_dirpaths)
 
-    echo_headline(f"{num_jobs} jobs submitted.")   
-
-    monitor_jobs(jobs, input_position_dirpaths)         
-
-    
 
 @click.command()
 @input_position_dirpaths()
