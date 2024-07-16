@@ -4,6 +4,9 @@ from typing import Tuple
 import click
 import numpy as np
 import torch
+import time
+import submitit
+import sys
 from iohub.ngff import Position, open_ome_zarr
 from iohub.ngff_meta import TransformationMeta
 from numpy.typing import DTypeLike
@@ -103,3 +106,74 @@ def apply_inverse_to_zyx_and_save(
             t_idx, output_channel_indices
         ] = reconstruction_czyx
     click.echo(f"Finished Writing.. t={t_idx}")
+
+
+def _clear_status(jobs):
+    for job in jobs:
+        sys.stdout.write("\033[F")  # Move cursor up
+        sys.stdout.write("\033[K")  # Clear line
+
+
+def _print_status(jobs, position_dirpaths):
+    for job, position_dirpath in zip(jobs, position_dirpaths):
+        if job.state == "COMPLETED":
+            color = "\033[32m"  # green
+        elif job.state == "RUNNING":
+            color = "\033[93m"  # yellow
+        else:
+            color = "\033[91m"  # red
+
+        try:
+            node_name = job.get_info()["NodeList"]
+        except:
+            node_name = "SUBMITTED"
+
+        sys.stdout.write(
+            f"{color}{job.job_id}"
+            f"\033[15G {'/'.join(position_dirpath.parts[-3:])}"
+            f"\033[30G {job.state}"
+            f"\033[40G {node_name}"
+            f"\033[50G {time.time() - job.watcher._start_time:.0f} s\n"
+        )
+        sys.stdout.flush()
+
+
+def _print_header():
+    sys.stdout.write(
+        "ID\033[15G WELL \033[30G STATUS \033[40G NODE \033[50G ELAPSED\n"
+    )
+    sys.stdout.flush()
+
+
+def monitor_jobs(jobs: list[submitit.Job], position_dirpaths: list[Path]):
+    """Displays the status of a list of submitit jobs with corresponding paths.
+
+    Parameters
+    ----------
+    jobs : list[submitit.Job]
+        List of submitit jobs
+    position_dirpaths : list[Path]
+        List of corresponding position paths
+    """
+    if not len(jobs) == len(position_dirpaths):
+        raise ValueError(
+            "The number of jobs and position_dirpaths should be the same."
+        )
+
+    try:
+        _print_header()
+        _print_status(jobs, position_dirpaths)
+        while not all(job.done() for job in jobs):
+            time.sleep(1)
+            _clear_status(jobs)
+            _print_status(jobs, position_dirpaths)
+
+        # Print final status
+        time.sleep(3)
+        _clear_status(jobs)
+        _print_status(jobs, position_dirpaths)
+
+    except KeyboardInterrupt:
+        for job in jobs:
+            job.cancel()
+        print("All jobs cancelled.")
