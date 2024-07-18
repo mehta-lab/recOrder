@@ -337,21 +337,24 @@ def apply_inverse_transfer_function_cli(
         slurm_mem_per_cpu=f"{gb_ram_request}G",
         slurm_cpus_per_task=cpu_request,
         slurm_time=60,
-        slurm_partition="gpu",
+        slurm_partition="cpu",
         # more slurm_*** resource parameters here
     )
-    jobs = [
-        executor.submit(
-            apply_inverse_transfer_function_single_position,
-            input_position_dirpath,
-            transfer_function_dirpath,
-            config_filepath,
-            output_dirpath / Path(*input_position_dirpath.parts[-3:]),
-            num_processes,
-            output_metadata["channel_names"],
-        )
-        for input_position_dirpath in input_position_dirpaths
-    ]
+
+    jobs = []
+    with executor.batch():
+        for input_position_dirpath in input_position_dirpaths:
+            jobs.append(
+                executor.submit(
+                    apply_inverse_transfer_function_single_position,
+                    input_position_dirpath,
+                    transfer_function_dirpath,
+                    config_filepath,
+                    output_dirpath / Path(*input_position_dirpath.parts[-3:]),
+                    num_processes,
+                    output_metadata["channel_names"],
+                )
+            )
     echo_headline(f"{num_jobs} jobs submitted.")
 
     monitor_jobs(jobs, input_position_dirpaths)
