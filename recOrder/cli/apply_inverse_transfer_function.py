@@ -329,7 +329,7 @@ def apply_inverse_transfer_function_cli(
 
     # Prepare and submit jobs
     echo_headline(
-        f"Preparing {num_jobs} job{'s' if num_jobs > 1 else ''}, each with {gb_ram_request} GB of memory and {cpu_request} CPU."
+        f"Preparing {num_jobs} job{'s, each with' if num_jobs > 1 else ' with'} {gb_ram_request} GB of memory and {cpu_request} CPU."
     )
     executor = submitit.AutoExecutor(folder="logs")
     
