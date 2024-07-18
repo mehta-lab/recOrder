@@ -323,15 +323,16 @@ def apply_inverse_transfer_function_cli(
     if settings.fluorescence is not None:
         gb_ram_request += input_memory * fourier_resource_multiplier
 
-    gb_ram_request = np.ceil(ram_multiplier * gb_ram_request).astype(int)
+    gb_ram_request = np.ceil(np.max([1, ram_multiplier * gb_ram_request])).astype(int)
     cpu_request = np.min([32, T * C])
     num_jobs = len(input_position_dirpaths)
 
     # Prepare and submit jobs
     echo_headline(
-        f"Preparing {num_jobs} jobs, each with {gb_ram_request} GB of memory and {cpu_request} CPU."
+        f"Preparing {num_jobs} job{'s' if num_jobs > 1 else ''}, each with {gb_ram_request} GB of memory and {cpu_request} CPU."
     )
     executor = submitit.AutoExecutor(folder="logs")
+    
     executor.update_parameters(
         slurm_array_parallelism=num_jobs,
         slurm_mem_per_cpu=f"{gb_ram_request}G",
@@ -355,7 +356,7 @@ def apply_inverse_transfer_function_cli(
                     output_metadata["channel_names"],
                 )
             )
-    echo_headline(f"{num_jobs} jobs submitted.")
+    echo_headline(f"{num_jobs} job{'s' if num_jobs > 1 else ''} submitted {'locally' if executor.cluster == 'local' else 'via ' + executor.cluster}.")
 
     monitor_jobs(jobs, input_position_dirpaths)
 
