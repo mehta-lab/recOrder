@@ -363,11 +363,6 @@ def apply_inverse_transfer_function_cli(
     )
 
     monitor_jobs(jobs, input_position_dirpaths)
-    if len(jobs) == 1:
-        print("\033[32mSTDOUT")
-        print(jobs[0].stdout())
-        print("\033[91mSTDERR")
-        print(jobs[0].stderr())
 
 
 @click.command()

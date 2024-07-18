@@ -185,3 +185,10 @@ def monitor_jobs(jobs: list[submitit.Job], position_dirpaths: list[Path]):
             job.cancel()
         print("All jobs cancelled.")
 
+    # Print STDOUT and STDERR for single-job runs
+    if len(jobs) == 1:
+        print("\033[32mSTDOUT")
+        print(jobs[0].stdout())
+        print("\033[91mSTDERR")
+        print(jobs[0].stderr())
+
