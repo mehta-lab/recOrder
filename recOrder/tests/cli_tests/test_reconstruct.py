@@ -256,7 +256,7 @@ def test_cli_apply_inv_tf_output(tmp_input_path_zarr, capsys):
 
         assert result_path.exists()
         captured = capsys.readouterr()
-        assert "Reconstructing" in captured.out
+        assert "submitting" in captured.out
 
         # Check scale transformations pass through
         assert input_scale == result_dataset.scale
