@@ -146,7 +146,7 @@ def _print_status(jobs, position_dirpaths, elapsed_list):
 
 def _print_header():
     sys.stdout.write(
-        "ID\033[15G WELL \033[30G STATUS \033[40G NODE \033[50G ELAPSED\n"
+        "\033[96mID\033[15G WELL \033[30G STATUS \033[40G NODE \033[50G ELAPSED\n"
     )
     sys.stdout.flush()
 
@@ -184,3 +184,4 @@ def monitor_jobs(jobs: list[submitit.Job], position_dirpaths: list[Path]):
         for job in jobs:
             job.cancel()
         print("All jobs cancelled.")
+
