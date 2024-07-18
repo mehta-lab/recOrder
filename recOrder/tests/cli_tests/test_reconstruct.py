@@ -221,6 +221,7 @@ def test_cli_apply_inv_tf_mock(tmp_input_path_zarr):
             Path(tmp_config_yml),
             Path(result_path),
             1,
+            1,
         )
         assert result_inv.exit_code == 0
 
