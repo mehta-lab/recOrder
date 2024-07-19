@@ -23,9 +23,9 @@ from recOrder.cli.settings import ReconstructionSettings
 from recOrder.cli.utils import (
     apply_inverse_to_zyx_and_save,
     create_empty_hcs_zarr,
-    monitor_jobs,
 )
 from recOrder.io import utils
+from recOrder.cli.monitor import monitor_jobs
 
 
 def _check_background_consistency(
