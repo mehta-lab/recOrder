@@ -185,10 +185,15 @@ def monitor_jobs(jobs: list[submitit.Job], position_dirpaths: list[Path]):
             job.cancel()
         print("All jobs cancelled.")
 
-    # Print STDOUT and STDERR for single-job runs
-    if len(jobs) == 1:
-        print("\033[32mSTDOUT")
-        print(jobs[0].stdout())
-        print("\033[91mSTDERR")
-        print(jobs[0].stderr())
+    # Print STDOUT and STDERR for first incomplete job
+    incomplete_count = 0
+    for job in jobs:
+        if job.state != "COMPLETED":
+            if incomplete_count == 0:
+                print("\033[32mSTDOUT")
+                print(job.stdout())
+                print("\033[91mSTDERR")
+                print(job.stderr())
+            incomplete_count += 1                    
 
+    print(f"\033[32m{len(jobs) - incomplete_count}/{len(jobs)} jobs succeeded.")
