@@ -326,7 +326,7 @@ def apply_inverse_transfer_function_cli(
     gb_ram_request = np.ceil(
         np.max([1, ram_multiplier * gb_ram_request])
     ).astype(int)
-    cpu_request = np.min([32, T * C])
+    cpu_request = np.min([32, num_processes])
     num_jobs = len(input_position_dirpaths)
 
     # Prepare and submit jobs
