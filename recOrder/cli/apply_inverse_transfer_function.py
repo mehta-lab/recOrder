@@ -17,6 +17,7 @@ from recOrder.cli.parsing import (
     output_dirpath,
     processes_option,
     transfer_function_dirpath,
+    ram_multiplier,
 )
 from recOrder.cli.printing import echo_headline, echo_settings
 from recOrder.cli.settings import ReconstructionSettings
@@ -373,13 +374,7 @@ def apply_inverse_transfer_function_cli(
 @config_filepath()
 @output_dirpath()
 @processes_option(default=1)
-@click.option(
-    "--ram-multiplier",
-    "-rx",
-    default=1.0,
-    type=float,
-    help="SLURM RAM multiplier.",
-)
+@ram_multiplier()
 def apply_inv_tf(
     input_position_dirpaths: list[Path],
     transfer_function_dirpath: Path,
