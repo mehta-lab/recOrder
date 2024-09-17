@@ -138,7 +138,7 @@ def monitor_jobs(jobs: list[submitit.Job], position_dirpaths: list[Path]):
     except KeyboardInterrupt:
         for job in jobs:
             job.cancel()
-        print("All jobs cancelled.")
+        print("All jobs cancelled.\033[97m")
 
     # Print STDOUT and STDERR for first incomplete job
     incomplete_count = 0
@@ -149,3 +149,5 @@ def monitor_jobs(jobs: list[submitit.Job], position_dirpaths: list[Path]):
                 print(job.stdout())
                 print("\033[91mSTDERR")
                 print(job.stderr())
+
+    print("\033[97m") # print white
