@@ -1,5 +1,19 @@
 # Microscope Installation Guide
+---
+## Table of Contents
+- [Microscope Installation Guide](#microscope-installation-guide)
+  - [Table of Contents](#table-of-contents)
+  - [Install recOrder software](#install-recorder-software)
+  - [Install and configure `Micromanager`](#install-and-configure-micromanager)
+    - [Option 1 (recommended): Voltage-mode calibration installation](#option-1-recommended-voltage-mode-calibration-installation)
+    - [Option 2 (soon deprecated): retardance mode calibration installation](#option-2-soon-deprecated-retardance-mode-calibration-installation)
+    - [Option 3 (requires a Triggerscope): Setup the LCs with the triggerscope](#option-3-requires-a-triggerscope-setup-the-lcs-with-the-triggerscope)
+    - [(Optional) Enable "Phase From BF" acquisition](#optional-enable-phase-from-bf-acquisition)
+    - [Enable port access](#enable-port-access)
+  - [Connect `recOrder` to `Micromanager`](#connect-recorder-to-micromanager)
 
+
+---
 This guide will walk through a complete recOrder installation consisting of:
 1. Checking pre-requisites for compatibility.
 2. Installing Meadowlark DS5020 and liquid crystals.
@@ -78,6 +92,9 @@ Create a new channel group and add the property `MeadowlarkLC-String send to -`.
 Add 5 presets to this group named `State0`, `State1`, `State2`, `State3`, and `State4` and set the corresponding preset values to `state0`, `state1`, `state2`, `state3`, `state4` in the `MeadowlarkLC-String send to –`* property. 
 
 ![](https://github.com/mehta-lab/recOrder/blob/main/docs/images/create_preset.png)
+
+### Option 3 (requires a Triggerscope): Setup the LCs with the triggerscope
+Alternatively, the LCs can be driven with an external DAC, like the triggerscope, for hardware sequencing. To setup the triggerscope, please follow the instructions [here](./triggerscope-set-up.md).
 
 ### (Optional) Enable "Phase From BF" acquisition
 
