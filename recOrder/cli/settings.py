@@ -1,14 +1,14 @@
 import os
 from typing import List, Literal, Optional, Union
 
-from pydantic.v1 import (
+from pydantic import (
+    field_validator,
+    model_validator,
     BaseModel,
-    Extra,
+    ConfigDict,
     NonNegativeFloat,
     NonNegativeInt,
     PositiveFloat,
-    root_validator,
-    validator,
 )
 
 # This file defines the configuration settings for the CLI.
@@ -20,8 +20,8 @@ from pydantic.v1 import (
 
 
 # All settings classes inherit from MyBaseModel, which forbids extra parameters to guard against typos
-class MyBaseModel(BaseModel, extra=Extra.forbid):
-    pass
+class MyBaseModel(BaseModel):
+    model_config = ConfigDict(extra="forbid")
 
 
 # Bottom level settings
@@ -32,7 +32,8 @@ class WavelengthIllumination(MyBaseModel):
 class BirefringenceTransferFunctionSettings(MyBaseModel):
     swing: float = 0.1
 
-    @validator("swing")
+    @field_validator("swing")
+    @classmethod
     def swing_range(cls, v):
         if v <= 0 or v >= 1.0:
             raise ValueError(f"swing = {v} should be between 0 and 1.")
@@ -45,7 +46,8 @@ class BirefringenceApplyInverseSettings(WavelengthIllumination):
     flip_orientation: bool = False
     rotate_orientation: bool = False
 
-    @validator("background_path")
+    @field_validator("background_path")
+    @classmethod
     def check_background_path(cls, v):
         if v == "":
             return v
@@ -63,7 +65,8 @@ class FourierTransferFunctionSettings(MyBaseModel):
     index_of_refraction_media: PositiveFloat = 1.3
     numerical_aperture_detection: PositiveFloat = 1.2
 
-    @validator("numerical_aperture_detection")
+    @field_validator("numerical_aperture_detection")
+    @classmethod
     def na_det(cls, v, values):
         n = values["index_of_refraction_media"]
         if v > n:
@@ -72,7 +75,8 @@ class FourierTransferFunctionSettings(MyBaseModel):
             )
         return v
 
-    @validator("z_pixel_size")
+    @field_validator("z_pixel_size")
+    @classmethod
     def warn_unit_consistency(cls, v, values):
         yx_pixel_size = values["yx_pixel_size"]
         ratio = yx_pixel_size / v
@@ -97,7 +101,10 @@ class PhaseTransferFunctionSettings(
     numerical_aperture_illumination: NonNegativeFloat = 0.5
     invert_phase_contrast: bool = False
 
-    @validator("numerical_aperture_illumination")
+    # TODO[pydantic]: We couldn't refactor the `validator`, please replace it by `field_validator` manually.
+    # Check https://docs.pydantic.dev/dev-v2/migration/#changes-to-validators for more information.
+    @field_validator("numerical_aperture_illumination")
+    @classmethod
     def na_ill(cls, v, values):
         n = values.get("index_of_refraction_media")
         if v > n:
@@ -110,7 +117,8 @@ class PhaseTransferFunctionSettings(
 class FluorescenceTransferFunctionSettings(FourierTransferFunctionSettings):
     wavelength_emission: PositiveFloat = 0.507
 
-    @validator("wavelength_emission")
+    @field_validator("wavelength_emission")
+    @classmethod
     def warn_unit_consistency(cls, v, values):
         yx_pixel_size = values.get("yx_pixel_size")
         ratio = yx_pixel_size / v
@@ -152,11 +160,12 @@ class ReconstructionSettings(MyBaseModel):
         NonNegativeInt, List[NonNegativeInt], Literal["all"]
     ] = "all"
     reconstruction_dimension: Literal[2, 3] = 3
-    birefringence: Optional[BirefringenceSettings]
-    phase: Optional[PhaseSettings]
-    fluorescence: Optional[FluorescenceSettings]
+    birefringence: Optional[BirefringenceSettings] = None
+    phase: Optional[PhaseSettings] = None
+    fluorescence: Optional[FluorescenceSettings] = None
 
-    @root_validator(pre=False)
+    @model_validator(mode="after")
+    @classmethod
     def validate_reconstruction_types(cls, values):
         if (values.get("birefringence") or values.get("phase")) and values.get(
             "fluorescence"

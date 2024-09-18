@@ -1,7 +1,7 @@
 from typing import Dict, List, Tuple, Union
 
 import zarr
-from iohub import read_micromanager
+from iohub import read_images
 from napari_ome_zarr._reader import napari_get_reader as fallback_reader
 
 
@@ -22,7 +22,7 @@ def napari_get_reader(path):
 def hcs_zarr_reader(
     path: Union[str, List[str]]
 ) -> List[Tuple[zarr.Array, Dict]]:
-    reader = read_micromanager(path)
+    reader = read_images(path, data_type="omezarr")
     results = list()
 
     zs = zarr.open(path, "r")
@@ -46,7 +46,7 @@ def hcs_zarr_reader(
 def ome_tif_reader(
     path: Union[str, List[str]]
 ) -> List[Tuple[zarr.Array, Dict]]:
-    reader = read_micromanager(path)
+    reader = read_images(path, data_type="ometiff")
     results = list()
 
     npos = reader.get_num_positions()

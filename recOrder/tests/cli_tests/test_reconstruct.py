@@ -3,7 +3,7 @@ import os
 import numpy as np
 from click.testing import CliRunner
 from iohub.ngff import open_ome_zarr
-from iohub.ngff_meta import TransformationMeta
+from iohub.ngff.models import TransformationMeta
 
 from recOrder.cli import settings
 from recOrder.cli.main import cli

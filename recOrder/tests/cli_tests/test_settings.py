@@ -1,7 +1,7 @@
 import pytest
 from recOrder.cli import settings
 from recOrder.io import utils
-from pydantic.v1 import ValidationError
+from pydantic import ValidationError
 
 
 def test_reconstruction_settings():
