@@ -922,7 +922,7 @@ class MainWidget(QWidget):
         loaded_devices = [_devices.get(i) for i in range(_devices.size())]
         if LC_DEVICE_NAME in loaded_devices:
             config_desc = self.mmc.getConfigData(
-                "Channel", "State0"
+                self.config_group, "State0"
             ).getVerbose()
             if "String send to" in config_desc:
                 self.calib_mode = "MM-Retardance"
