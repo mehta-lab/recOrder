@@ -1,11 +1,15 @@
-import os, json
+import os, json, subprocess, time
 from pathlib import Path
 
+import pydantic.v1
 from qtpy import QtCore
-
-from qtpy.QtCore import Qt
+from qtpy.QtCore import Qt, QEvent, QThread
 from qtpy.QtWidgets import *
 from magicgui.widgets import *
+from PyQt5.QtCore import pyqtSignal
+
+from iohub.ngff import Plate, open_ome_zarr
+from natsort import natsorted
 
 import pydantic, datetime, uuid
 from typing import Union, Literal
@@ -15,20 +19,28 @@ from magicgui.type_map import get_widget_class
 import warnings
 
 from recOrder.io import utils
-from recOrder.cli import settings
+from recOrder.cli import settings, main, jobs_mgmt
 from napari.utils import notifications
 
-from click.testing import CliRunner
-from recOrder.cli.main import cli
+from recOrder.cli.apply_inverse_transfer_function import (
+    apply_inverse_transfer_function_cli,
+)
 
 from concurrent.futures import ThreadPoolExecutor
 
-STATUS_submitted = "Submitted"
-STATUS_running = "Running"
-STATUS_finished = "Finished"
-STATUS_errored = "Errored"
-    
+STATUS_submitted_pool = "Submitted_Pool"
+STATUS_submitted_job = "Submitted_Job"
+STATUS_running_pool = "Running_Pool"
+STATUS_running_job = "Running_Job"
+STATUS_finished_pool = "Finished_Pool"
+STATUS_finished_job = "Finished_Job"
+STATUS_errored_pool = "Errored_Pool"
+STATUS_errored_job = "Errored_Job"
+
 MSG_SUCCESS = {'msg':'success'}
+JOB_COMPLETION_STR = "Job completed successfully"
+JOB_RUNNING_STR = "Starting with JobEnvironment"
+JOB_TRIGGERED_EXC = "Submitted job triggered an exception"
 
 # For now replicate CLI processing modes - these could reside in the CLI settings file as well
 # for consistency
@@ -42,15 +54,17 @@ OPTION_TO_MODEL_DICT = {
 # Not efficient since instantiated from GUI
 # Does not have access to common functions in main_widget
 # ToDo : From main_widget and pass self reference
-class Ui_Form(object):
+class Ui_Form(QWidget):
     
-    def __init__(self):
-        super().__init__()       
+    def __init__(self, parent=None):
+        super().__init__(parent)
         self.current_dir_path = str(Path.cwd())
         self.current_save_path = str(Path.cwd())
         self.input_directory = str(Path.cwd())
         self.save_directory = str(Path.cwd())
+        self.model_directory = str(Path.cwd())
         self.yaml_model_file = str(Path.cwd())
+        self._ui = parent
 
         # Top level parent
         self.recon_tab_widget = QWidget()
@@ -58,7 +72,30 @@ class Ui_Form(object):
         self.recon_tab_layout.setAlignment(Qt.AlignTop)
         self.recon_tab_layout.setContentsMargins(0,0,0,0)
         self.recon_tab_layout.setSpacing(0) 
-        self.recon_tab_widget.setLayout(self.recon_tab_layout)        
+        self.recon_tab_widget.setLayout(self.recon_tab_layout)     
+
+         # Top level - Data Input
+        self.modes_widget2 = QWidget()
+        self.modes_layout2 = QHBoxLayout()
+        self.modes_layout2.setAlignment(Qt.AlignTop)
+        self.modes_widget2.setLayout(self.modes_layout2)
+        self.modes_widget2.setMaximumHeight(50)
+        self.modes_widget2.setMinimumHeight(50)          
+
+        self.reconstruction_input_data_loc = widgets.LineEdit(
+                name="",
+                value=self.input_directory
+        )
+        self.reconstruction_input_data_btn = widgets.PushButton(
+                name="InputData",
+                label="Input Data"
+        )
+        self.reconstruction_input_data_btn.clicked.connect(self.browse_dir_path_input)
+        self.reconstruction_input_data_loc.changed.connect(self.readAndSetInputPathOnValidation)
+
+        self.modes_layout2.addWidget(self.reconstruction_input_data_loc.native)
+        self.modes_layout2.addWidget(self.reconstruction_input_data_btn.native)
+        self.recon_tab_layout.addWidget(self.modes_widget2) 
                 
         # Top level - Selection modes, model creation and running
         self.modes_widget = QWidget()
@@ -91,8 +128,8 @@ class Ui_Form(object):
 
         # PushButton to validate and create the yaml file(s) based on selection
         self.build_button = widgets.PushButton(name="Build && Run Model")
-        self.build_button.clicked.connect(self.display_json_callback)
-
+        self.build_button.clicked.connect(self.build_model_and_run)
+        
         # PushButton to clear all copies of models that are create for UI
         self.reconstruction_mode_clear = widgets.PushButton(
                 name="ClearModels",
@@ -108,29 +145,6 @@ class Ui_Form(object):
         self.modes_layout.addWidget(self.build_button.native)
         self.modes_layout.addWidget(self.reconstruction_mode_clear.native)
         self.recon_tab_layout.addWidget(self.modes_widget)
-
-        # Top level - Data Input
-        self.modes_widget2 = QWidget()
-        self.modes_layout2 = QHBoxLayout()
-        self.modes_layout2.setAlignment(Qt.AlignTop)
-        self.modes_widget2.setLayout(self.modes_layout2)
-        self.modes_widget2.setMaximumHeight(50)
-        self.modes_widget2.setMinimumHeight(50)
-
-        self.reconstruction_input_data_loc = widgets.LineEdit(
-                name="",
-                value=self.input_directory
-        )
-        self.reconstruction_input_data_btn = widgets.PushButton(
-                name="InputData",
-                label="Input Data"
-        )
-        self.reconstruction_input_data_btn.clicked.connect(self.browse_dir_path_input)
-        self.reconstruction_input_data_loc.changed.connect(self.readAndSetInputPathOnValidation)
-
-        self.modes_layout2.addWidget(self.reconstruction_input_data_loc.native)
-        self.modes_layout2.addWidget(self.reconstruction_input_data_btn.native)
-        self.recon_tab_layout.addWidget(self.modes_widget2)
 
         _load_model_loc = widgets.LineEdit(
                 name="",
@@ -154,6 +168,16 @@ class Ui_Form(object):
         _hBox_layout_model.addWidget(_load_model_loc.native)
         _hBox_layout_model.addWidget(_load_model_btn.native)
         self.recon_tab_layout.addWidget(_hBox_widget_model)
+
+        # Line seperator between pydantic UI components
+        _line = QFrame()
+        _line.setMinimumWidth(1)
+        _line.setFixedHeight(2)
+        _line.setFrameShape(QFrame.HLine)
+        _line.setFrameShadow(QFrame.Sunken)
+        _line.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Minimum)
+        _line.setStyleSheet("margin:1px; padding:2px; border:1px solid rgb(128,128,128); border-width: 1px;")
+        self.recon_tab_layout.addWidget(_line)
         
         # Top level - Central scrollable component which will hold Editable/(vertical) Expanding UI
         self.recon_tab_scrollArea_settings = QScrollArea()
@@ -166,10 +190,7 @@ class Ui_Form(object):
         self.recon_tab_qwidget_settings.setLayout(self.recon_tab_qwidget_settings_layout)
         self.recon_tab_scrollArea_settings.setWidget(self.recon_tab_qwidget_settings)
         self.recon_tab_layout.addWidget(self.recon_tab_scrollArea_settings)
-               
-        # Temp placeholder component to display, json pydantic output, validation msg, etc
-        # ToDo: Move to plugin message/error handling
-        
+                       
         _scrollArea = QScrollArea()
         # _scrollArea.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
         _scrollArea.setWidgetResizable(True)   
@@ -190,21 +211,72 @@ class Ui_Form(object):
         _proc_table_widget.setLayout(self.proc_table_QFormLayout)
         _qwidget_settings_layout.addWidget(_proc_table_widget)   
 
-        self.worker = MyWorker()
-        
+        # Stores Model values which cause validation failure - can be highlighted on the model field as Red
+        self.modelHighlighterVals = {}
+
+        # Flag to delete Process update table row on successful Job completion
+        # self.autoDeleteRowOnCompletion = True
+
+        self.worker = MyWorker(self.proc_table_QFormLayout)
+
+        app = QApplication.instance()
+        app.lastWindowClosed.connect(self.myCloseEvent)  # this line is connection to signal
+
+    # our defined close event since napari doesnt do
+    def myCloseEvent(self):
+        event = QEvent(QEvent.Type.Close)
+        self.closeEvent(event)
+
+    # on napari close - cleanup
+    def closeEvent(self, event):
+        if event.type() == QEvent.Type.Close:
+            self.worker.stopServer()
+
+    def hideEvent(self, event):
+        if event.type() == QEvent.Type.Hide:
+            pass
+
+    def showEvent(self, event):
+        if event.type() == QEvent.Type.Show:
+            pass
+
     # Copied from main_widget
     # ToDo: utilize common functions
     # Input data selector
     def browse_dir_path_input(self):
-        result = self._open_file_dialog(self.current_dir_path, "dir")
+        result = self._open_file_dialog(self.input_directory, "dir")
         if result == '':
             return
+        
+        ret, ret_msg = self.validateInputData(result)
+        if not ret:
+            self.messageBox(ret_msg)
+            return
+
         self.directory = result
         self.current_dir_path = result
         self.input_directory = result
         self.reconstruction_input_data_loc.value = self.input_directory
 
+    # not working - not used
+    def validateInputData(self, input_data_folder: str) -> list[Path]:
+        # Sort and validate the input paths, expanding plates into lists of positions
+        return True, MSG_SUCCESS
+        try:
+            input_paths = [Path(path) for path in natsorted(input_data_folder)]
+            for path in input_paths:
+                with open_ome_zarr(path, mode="r") as dataset:
+                    if isinstance(dataset, Plate):
+                        plate_path = input_paths.pop()
+                        for position in dataset.positions():
+                            input_paths.append(plate_path / position[0])
+
+            return True, MSG_SUCCESS
+        except Exception as exc:
+            return False, exc.args
+
     # call back for input LineEdit path changed manually
+    # include data validation
     def readAndSetInputPathOnValidation(self):
         if self.reconstruction_input_data_loc.value is None or len(self.reconstruction_input_data_loc.value) == 0:
             self.reconstruction_input_data_loc.value = self.input_directory
@@ -221,7 +293,7 @@ class Ui_Form(object):
     # ToDo: utilize common functions
     # Output data selector
     def browse_dir_path_output(self, elem):
-        result = self._open_file_dialog(self.current_dir_path, "save")
+        result = self._open_file_dialog(self.save_directory, "save")
         if result == '':
             return
         self.directory = result
@@ -241,53 +313,126 @@ class Ui_Form(object):
     # ToDo: utilize common functions
     # Output data selector
     def browse_dir_path_model(self, elem):
-        result = self._open_file_dialog(self.current_dir_path, "file")
-        if result == '':
-            return
-        self.directory = result
-        self.current_dir_path = result
-        self.yaml_model_file = result
-        elem.value = self.yaml_model_file
-
-        with open(result, 'r') as yaml_in:
-            yaml_object = utils.yaml.safe_load(yaml_in) # yaml_object will be a list or a dict
-        jsonString = json.dumps(self.convert(yaml_object))
-        json_out = json.loads(jsonString)
-        json_dict = dict(json_out)
-
-        selected_modes = list(OPTION_TO_MODEL_DICT.copy().keys())
-        exclude_modes = list(OPTION_TO_MODEL_DICT.copy().keys())
-
-        for k in range(len(selected_modes)-1, -1, -1):
-            if selected_modes[k] in json_dict.keys():
-                exclude_modes.pop(k)
-            else:
-                selected_modes.pop(k)
-
-        pruned_pydantic_class, ret_msg = self.buildModel(selected_modes)
-        if pruned_pydantic_class is None:
-            self.messageBox(ret_msg)
-            return        
-
-        pydantic_model, ret_msg = self.get_model_from_file(self.yaml_model_file)
-        if pydantic_model is None:
-            self.messageBox(ret_msg)
+        results = self._open_file_dialog(self.model_directory, "files") # returns list
+        if len(results) == 0 or results == '':
             return
         
-        pydantic_model = self._create_acq_contols2(selected_modes, exclude_modes, pydantic_model, json_dict)
-        if pydantic_model is None:
-            self.messageBox("Error - pydantic model returned None")
-            return
+        self.model_directory = str(Path(results[0]).parent.absolute())
+        self.directory = self.model_directory
+        self.current_dir_path = self.model_directory
+
+        pydantic_models = list()
+        for result in results:
+            self.yaml_model_file = result
+            elem.value = self.yaml_model_file
+
+            with open(result, 'r') as yaml_in:
+                yaml_object = utils.yaml.safe_load(yaml_in) # yaml_object will be a list or a dict
+            jsonString = json.dumps(self.convert(yaml_object))
+            json_out = json.loads(jsonString)
+            json_dict = dict(json_out)
+
+            selected_modes = list(OPTION_TO_MODEL_DICT.copy().keys())
+            exclude_modes = list(OPTION_TO_MODEL_DICT.copy().keys())
+
+            for k in range(len(selected_modes)-1, -1, -1):
+                if selected_modes[k] in json_dict.keys():
+                    exclude_modes.pop(k)
+                else:
+                    selected_modes.pop(k)
+
+            pruned_pydantic_class, ret_msg = self.buildModel(selected_modes)
+            if pruned_pydantic_class is None:
+                self.messageBox(ret_msg)
+                return        
+
+            pydantic_model, ret_msg = self.get_model_from_file(self.yaml_model_file)
+            if pydantic_model is None:
+                self.messageBox(ret_msg)
+                return
+            
+            pydantic_model = self._create_acq_contols2(selected_modes, exclude_modes, pydantic_model, json_dict)
+            if pydantic_model is None:
+                self.messageBox("Error - pydantic model returned None")
+                return
+            
+            pydantic_models.append(pydantic_model)
         
-        return pydantic_model
+        return pydantic_models
     
+    # marks fields on the Model that cause a validation error
+    def modelHighlighter(self, errs, container:Container):
+        try:
+            self.modelHighlighterVals = {}
+            containerID = container.name
+            self.modelHighlighterVals[containerID] = {}
+            
+            errsList = list()
+            for err in errs:
+                errsList.append({"loc": err["loc"], "tooltip": err["msg"]})
+
+            self.modelHighlighterVals[containerID]["errs"] = errsList
+            self.modelHighlighterVals[containerID]["items"] = []
+            
+            self.modelHighlighterSetter(errsList, container, containerID)
+        except Exception as exc:
+            print(exc.args)
+            # more of a test feature - no need to show up
+
+    # recursively fix the container for highlighting
+    def modelHighlighterSetter(self, errs, container:Container, containerID):
+        try:
+            layout = container.native.layout()
+            for i in range(layout.count()):
+                item = layout.itemAt(i)
+                if item.widget():
+                    widget = layout.itemAt(i).widget()
+                    if not isinstance(widget._magic_widget, CheckBox) and isinstance(widget._magic_widget._inner_widget, Container) and not (widget._magic_widget._inner_widget is None):
+                        self.modelHighlighterSetter(errs, widget._magic_widget._inner_widget, containerID)
+                    else:
+                        for err in errs:
+                            if isinstance(widget._magic_widget, CheckBox):
+                                if widget._magic_widget.label == err["loc"][len(err["loc"])-1].replace("_", " "):
+                                    widget._magic_widget.tooltip = err["tooltip"]
+                                    widget._magic_widget.native.setStyleSheet("border:1px solid rgb(255, 255, 0); border-width: 1px;")
+                                    self.modelHighlighterVals[containerID]["items"].append(widget._magic_widget)
+                                    return
+                            elif widget._magic_widget._label_widget.value == err["loc"][len(err["loc"])-1].replace("_", " "):
+                                widget._magic_widget._label_widget.tooltip = err["tooltip"]
+                                widget._magic_widget._label_widget.native.setStyleSheet("border:1px solid rgb(255, 255, 0); border-width: 1px;")
+                                self.modelHighlighterVals[containerID]["items"].append(widget._magic_widget._label_widget)                                
+                                widget._magic_widget._inner_widget.tooltip = err["tooltip"]
+                                widget._magic_widget._inner_widget.native.setStyleSheet("border:1px solid rgb(255, 255, 0); border-width: 1px;")
+                                self.modelHighlighterVals[containerID]["items"].append(widget._magic_widget._inner_widget)
+                                return
+        except Exception as exc:
+            print(exc.args)
+            # more of a test feature - no need to show up
+
+    # recursively fix the container for highlighting
+    def modelResetHighlighterSetter(self):
+        try:
+            for containerID in self.modelHighlighterVals.keys():
+                items = self.modelHighlighterVals[containerID]["items"]
+                for widItem in items:
+                    # widItem.tooltip = None # let them tool tip remain
+                    widItem.native.setStyleSheet("border:1px solid rgb(0, 0, 0); border-width: 0px;")
+                                
+        except Exception as exc:
+            print(exc.args)
+            # more of a test feature - no need to show up
+
     # passes msg to napari notifications
     def messageBox(self, msg, type="exc"):
         if len(msg) > 0:            
             try:
                 json_object = msg
-                json_txt = json_object["loc"] + " >> " + json_object["msg"]
+                json_txt = ""
+                for err in json_object:
+                    json_txt = json_txt + "Loc: {loc}\nMsg:{msg}\nType:{type}\n\n".format(loc=err["loc"], msg=err["msg"], type=err["type"])
+                json_txt = str(json_txt)
                 # ToDo: format it better
+                # formatted txt does not show up properly in msg-box ??
             except:
                 json_txt = str(msg)
 
@@ -303,7 +448,8 @@ class Ui_Form(object):
     # Running, Finished, Errored 
     def addTableEntry(self, tableEntryID, tableEntryShortDesc, tableEntryVals, proc_params):
         
-        _scrollAreaCollapsibleBoxDisplayWidget = widgets.Label(value=tableEntryVals) # ToDo: Replace with tablular data and Stop button
+        _txtForInfoBox = "Updating {id}: Please wait...".format(id=tableEntryID)
+        _scrollAreaCollapsibleBoxDisplayWidget = widgets.Label(value=_txtForInfoBox) # ToDo: Replace with tablular data and Stop button
         
         _scrollAreaCollapsibleBoxWidgetLayout = QVBoxLayout()
         _scrollAreaCollapsibleBoxWidgetLayout.addWidget(_scrollAreaCollapsibleBoxDisplayWidget.native)
@@ -334,11 +480,16 @@ class Ui_Form(object):
         _expandingTabEntryWidget.layout().setContentsMargins(0,0,0,0)
         _expandingTabEntryWidget.layout().setSpacing(0)
         _expandingTabEntryWidget.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+
+        _scrollAreaCollapsibleBoxDisplayWidget.changed.connect(lambda: self.removeTableRow(_expandingTabEntryWidget, _scrollAreaCollapsibleBoxDisplayWidget))
         
-        self.proc_table_QFormLayout.addRow(_expandingTabEntryWidget)
+        # instead of adding, insert at 0 to keep latest entry on top
+        # self.proc_table_QFormLayout.addRow(_expandingTabEntryWidget)
+        self.proc_table_QFormLayout.insertRow(0, _expandingTabEntryWidget)
 
         proc_params["table_layout"] = self.proc_table_QFormLayout
         proc_params["table_entry"] = _expandingTabEntryWidget
+        proc_params["table_entry_infoBox"] = _scrollAreaCollapsibleBoxDisplayWidget
 
         self.worker.runInPool(proc_params)
         # result = self.worker.getResult(proc_params["exp_id"])
@@ -369,12 +520,18 @@ class Ui_Form(object):
                 f = settings.FluorescenceSettings()
                 exclude_modes = ["birefringence", "phase"]
             
-            model = settings.ReconstructionSettings(input_channel_names=chNames, birefringence=b, phase=p, fluorescence=f)
-            model = self._fix_model(model, exclude_modes, 'input_channel_names', chNames)
+            model = None
+            try:
+                model = settings.ReconstructionSettings(input_channel_names=chNames, birefringence=b, phase=p, fluorescence=f)
+            except pydantic.v1.ValidationError as exc:
+                # use v1 for ValidationError - newer one is not caught properly
+                return None, exc.errors()
             
+            model = self._fix_model(model, exclude_modes, 'input_channel_names', chNames)            
             return model, "+".join(selected_modes) + ": MSG_SUCCESS"
-        except pydantic.ValidationError as exc:
-            return None, "+".join(selected_modes) + str(exc.errors()[0])
+        
+        except Exception as exc:
+            return None, exc.args
         
     # ToDo: Temporary fix to over ride the 'input_channel_names' default value
     # Needs revisitation
@@ -417,9 +574,13 @@ class Ui_Form(object):
                 self.messageBox(ret_msg)
                 return
 
+        # Final constant UI val and identifier
+        _idx: Final[int] = self.index
+        _str: Final[str] = str(uuid.uuid4())
+
         # Container holding the pydantic UI components
         # Multiple instances/copies since more than 1 might be created
-        recon_pydantic_container = widgets.Container(name="", scrollable=False)     
+        recon_pydantic_container = widgets.Container(name=_str, scrollable=False)     
 
         self.add_pydantic_to_container(pydantic_class, recon_pydantic_container, exclude_modes, json_dict)
 
@@ -474,11 +635,7 @@ class Ui_Form(object):
         # Use case when a wrong selection of input modes get selected eg Bire+Fl
         # Preferably this root level validation should occur before values arevalidated
         # in order to display and avoid this to occur
-        _del_button = widgets.PushButton(name="Delete this Model")
-
-        # Final constant UI val and identifier
-        _idx: Final[int] = self.index
-        _str: Final[str] = uuid.uuid4()        
+        _del_button = widgets.PushButton(name="Delete this Model")        
         
         # Output Data location
         # These could be multiple based on user selection for each model
@@ -520,6 +677,12 @@ class Ui_Form(object):
         # uuid - used for identiying in editable list
         self.pydantic_classes.append({'uuid':_str, 'class':pydantic_class, 'input':self.reconstruction_input_data_loc, 'output':_output_data_loc, 'container':recon_pydantic_container, 'selected_modes':selected_modes.copy(), 'exclude_modes':exclude_modes.copy()})
         self.index += 1
+
+        if self.index > 1:
+            self.build_button.text = "Build && Run {n} Models".format(n=self.index)
+        else:
+            self.build_button.text = "Build && Run Model"
+
         return pydantic_model
 
     # UI components deletion - maybe just needs the parent container instead of individual components
@@ -543,6 +706,11 @@ class Ui_Form(object):
                 self.pydantic_classes.pop(i)
                 return
             i += 1
+        self.index = i
+        if self.index > 1:
+            self.build_button.text = "Build && Run {n} Models".format(n=self.index)
+        else:
+            self.build_button.text = "Build && Run Model"
 
     # Clear all the generated pydantic models and clears the pydantic model list
     def _clear_all_models(self):
@@ -554,14 +722,18 @@ class Ui_Form(object):
             index -=1
         self.pydantic_classes.clear()
         self.index = 0
+        self.build_button.text = "Build && Run Model"
     
     # Displays the json output from the pydantic model UI selections by user
     # Loops through all our stored pydantic classes
-    def display_json_callback(self):
+    def build_model_and_run(self):
         # we dont want to have a partial run if there are N models
         # so we will validate them all first and then run in a second loop
         # first pass for validating
         # second pass for creating yaml and processing
+
+        self.modelResetHighlighterSetter() # reset the container elements that might be highlighted for errors
+
         for item in self.pydantic_classes:
             cls = item['class']
             cls_container = item['container']
@@ -594,8 +766,10 @@ class Ui_Form(object):
             pydantic_kwargs["time_indices"] = time_indices
 
             # validate and return errors if None
+            # ToDo: error causing fields could be marked red
             pydantic_model, ret_msg = self.validate_pydantic_model(cls, pydantic_kwargs)
             if pydantic_model is None:
+                self.modelHighlighter(ret_msg, cls_container)
                 self.messageBox(ret_msg)
                 return
 
@@ -684,9 +858,11 @@ class Ui_Form(object):
 
             proc_params = {}
             proc_params["exp_id"] = expID
+            proc_params["desc"] = tableDescToolTip
             proc_params["config_path"] = str(Path(config_path).absolute())
             proc_params["input_path"] = str(Path(input_dir).absolute())
             proc_params["output_path"] = str(Path(output_dir).absolute())
+            proc_params["output_path_parent"] = str(Path(output_dir).parent.absolute())
 
             self.addTableEntry(tableID, tableDescToolTip, json_txt, proc_params)
                     
@@ -753,19 +929,25 @@ class Ui_Form(object):
     # get the pydantic_kwargs and catches any errors in doing so
     def get_and_validate_pydantic_args(self, cls_container, cls, pydantic_kwargs, exclude_modes):
         try:
-            self.get_pydantic_kwargs(cls_container, cls, pydantic_kwargs, exclude_modes)
-            return pydantic_kwargs, MSG_SUCCESS
-        except pydantic.ValidationError as exc:
-            return None, exc.errors()[0]
+            try:
+                self.get_pydantic_kwargs(cls_container, cls, pydantic_kwargs, exclude_modes)
+                return pydantic_kwargs, MSG_SUCCESS
+            except pydantic.v1.ValidationError as exc:
+                return None, exc.errors()
+        except Exception as exc:
+            return None, exc.args
 
     # validate the model and return errors for user actioning
     def validate_pydantic_model(self, cls, pydantic_kwargs):
     # instantiate the pydantic model form the kwargs we just pulled
-        try :
-            pydantic_model = settings.ReconstructionSettings.parse_obj(pydantic_kwargs)
-            return pydantic_model, MSG_SUCCESS
-        except pydantic.ValidationError as exc:
-            return None, exc.errors()[0]
+        try:
+            try :
+                pydantic_model = settings.ReconstructionSettings.parse_obj(pydantic_kwargs)
+                return pydantic_model, MSG_SUCCESS
+            except pydantic.v1.ValidationError as exc:
+                return None, exc.errors()
+        except Exception as exc:
+            return None, exc.args
         
     # test to make sure model coverts to json which should ensure compatibility with yaml export
     def validate_and_return_json(self, pydantic_model):
@@ -816,7 +998,7 @@ class Ui_Form(object):
             if field_def is not None and field not in excludes:
                 def_val = field_def.default
                 ftype = field_def.type_                
-                if isinstance(ftype, pydantic.BaseModel) or isinstance(ftype, pydantic.main.ModelMetaclass):
+                if isinstance(ftype, pydantic.BaseModel) or isinstance(ftype, pydantic.main.ModelMetaclass) or isinstance(ftype, pydantic.v1.main.ModelMetaclass):
                     json_val = None
                     if json_dict is not None:
                         json_val = json_dict[field]
@@ -865,7 +1047,7 @@ class Ui_Form(object):
         for field, field_def in pydantic_model.__fields__.items():
              if field_def is not None and field not in excludes:
                 ftype = field_def.type_
-                if isinstance(ftype, pydantic.BaseModel) or isinstance(ftype, pydantic.main.ModelMetaclass):
+                if isinstance(ftype, pydantic.BaseModel) or isinstance(ftype, pydantic.main.ModelMetaclass) or isinstance(ftype, pydantic.v1.main.ModelMetaclass):
                     # go deeper
                     pydantic_kwargs[field] = {} # new dictionary for the new nest level
                     # any pydantic class will be a container, so pull that out to pass
@@ -885,6 +1067,8 @@ class Ui_Form(object):
             return self._open_dialog("select a directory", str(default_path), type)
         elif type == "file":
             return self._open_dialog("select a file", str(default_path), type)
+        elif type == "files":
+            return self._open_dialog("select file(s)", str(default_path), type)
         elif type == "save":
             return self._open_dialog("save a file", str(default_path), type)
         else:
@@ -912,6 +1096,10 @@ class Ui_Form(object):
             )
         elif type == "file":
             path = QFileDialog.getOpenFileName(
+                None, title, ref, options=options
+            )[0]
+        elif type == "files":
+            path = QFileDialog.getOpenFileNames(
                 None, title, ref, options=options
             )[0]
         elif type == "save":
@@ -995,18 +1183,98 @@ class CollapsibleBox(QWidget):
         content_animation.setStartValue(0)
         content_animation.setEndValue(content_height)
 
-class MyWorker(object):
-
-    def __init__(self):
-        super().__init__()       
+import socket, threading
+class MyWorker():
+    
+    def __init__(self, formLayout):
+        super().__init__()    
+        self.formLayout = formLayout
         self.max_cores = os.cpu_count()
         # In the case of CLI, we just need to submit requests in a non-blocking way
         self.threadPool = int(self.max_cores/2)
         self.results = {}
-        self.pool = None
+        self.pool = None        
         # https://click.palletsprojects.com/en/stable/testing/
-        self.runner = CliRunner()
+        # self.runner = CliRunner()
         self.startPool()
+        # jobs_mgmt.shared_var_jobs = self.JobsManager.shared_var_jobs
+        self.lock = threading.Lock()
+        self.JobsMgmt = jobs_mgmt.JobsManagement()
+        self.useServer = True
+        self.serverRunning = True
+        self.serverSocket = None
+        thread = threading.Thread(target=self.startServer)
+        thread.start()
+
+    def findWidgetRowInLayout(self, strID):
+        layout: QFormLayout = self.formLayout
+        for idx in range(0, layout.rowCount()):
+            widgetItem = layout.itemAt(idx)
+            name_widget = widgetItem.widget()
+            toolTip_string = str(name_widget.toolTip)
+            if strID in toolTip_string:
+                name_widget.setParent(None)
+                return idx
+        return -1
+
+    def removeRow(self, row, expID):
+        try:
+            with self.lock:
+                if row < self.formLayout.rowCount():
+                    layout: QFormLayout = self.formLayout
+                    widgetItem = layout.itemAt(row)
+                    name_widget = widgetItem.widget()
+                    toolTip_string = str(name_widget.toolTip)
+                    if expID in toolTip_string:
+                        layout.removeRow(row)
+        except Exception as exc:
+            print(exc.args)
+
+    def startServer(self):
+        try:
+            if not self.useServer:
+                return
+
+            self.serverSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            self.serverSocket.bind(('localhost', jobs_mgmt.SERVER_PORT))
+            self.serverSocket.listen(50) # become a server socket, maximum 50 connections
+
+            while self.serverRunning:
+                connection, address = self.serverSocket.accept()
+                try:
+                    buf = connection.recv(64)
+                    if len(buf) > 0:
+                        decoded_string = buf.decode("utf-8")
+                        json_str = str(decoded_string)
+                        json_obj = json.loads(json_str)
+                        uID = ""
+                        jobID = ""
+                        for k in json_obj:
+                            self.JobsMgmt.shared_var_jobs[k] = json_obj[k]
+                            uID = k
+                            jobID = json_obj[k]
+
+                        # dont block the server thread
+                        thread = threading.Thread(target=self.tableUpdateAndCleaupThread, args=(uID, jobID))
+                        thread.start()
+                except Exception as exc:
+                    print(exc.args)
+                    time.sleep(1)
+            
+            self.serverSocket.close()
+        except Exception as exc:
+            if not self.serverRunning:
+                self.serverRunning = True
+                return # ignore - will cause an exception on napari close but that is fine and does the job
+            print(exc.args)
+
+    def stopServer(self):
+        try:
+            if self.serverSocket is not None:
+                self.serverRunning = False
+                self.serverSocket.close()
+        except Exception as exc:
+            print(exc.args)
 
     def getMaxCPU_cores(self):
         return self.max_cores
@@ -1022,18 +1290,104 @@ class MyWorker(object):
     def shutDownPool(self):
         self.pool.shutdown(wait=False)
 
+    # the table update thread can be called from multiple points/threads
+    # on errors - table row item is updated but there is no row deletion
+    # on successful processing - the row item is expected to be deleted
+    # row is being deleted from a seperate thread for which we need to connect using signal
+    def tableUpdateAndCleaupThread(self, expIdx="", jobIdx=""):
+        # finished will be updated by the job - submitit status
+
+        if expIdx != "" and jobIdx != "":
+            # this request came from server so we can wait for the Job to finish and update progress
+            params = self.results[expIdx]
+            _infoBox = params["table_entry_infoBox"]
+            _txtForInfoBox = "Updating {id}: Please wait... \nJobID assigned: {jID} ".format(id=params["desc"], jID=jobIdx)
+            _infoBox.value = _txtForInfoBox
+            while True:
+                time.sleep(1) # update every sec and exit on break
+                if self.JobsMgmt.hasSubmittedJob(expIdx):
+                    if params["status"] in [STATUS_finished_job]:
+                        break
+                    elif params["status"] in [STATUS_errored_job]:
+                        jobERR = self.JobsMgmt.checkForJobIDFile(jobIdx, extension="err")
+                        _infoBox.value = jobIdx + "\n" + params["desc"] +"\n\n"+ jobERR
+                        break
+                    else:
+                        jobTXT = self.JobsMgmt.checkForJobIDFile(jobIdx, extension="out")
+                        try:
+                            if jobTXT == "": # job file not created yet
+                                time.sleep(2)
+                            elif self.results[expIdx]["status"] == STATUS_finished_job:
+                                rowIdx = self.findWidgetRowInLayout(expIdx)
+                                # check to ensure row deletion due to shrinking table
+                                # if not deleted try to delete again
+                                if rowIdx < 0:
+                                    break
+                                else:
+                                    self.workerThread = RowDeletionWorkerThread(self.formLayout, expIdx)
+                                    self.workerThread.removeRowSignal.connect(self.removeRow)
+                                    self.workerThread.start()
+                            elif JOB_COMPLETION_STR in jobTXT:
+                                self.results[expIdx]["status"] = STATUS_finished_job
+                                _infoBox = params["table_entry_infoBox"]
+                                _infoBox.value = jobTXT
+                                # this is the only case where row deleting occurs    
+                                # we cant delete the row directly from this thread
+                                # we will use the exp_id to identify and delete the row
+                                # using pyqtSignal
+                                self.workerThread = RowDeletionWorkerThread(self.formLayout, expIdx)
+                                self.workerThread.removeRowSignal.connect(self.removeRow)
+                                self.workerThread.start()
+                                time.sleep(2)
+                                # break - based on status
+                            elif JOB_RUNNING_STR in jobTXT:
+                                self.results[expIdx]["status"] = STATUS_running_job
+                                _infoBox = params["table_entry_infoBox"]
+                                _infoBox.value = jobTXT
+                            elif JOB_TRIGGERED_EXC in jobTXT:
+                                self.results[expIdx]["status"] = STATUS_errored_job
+                                jobERR = self.JobsMgmt.checkForJobIDFile(jobIdx, extension="err")
+                                _infoBox.value = jobIdx + "\n" + params["desc"] +"\n\n"+ jobTXT +"\n\n"+ jobERR
+                            else:
+                                jobERR = self.JobsMgmt.checkForJobIDFile(jobIdx, extension="err")
+                                _infoBox = params["table_entry_infoBox"]
+                                _infoBox.value = jobIdx + "\n" + params["desc"] +"\n\n"+ jobERR
+                                break
+                        except Exception as exc:
+                            print(exc.args)
+        else:
+            # this would occur when an exception happens on the pool side before or during job submission
+            # we dont have a job ID and will update based on exp_ID/uIU
+            for param_ID in self.results.keys():
+                params = self.results[param_ID]
+                if params["status"] in [STATUS_errored_pool]:
+                    _infoBox = params["table_entry_infoBox"]
+                    poolERR = self.results[params["exp_id"]]["error"]
+                    _infoBox.value = poolERR
+
     def runInPool(self, params):
         self.results[params["exp_id"]] = params
-        self.results[params["exp_id"]]["status"] = STATUS_submitted
+        self.results[params["exp_id"]]["status"] = STATUS_running_pool
         self.results[params["exp_id"]]["error"] = ""
-        self.pool.submit(self.run, params)
+        try:          
+            self.pool.submit(self.run, params)
+        except Exception as exc:
+            self.results[params["exp_id"]]["status"] = STATUS_errored_pool
+            self.results[params["exp_id"]]["error"] = str(exc.args)
+            self.tableUpdateAndCleaupThread()
 
     def runMultiInPool(self, multi_params_as_list):
         for params in multi_params_as_list:
             self.results[params["exp_id"]] = params
-            self.results[params["exp_id"]]["status"] = STATUS_submitted
+            self.results[params["exp_id"]]["status"] = STATUS_submitted_pool
             self.results[params["exp_id"]]["error"] = ""
-        self.pool.map(self.run, multi_params_as_list)
+        try:         
+            self.pool.map(self.run, multi_params_as_list)
+        except Exception as exc:
+            for params in multi_params_as_list:
+                self.results[params["exp_id"]]["status"] = STATUS_errored_pool
+                self.results[params["exp_id"]]["error"] = str(exc.args)
+            self.tableUpdateAndCleaupThread()
 
     def getResults(self):
         return self.results
@@ -1047,37 +1401,70 @@ class MyWorker(object):
         if params["exp_id"] not in self.results.keys():
             self.results[params["exp_id"]] = params
             self.results[params["exp_id"]]["error"] = ""
+
+        try:
+            # does need further threading ? probably not !
+            thread = threading.Thread(target=self.runInSubProcess, args=(params,))
+            thread.start()
             
-        self.results[params["exp_id"]]["status"] = STATUS_running
-        try:            
-            input_path = params["input_path"]
-            config_path = params["config_path"]
-            output_path = params["output_path"]
+            # self.runInSubProcess(params)
 
-            # ToDo: replace with command line ver
-            result = self.runner.invoke(
-                cli,
-                [
-                    "reconstruct",
-                    "-i",
-                    str(input_path),
-                    "-c",
-                    str(config_path),
-                    "-o",
-                    str(output_path),
-                ],
-                catch_exceptions=False,
-            )
+            # check for this job to show up in submitit jobs list
+            # wait for 2 sec before raising an error
 
-            self.results[params["exp_id"]]["result"] = result
-            self.results[params["exp_id"]]["status"] = STATUS_finished
-
-            _proc_table_QFormLayout = self.results[params["exp_id"]]["table_layout"]
-            _expandingTabEntryWidget = self.results[params["exp_id"]]["table_entry"]
-            _proc_table_QFormLayout.removeRow(_expandingTabEntryWidget)
         except Exception as exc:
-            self.results[params["exp_id"]]["status"] = STATUS_errored
-            self.results[params["exp_id"]]["error"] = exc.args
+            self.results[params["exp_id"]]["status"] = STATUS_errored_pool
+            self.results[params["exp_id"]]["error"] = str(exc.args)
+            self.tableUpdateAndCleaupThread()
+
+    def runInSubProcess(self, params):
+        try:      
+            input_path = str(params["input_path"])
+            config_path = str(params["config_path"])
+            output_path = str(params["output_path"])
+            uid = str(params["exp_id"])    
+            mainfp = str(main.FILE_PATH)
+
+            self.results[params["exp_id"]]["status"] = STATUS_submitted_job
+
+            proc = subprocess.run(['python', mainfp, 'reconstruct', '-i', input_path, '-c', config_path, '-o', output_path, '-uid', uid])
+            self.results[params["exp_id"]]["proc"] = proc
+            if proc.returncode != 0:
+                raise Exception("An error occurred in processing ! Check terminal output.")
+
+        except Exception as exc:
+            self.results[params["exp_id"]]["status"] = STATUS_errored_pool
+            self.results[params["exp_id"]]["error"] = str(exc.args)
+            self.tableUpdateAndCleaupThread()   
+
+# Emits a signal to QFormLayout on the main thread
+class RowDeletionWorkerThread(QThread):
+    removeRowSignal = pyqtSignal(int, str)
+
+    def __init__(self, formLayout, strID):
+        super().__init__()
+        self.formLayout = formLayout
+        self.deleteRow = -1
+        self.stringID = strID
+
+    # we might deal with race conditions with a shrinking table
+    # find out widget and return its index
+    def findWidgetRowInLayout(self, strID):
+        layout: QFormLayout = self.formLayout
+        for idx in range(0, layout.rowCount()):
+            widgetItem = layout.itemAt(idx)
+            name_widget = widgetItem.widget()
+            toolTip_string = str(name_widget.toolTip)
+            if strID in toolTip_string:
+                name_widget.setParent(None)
+                return idx
+        return -1
+
+    def run(self):
+        # Emit the signal to remove the row
+        self.deleteRow = self.findWidgetRowInLayout(self.stringID)
+        if self.deleteRow > -1:
+            self.removeRowSignal.emit(int(self.deleteRow), str(self.stringID))
 
 # VScode debugging
 if __name__ == "__main__":
