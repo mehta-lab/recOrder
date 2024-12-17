@@ -22,18 +22,23 @@ from napari.utils import notifications
 from concurrent.futures import ThreadPoolExecutor
 
 import pydantic.v1, pydantic
+import importlib.metadata
 
 try:
-    if sys.platform == "win32":
-        # windows
-        from pydantic.v1.main import ModelMetaclass
-    elif sys.platform == "darwin":
-        # macOS
-        from pydantic.main import ModelMetaclass   
-    elif sys.platform.startswith("linux"):
+    # Use version specific pydantic import for ModelMetaclass
+    # prefer to pin to 1.10.19
+    version = importlib.metadata.version('pydantic')    
+    # print("Your Pydantic library ver:{v}.".format(v=version))
+    if version >= "2.0.0":
+        print("Your Pydantic library ver:{v}. Recommended ver is: 1.10.19".format(v=version))
         from pydantic.main import ModelMetaclass
+    elif version >= "1.10.19":
+        from pydantic.main import ModelMetaclass
+    else:
+        print("Your Pydantic library ver:{v}. Recommended ver is: 1.10.19".format(v=version))
+        from pydantic.v1.main import ModelMetaclass
 except:
-    pass
+    print("Pydantic library was not found. Ver 1.10.19 is recommended.")
 
 STATUS_submitted_pool = "Submitted_Pool"
 STATUS_submitted_job = "Submitted_Job"
