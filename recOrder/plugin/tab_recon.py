@@ -1,7 +1,6 @@
-import os, json, subprocess, time
+import os, sys, json, subprocess, time, datetime, uuid
 from pathlib import Path
 
-import pydantic.v1
 from qtpy import QtCore
 from qtpy.QtCore import Qt, QEvent, QThread
 from qtpy.QtWidgets import *
@@ -11,9 +10,7 @@ from PyQt5.QtCore import pyqtSignal
 from iohub.ngff import Plate, open_ome_zarr
 from natsort import natsorted
 
-import pydantic, datetime, uuid
-from typing import Union, Literal
-from typing import Final
+from typing import Union, Literal, Final
 from magicgui import widgets
 from magicgui.type_map import get_widget_class
 import warnings
@@ -22,11 +19,21 @@ from recOrder.io import utils
 from recOrder.cli import settings, main, jobs_mgmt
 from napari.utils import notifications
 
-from recOrder.cli.apply_inverse_transfer_function import (
-    apply_inverse_transfer_function_cli,
-)
-
 from concurrent.futures import ThreadPoolExecutor
+
+import pydantic.v1, pydantic
+
+try:
+    if sys.platform == "win32":
+        # windows
+        from pydantic.v1.main import ModelMetaclass
+    elif sys.platform == "darwin":
+        # macOS
+        from pydantic.main import ModelMetaclass   
+    elif sys.platform.startswith("linux"):
+        from pydantic.main import ModelMetaclass
+except:
+    pass
 
 STATUS_submitted_pool = "Submitted_Pool"
 STATUS_submitted_job = "Submitted_Job"
@@ -990,7 +997,7 @@ class Ui_Form(QWidget):
     # excludes handles fields that are not supposed to show up from __fields__
     # json_dict adds ability to provide new set of default values at time of container creation
  
-    def add_pydantic_to_container(self, py_model:Union[pydantic.BaseModel, pydantic.main.ModelMetaclass], container: widgets.Container, excludes=[], json_dict=None):
+    def add_pydantic_to_container(self, py_model:Union[pydantic.BaseModel, ModelMetaclass], container: widgets.Container, excludes=[], json_dict=None):
         # recursively traverse a pydantic model adding widgets to a container. When a nested
         # pydantic model is encountered, add a new nested container
 
@@ -998,7 +1005,7 @@ class Ui_Form(QWidget):
             if field_def is not None and field not in excludes:
                 def_val = field_def.default
                 ftype = field_def.type_                
-                if isinstance(ftype, pydantic.BaseModel) or isinstance(ftype, pydantic.main.ModelMetaclass) or isinstance(ftype, pydantic.v1.main.ModelMetaclass):
+                if isinstance(ftype, pydantic.BaseModel) or isinstance(ftype, ModelMetaclass) or isinstance(ftype, ModelMetaclass):
                     json_val = None
                     if json_dict is not None:
                         json_val = json_dict[field]
@@ -1047,7 +1054,7 @@ class Ui_Form(QWidget):
         for field, field_def in pydantic_model.__fields__.items():
              if field_def is not None and field not in excludes:
                 ftype = field_def.type_
-                if isinstance(ftype, pydantic.BaseModel) or isinstance(ftype, pydantic.main.ModelMetaclass) or isinstance(ftype, pydantic.v1.main.ModelMetaclass):
+                if isinstance(ftype, pydantic.BaseModel) or isinstance(ftype, ModelMetaclass) or isinstance(ftype, ModelMetaclass):
                     # go deeper
                     pydantic_kwargs[field] = {} # new dictionary for the new nest level
                     # any pydantic class will be a container, so pull that out to pass
