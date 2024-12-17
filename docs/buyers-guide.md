@@ -19,9 +19,9 @@ Buyers have two options:
 
 ### Buy individual components
 
-The components are listed in the order in which they process light. See the 3D animation here and the build video here to see how to assemble these components on your microscope. 
+The components are listed in the order in which they process light. See the build video here to see how to assemble these components on your microscope. 
 
-
+https://github.com/user-attachments/assets/a0a8bffb-bf81-4401-9ace-3b4955436b57
 
 | Part                     | Approximate Price | Notes                       |
 |--------------------------|-------------------|-----------------------------|
