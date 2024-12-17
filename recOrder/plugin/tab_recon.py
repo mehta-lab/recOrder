@@ -1025,6 +1025,7 @@ class Ui_Form(QWidget):
                 elif isinstance(def_val, str): #field == "time_indices": 
                     new_widget_cls, ops = get_widget_class(None, str, dict(name=field, value=def_val))
                     new_widget = new_widget_cls(**ops)
+                    new_widget.tooltip = field
                     if isinstance(new_widget, widgets.EmptyWidget):
                         warnings.warn(message=f"magicgui could not identify a widget for {py_model}.{field}, which has type {ftype}")                
                 elif isinstance(def_val, float):
@@ -1032,15 +1033,18 @@ class Ui_Form(QWidget):
                     if def_val > -1 and def_val < 1:
                         new_widget_cls, ops = get_widget_class(None, ftype, dict(name=field_def.name, value=def_val, step=float(0.001)))
                         new_widget = new_widget_cls(**ops)
+                        new_widget.tooltip = field_def.name
                     else:
                         new_widget_cls, ops = get_widget_class(None, ftype, dict(name=field_def.name, value=def_val))
                         new_widget = new_widget_cls(**ops)
+                        new_widget.tooltip = field_def.name
                     if isinstance(new_widget, widgets.EmptyWidget):
                         warnings.warn(message=f"magicgui could not identify a widget for {py_model}.{field}, which has type {ftype}")
                 else:
                     # parse the field, add appropriate widget
                     new_widget_cls, ops = get_widget_class(None, ftype, dict(name=field_def.name, value=def_val))
                     new_widget = new_widget_cls(**ops)
+                    new_widget.tooltip = field_def.name
                     if isinstance(new_widget, widgets.EmptyWidget):
                         warnings.warn(message=f"magicgui could not identify a widget for {py_model}.{field}, which has type {ftype}")
                 if json_dict is not None and not isinstance(new_widget, widgets.Container):
@@ -1311,10 +1315,15 @@ class MyWorker():
 
         if expIdx != "" and jobIdx != "":
             # this request came from server so we can wait for the Job to finish and update progress
+            # some wait logic needs to be added otherwise for unknown errors this thread will persist
+            # perhaps set a time out limit and then update the status window and then exit
             params = self.results[expIdx]
             _infoBox = params["table_entry_infoBox"]
             _txtForInfoBox = "Updating {id}: Please wait... \nJobID assigned: {jID} ".format(id=params["desc"], jID=jobIdx)
             _infoBox.value = _txtForInfoBox
+            _tUpdateCount = 0
+            _tUpdateCountTimeout = 120 # 2 mins
+            _lastUpdate_jobTXT = ""
             while True:
                 time.sleep(1) # update every sec and exit on break
                 if self.JobsMgmt.hasSubmittedJob(expIdx):
@@ -1341,7 +1350,6 @@ class MyWorker():
                                     self.workerThread.start()
                             elif JOB_COMPLETION_STR in jobTXT:
                                 self.results[expIdx]["status"] = STATUS_finished_job
-                                _infoBox = params["table_entry_infoBox"]
                                 _infoBox.value = jobTXT
                                 # this is the only case where row deleting occurs    
                                 # we cant delete the row directly from this thread
@@ -1354,15 +1362,24 @@ class MyWorker():
                                 # break - based on status
                             elif JOB_RUNNING_STR in jobTXT:
                                 self.results[expIdx]["status"] = STATUS_running_job
-                                _infoBox = params["table_entry_infoBox"]
                                 _infoBox.value = jobTXT
+                                _tUpdateCount += 1
+                                if _tUpdateCount > 60:                                    
+                                    if _lastUpdate_jobTXT != jobTXT:
+                                        # if there is an update reset counter
+                                        _tUpdateCount=0
+                                        _lastUpdate_jobTXT = jobTXT
+                                    else:
+                                        _infoBox.value = "Please check terminal output for Job status..\n\n" + jobTXT
+                                if _tUpdateCount > _tUpdateCountTimeout:
+                                    break
                             elif JOB_TRIGGERED_EXC in jobTXT:
                                 self.results[expIdx]["status"] = STATUS_errored_job
                                 jobERR = self.JobsMgmt.checkForJobIDFile(jobIdx, extension="err")
                                 _infoBox.value = jobIdx + "\n" + params["desc"] +"\n\n"+ jobTXT +"\n\n"+ jobERR
+                                break
                             else:
                                 jobERR = self.JobsMgmt.checkForJobIDFile(jobIdx, extension="err")
-                                _infoBox = params["table_entry_infoBox"]
                                 _infoBox.value = jobIdx + "\n" + params["desc"] +"\n\n"+ jobERR
                                 break
                         except Exception as exc:
