@@ -5,7 +5,7 @@ from qtpy import QtCore
 from qtpy.QtCore import Qt, QEvent, QThread
 from qtpy.QtWidgets import *
 from magicgui.widgets import *
-from PyQt5.QtCore import pyqtSignal
+from PyQt6.QtCore import pyqtSignal
 
 from iohub.ngff import Plate, open_ome_zarr
 from natsort import natsorted
