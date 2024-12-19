@@ -302,7 +302,7 @@ class Ui_Form(QWidget):
             self.worker.stopServer()
 
     def hideEvent(self, event):
-        if event.type() == QEvent.Type.Hide and self._ui.isVisible():
+        if event.type() == QEvent.Type.Hide and (self._ui is not None and self._ui.isVisible()):
             pass
 
     def showEvent(self, event):
@@ -1516,7 +1516,7 @@ class MyWorker():
 
             while self.serverRunning:
                 connection, address = self.serverSocket.accept()
-                if not self.ui.isVisible():
+                if self.ui is not None and not self.ui.isVisible():
                     break
                 try:
                     buf = connection.recv(64)

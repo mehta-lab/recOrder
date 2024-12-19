@@ -1,7 +1,8 @@
-import submitit, os, json, time
+import os, json
 import socket
 from pathlib import Path
 from tempfile import TemporaryDirectory
+import submitit
 
 # Jobs query object
 # Todo: Not sure where these should functions should reside - ask Talon
