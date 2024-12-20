@@ -1644,11 +1644,16 @@ class MyWorker():
             _tUpdateCountTimeout = 120 # 2 mins
             _lastUpdate_jobTXT = ""
             while True:
-                time.sleep(1) # update every sec and exit on break
-                if _infoBox == None:
+                time.sleep(1) # update every sec and exit on break                
+                try:
+                    if _infoBox == None:
+                        self.results[expIdx]["status"] = STATUS_user_cleared_job
+                        break # deleted by user - no longer needs updating
+                    if _infoBox.value:
+                        pass
+                except:
+                    self.results[expIdx]["status"] = STATUS_user_cleared_job
                     break # deleted by user - no longer needs updating
-                if not _infoBox.visible:
-                    break
                 if self.JobsMgmt.hasSubmittedJob(expIdx):                    
                     if params["status"] in [STATUS_finished_job]:
                         break
