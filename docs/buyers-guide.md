@@ -29,7 +29,7 @@ https://github.com/user-attachments/assets/a0a8bffb-bf81-4401-9ace-3b4955436b57
 | Circular polarizer | $350 | We suggest [a Thorlabs 532 nm, left-hand circular polarizer](https://www.thorlabs.com/thorproduct.cfm?partnumber=CP1L532).|
 | Liquid crystal compensator | $6,000 | Meadowlark optics LVR-42x52mm-VIS-ASSY. Although near-variants are listed in the [Meadowlowlark catalog](https://www.meadowlark.com/product/liquid-crystal-variable-retarder/), this is a custom part with two liquid crystals in a custom housing. [Contact Meadowlark](https://www.meadowlark.com/contact-us/) for a quote.|
 | Liquid crystal control electronics | $2,000 | [Meadowlark optics D5020-20V](https://www.meadowlark.com/product/liquid-crystal-digital-interface-controller/). Choose the high-voltage 20V version. 
-| Liquid crystal adapter | $25-$500 | A 3D printed part that aligns the liquid crystal compensator in a microscope stand's illumination path. [Contact us](compmicro@czbiohub.org) for printer-ready `.stl` files; uncommon stands might require a custom design.|
+| Liquid crystal adapter | $25-$500 | A 3D printed part that aligns the liquid crystal compensator in a microscope stand's illumination path. Check for your stand among the [OpenPolScope `.stl` files](https://github.com/amitabhverma/Microscope-LC-adapters/tree/main/stl_files) or [contact us](compmicro@czbiohub.org) for more options.|
 | Circular analyzer (opposite handedness) | $350 | We suggest [a Thorlabs 532 nm, right-hand circular polarizer](https://www.thorlabs.com/thorproduct.cfm?partnumber=CP1R532).|
 
 If you need help selecting or assembling the components, please start an issue on this GitHub repository or contact us at compmicro@czbiohub.org.
