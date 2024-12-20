@@ -64,6 +64,7 @@ STATUS_finished_pool = "Finished_Pool"
 STATUS_finished_job = "Finished_Job"
 STATUS_errored_pool = "Errored_Pool"
 STATUS_errored_job = "Errored_Job"
+STATUS_user_cleared_job = "User_Cleared_Job"
 
 MSG_SUCCESS = {'msg':'success'}
 JOB_COMPLETION_STR = "Job completed successfully"
@@ -91,7 +92,7 @@ HAS_INSTANCE = {"val": False, "instance": None}
 # Not efficient since instantiated from GUI
 # Does not have access to common functions in main_widget
 # ToDo : From main_widget and pass self reference
-class Ui_Form(QWidget):
+class Ui_ReconTab_Form(QWidget):
     
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -110,7 +111,10 @@ class Ui_Form(QWidget):
             self.input_directory = str(Path.cwd())
             self.save_directory = str(Path.cwd())
             self.model_directory = str(Path.cwd())
-            self.yaml_model_file = str(Path.cwd())        
+            self.yaml_model_file = str(Path.cwd())   
+        
+        self.input_directory_dataset = None
+        self.input_directory_datasetMeta = None
 
         # Top level parent
         self.recon_tab_widget = QWidget()
@@ -282,9 +286,9 @@ class Ui_Form(QWidget):
         # handle napari's close widget and avoid starting a second server
         if HAS_INSTANCE["val"]:
             self.worker:MyWorker = HAS_INSTANCE["MyWorker"]
-            self.worker.setNewInstances(self.proc_table_QFormLayout, self._ui)
+            self.worker.setNewInstances(self.proc_table_QFormLayout, self, self._ui)
         else:
-            self.worker = MyWorker(self.proc_table_QFormLayout, self._ui)
+            self.worker = MyWorker(self.proc_table_QFormLayout, self, self._ui)
             HAS_INSTANCE["val"] = True
             HAS_INSTANCE["MyWorker"] = self.worker
 
@@ -350,19 +354,18 @@ class Ui_Form(QWidget):
         elem.value = result
 
     # not working - not used
-    def validateInputData(self, input_data_folder: str) -> list[Path]:
+    def validateInputData(self, input_data_folder: str, metadata=False) -> bool:
         # Sort and validate the input paths, expanding plates into lists of positions
-        return True, MSG_SUCCESS
+        # return True, MSG_SUCCESS
         try:
-            input_paths = [Path(path) for path in natsorted(input_data_folder)]
-            for path in input_paths:
-                with open_ome_zarr(path, mode="r") as dataset:
-                    if isinstance(dataset, Plate):
-                        plate_path = input_paths.pop()
-                        for position in dataset.positions():
-                            input_paths.append(plate_path / position[0])
-
-            return True, MSG_SUCCESS
+            input_paths = Path(input_data_folder)
+            with open_ome_zarr(input_paths, mode="r") as dataset:
+                # ToDo: Metadata reading and implementation in GUI for
+                # channel names, time indicies, etc.
+                if metadata:
+                    self.input_directory_dataset = dataset       
+                return True, MSG_SUCCESS
+            raise Exception("Dataset does not appear to be a valid ome-zarr storage")
         except Exception as exc:
             return False, exc.args
 
@@ -371,17 +374,25 @@ class Ui_Form(QWidget):
     def readAndSetInputPathOnValidation(self):
         if self.reconstruction_input_data_loc.value is None or len(self.reconstruction_input_data_loc.value) == 0:
             self.reconstruction_input_data_loc.value = self.input_directory
+            self.messageBox("Input data path cannot be empty")
             return
         if not Path(self.reconstruction_input_data_loc.value).exists():
             self.reconstruction_input_data_loc.value = self.input_directory
+            self.messageBox("Input data path must point to a valid location")
             return
         
         result = self.reconstruction_input_data_loc.value
-        self.directory = result
-        self.current_dir_path = result
-        self.input_directory = result
+        valid, ret_msg = self.validateInputData(result)
 
-        self.saveLastPaths()
+        if valid:
+            self.directory = result
+            self.current_dir_path = result
+            self.input_directory = result
+
+            self.saveLastPaths()
+        else:
+            self.reconstruction_input_data_loc.value = self.input_directory
+            self.messageBox(ret_msg)
 
     # Copied from main_widget
     # ToDo: utilize common functions
@@ -448,8 +459,27 @@ class Ui_Form(QWidget):
 
             pydantic_model, ret_msg = self.get_model_from_file(self.yaml_model_file)
             if pydantic_model is None:
-                self.messageBox(ret_msg)
-                return
+                if isinstance(ret_msg, List) and len(ret_msg)==2 and len(ret_msg[0]["loc"])==3 and ret_msg[0]["loc"][2] == "background_path":
+                    pydantic_model = pruned_pydantic_class # if only background_path fails validation
+                    json_dict["birefringence"]["apply_inverse"]["background_path"] = ""
+                    self.messageBox("background_path:\nPath was invalid and will be reset")
+                else:
+                    self.messageBox(ret_msg)
+                    return
+            else:
+                # make sure "background_path" is valid
+                bg_loc = json_dict["birefringence"]["apply_inverse"]["background_path"]
+                if bg_loc != "":
+                    extension = os.path.splitext(bg_loc)[1]
+                    if len(extension) > 0:
+                        bg_loc = Path(os.path.join(str(Path(bg_loc).parent.absolute()),"background.zarr"))
+                    else:
+                        bg_loc = Path(os.path.join(bg_loc, "background.zarr"))
+                    if not bg_loc.exists() or not self.validateInputData(str(bg_loc)):
+                        self.messageBox("background_path:\nPwas invalid and will be reset")
+                        json_dict["birefringence"]["apply_inverse"]["background_path"] = ""
+                    else:
+                        json_dict["birefringence"]["apply_inverse"]["background_path"] = str(bg_loc.parent.absolute())
             
             pydantic_model = self._create_acq_contols2(selected_modes, exclude_modes, pydantic_model, json_dict)
             if pydantic_model is None:
@@ -472,8 +502,20 @@ class Ui_Form(QWidget):
     # clears the results table
     def clear_results_table(self):
         if self.confirmDialog():
-            for i in range(self.proc_table_QFormLayout.count()):
+            for i in range(self.proc_table_QFormLayout.rowCount()):
                 self.proc_table_QFormLayout.removeRow(0)
+
+    def removeRow(self, row, expID):
+        try:
+            if row < self.proc_table_QFormLayout.rowCount():
+                widgetItem = self.proc_table_QFormLayout.itemAt(row)
+                if widgetItem is not None:
+                    name_widget = widgetItem.widget()
+                    toolTip_string = str(name_widget.toolTip)
+                    if expID in toolTip_string:
+                        self.proc_table_QFormLayout.removeRow(row) # removeRow vs takeRow for threads ?
+        except Exception as exc:
+            print(exc.args)
     
     # marks fields on the Model that cause a validation error
     def modelHighlighter(self, errs):
@@ -602,7 +644,7 @@ class Ui_Form(QWidget):
 
         _scrollAreaCollapsibleBox = QScrollArea()
         _scrollAreaCollapsibleBox.setWidgetResizable(True)
-        _scrollAreaCollapsibleBox.setMinimumHeight(300)
+        _scrollAreaCollapsibleBox.setMinimumHeight(200)
         _scrollAreaCollapsibleBox.setWidget(_scrollAreaCollapsibleBoxWidget)
 
         _collapsibleBoxWidgetLayout = QVBoxLayout()
@@ -975,7 +1017,6 @@ class Ui_Form(QWidget):
                 pydantic_kwargs["birefringence"]["apply_inverse"]["background_path"] = background_path
 
             # validate and return errors if None
-            # ToDo: error causing fields could be marked red
             pydantic_model, ret_msg = self.validate_pydantic_model(cls, pydantic_kwargs)
             if ret_msg == MSG_SUCCESS:
                 _collapsibleBoxWidget.setNewName(f"{c_mode_str} {_validate_ok}")
@@ -1004,7 +1045,8 @@ class Ui_Form(QWidget):
         # generate a time-stamp for our yaml files to avoid overwriting
         # files generated at the same time will have an index suffix
         now = datetime.datetime.now()
-        unique_id = now.strftime("%Y_%m_%d_%H_%M_%S")
+        ms = now.strftime("%f")[:3]
+        unique_id = now.strftime("%Y_%m_%d_%H_%M_%S_")+ms
 
         i = 0
         for item in self.pydantic_classes:
@@ -1069,8 +1111,7 @@ class Ui_Form(QWidget):
                 return
 
             # save the yaml files
-            # ToDo: error catching and validation for path
-            # path selection ???
+            # path is next to saved data location
             save_config_path = str(Path(output_dir).parent.absolute())
             yml_file_name = "-and-".join(selected_modes)
             yml_file = yml_file_name+"-"+unique_id+"-"+str(i)+".yml"
@@ -1206,8 +1247,12 @@ class Ui_Form(QWidget):
     # will get all fields (even those that are optional and not in yaml) and default values
     # model needs further parsing against yaml file for fields
     def get_model_from_file(self, model_file_path):
+        pydantic_model = None
         try :
-            pydantic_model = utils.yaml_to_model(model_file_path, settings.ReconstructionSettings)
+            try:
+                pydantic_model = utils.yaml_to_model(model_file_path, settings.ReconstructionSettings)
+            except ValidationError as exc:
+                return pydantic_model, exc.errors()
             if pydantic_model is None:
                 raise Exception("utils.yaml_to_model - returned a None model")
             return pydantic_model, MSG_SUCCESS
@@ -1266,6 +1311,7 @@ class Ui_Form(QWidget):
                     if (field == "background_path"): #field == "background_path": 
                         new_widget_cls, ops = get_widget_class(def_val, Annotated[Path, {"mode": "d"}], dict(name=field, value=def_val))
                         new_widget = new_widget_cls(**ops)
+                        toolTip = "Select the folder containing background.zarr"
                     elif (field == "time_indices"): #field == "time_indices": 
                         new_widget_cls, ops = get_widget_class(def_val, str, dict(name=field, value=def_val))
                         new_widget = new_widget_cls(**ops)
@@ -1298,11 +1344,19 @@ class Ui_Form(QWidget):
                         warnings.warn(message=f"magicgui could not identify a widget for {py_model}.{field}, which has type {ftype}")
                     else:
                         new_widget.tooltip = toolTip                    
-                if json_dict is not None and not isinstance(new_widget, widgets.Container):
-                    if isinstance(new_widget, widgets.CheckBox):
-                        new_widget.value = True if json_dict[field]=="true" else False                    
-                    else:
-                        new_widget.value = json_dict[field]
+                if json_dict is not None and (not isinstance(new_widget, widgets.Container) or (isinstance(new_widget, widgets.FileEdit))):
+                    if field in json_dict.keys():
+                        if isinstance(new_widget, widgets.CheckBox):
+                            new_widget.value = True if json_dict[field]=="true" else False 
+                        elif isinstance(new_widget, widgets.FileEdit):
+                            if len(json_dict[field]) > 0:
+                                extension = os.path.splitext(json_dict[field])[1]
+                                if len(extension) > 0:
+                                    new_widget.value = Path(json_dict[field]).parent.absolute() # CLI accepts BG folder not .zarr
+                                else:
+                                    new_widget.value = Path(json_dict[field])
+                        else:
+                            new_widget.value = json_dict[field]
                 container.append(new_widget)
             
     # refer - add_pydantic_to_container() for comments
@@ -1456,9 +1510,10 @@ class CollapsibleBox(QWidget):
 import socket, threading
 class MyWorker():
     
-    def __init__(self, formLayout, parentForm):
+    def __init__(self, formLayout, tab_recon:Ui_ReconTab_Form, parentForm):
         super().__init__()    
         self.formLayout:QFormLayout = formLayout
+        self.tab_recon:Ui_ReconTab_Form = tab_recon
         self.ui:QWidget = parentForm
         self.max_cores = os.cpu_count()
         # In the case of CLI, we just need to submit requests in a non-blocking way
@@ -1469,17 +1524,21 @@ class MyWorker():
         # self.runner = CliRunner()
         self.startPool()
         # jobs_mgmt.shared_var_jobs = self.JobsManager.shared_var_jobs
-        self.lock = threading.Lock()
         self.JobsMgmt = jobs_mgmt.JobsManagement()
         self.useServer = True
         self.serverRunning = True
         self.serverSocket = None
         thread = threading.Thread(target=self.startServer)
         thread.start()
+        self.workerThreadRowDeletion = RowDeletionWorkerThread(self.formLayout)
+        self.workerThreadRowDeletion.removeRowSignal.connect(self.tab_recon.removeRow)
+        self.workerThreadRowDeletion.start()
 
-    def setNewInstances(self, formLayout, parentForm):
+    def setNewInstances(self, formLayout, tab_recon, parentForm):
         self.formLayout:QFormLayout = formLayout
+        self.tab_recon:Ui_ReconTab_Form = tab_recon
         self.ui:QWidget = parentForm
+        self.workerThreadRowDeletion.setNewInstances(formLayout)
 
     def findWidgetRowInLayout(self, strID):
         layout: QFormLayout = self.formLayout
@@ -1491,19 +1550,6 @@ class MyWorker():
                 name_widget.setParent(None)
                 return idx
         return -1
-
-    def removeRow(self, row, expID):
-        try:
-            with self.lock:
-                if row < self.formLayout.rowCount():
-                    layout: QFormLayout = self.formLayout
-                    widgetItem = layout.itemAt(row)
-                    name_widget = widgetItem.widget()
-                    toolTip_string = str(name_widget.toolTip)
-                    if expID in toolTip_string:
-                        layout.takeRow(row) # removeRow vs takeRow for threads ?
-        except Exception as exc:
-            print(exc.args)
 
     def startServer(self):
         try:
@@ -1574,20 +1620,36 @@ class MyWorker():
     def tableUpdateAndCleaupThread(self, expIdx="", jobIdx=""):
         # finished will be updated by the job - submitit status
 
+        # ToDo: Another approach to this could be to implement a status thread on the client side
+        # Since the client is already running till the job is completed, the client could ping status
+        # at regular intervals and also provide results and exceptions we currently read from the file
+        # Currently we only send JobID/UniqueID pair from Client to Server. This would reduce multiple threads
+        # server side.
+        # For row removal use a Queued list approach for better stability
+
         if expIdx != "" and jobIdx != "":
             # this request came from server so we can wait for the Job to finish and update progress
             # some wait logic needs to be added otherwise for unknown errors this thread will persist
             # perhaps set a time out limit and then update the status window and then exit
             params = self.results[expIdx]
-            _infoBox = params["table_entry_infoBox"]
+            _infoBox:Label = params["table_entry_infoBox"]
             _txtForInfoBox = "Updating {id}: Please wait... \nJobID assigned: {jID} ".format(id=params["desc"], jID=jobIdx)
-            _infoBox.value = _txtForInfoBox
+            try:
+                _infoBox.value = _txtForInfoBox
+            except:
+                # deleted by user - no longer needs updating
+                self.results[expIdx]["status"] = STATUS_user_cleared_job
+                return
             _tUpdateCount = 0
             _tUpdateCountTimeout = 120 # 2 mins
             _lastUpdate_jobTXT = ""
             while True:
                 time.sleep(1) # update every sec and exit on break
-                if self.JobsMgmt.hasSubmittedJob(expIdx):
+                if _infoBox == None:
+                    break # deleted by user - no longer needs updating
+                if not _infoBox.visible:
+                    break
+                if self.JobsMgmt.hasSubmittedJob(expIdx):                    
                     if params["status"] in [STATUS_finished_job]:
                         break
                     elif params["status"] in [STATUS_errored_job]:
@@ -1606,9 +1668,7 @@ class MyWorker():
                                 if rowIdx < 0:
                                     break
                                 else:
-                                    self.workerThread = RowDeletionWorkerThread(self.formLayout, expIdx)
-                                    self.workerThread.removeRowSignal.connect(self.removeRow)
-                                    self.workerThread.start()
+                                    ROW_POP_QUEUE.append(expIdx)
                             elif JOB_COMPLETION_STR in jobTXT:
                                 self.results[expIdx]["status"] = STATUS_finished_job
                                 _infoBox.value = jobTXT
@@ -1616,10 +1676,7 @@ class MyWorker():
                                 # we cant delete the row directly from this thread
                                 # we will use the exp_id to identify and delete the row
                                 # using pyqtSignal
-                                self.workerThread = RowDeletionWorkerThread(self.formLayout, expIdx)
-                                self.workerThread.removeRowSignal.connect(self.removeRow)
-                                self.workerThread.start()
-                                time.sleep(2)
+                                ROW_POP_QUEUE.append(expIdx)                                
                                 # break - based on status
                             elif JOB_TRIGGERED_EXC in jobTXT:
                                 self.results[expIdx]["status"] = STATUS_errored_job
@@ -1627,7 +1684,7 @@ class MyWorker():
                                 _infoBox.value = jobIdx + "\n" + params["desc"] +"\n\n"+ jobTXT +"\n\n"+ jobERR
                                 break
                             elif JOB_RUNNING_STR in jobTXT:
-                                self.results[expIdx]["status"] = STATUS_running_job
+                                self.results[expIdx]["status"] = STATUS_running_job                                
                                 _infoBox.value = jobTXT
                                 _tUpdateCount += 1
                                 if _tUpdateCount > 60:                                    
@@ -1727,15 +1784,17 @@ class MyWorker():
             self.results[params["exp_id"]]["error"] = str("\n".join(exc.args))
             self.tableUpdateAndCleaupThread()   
 
+ROW_POP_QUEUE = []
 # Emits a signal to QFormLayout on the main thread
 class RowDeletionWorkerThread(QThread):
     removeRowSignal = pyqtSignal(int, str)
 
-    def __init__(self, formLayout, strID):
+    def __init__(self, formLayout):
         super().__init__()
         self.formLayout = formLayout
-        self.deleteRow = -1
-        self.stringID = strID
+
+    def setNewInstances(self, formLayout):
+        self.formLayout:QFormLayout = formLayout
 
     # we might deal with race conditions with a shrinking table
     # find out widget and return its index
@@ -1743,18 +1802,25 @@ class RowDeletionWorkerThread(QThread):
         layout: QFormLayout = self.formLayout
         for idx in range(0, layout.rowCount()):
             widgetItem = layout.itemAt(idx)
-            name_widget = widgetItem.widget()
-            toolTip_string = str(name_widget.toolTip)
-            if strID in toolTip_string:
-                name_widget.setParent(None)
-                return idx
+            if widgetItem is not None:
+                name_widget = widgetItem.widget()
+                toolTip_string = str(name_widget.toolTip)
+                if strID in toolTip_string:
+                    name_widget.setParent(None)
+                    return idx
         return -1
 
     def run(self):
-        # Emit the signal to remove the row
-        self.deleteRow = self.findWidgetRowInLayout(self.stringID)
-        if self.deleteRow > -1:
-            self.removeRowSignal.emit(int(self.deleteRow), str(self.stringID))
+        while True:
+            if len(ROW_POP_QUEUE) > 0:
+                stringID = ROW_POP_QUEUE.pop(0)
+                # Emit the signal to remove the row
+                deleteRow = self.findWidgetRowInLayout(stringID)
+                if deleteRow > -1:
+                    self.removeRowSignal.emit(int(deleteRow), str(stringID))
+                time.sleep(1)
+            else:
+                time.sleep(5)
 
 # VScode debugging
 if __name__ == "__main__":
