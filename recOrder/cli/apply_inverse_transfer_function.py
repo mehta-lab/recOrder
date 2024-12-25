@@ -343,13 +343,14 @@ def apply_inverse_transfer_function_cli(
         f"{gb_ram_request} GB of memory per CPU."
     )
     executor = submitit.AutoExecutor(folder="logs")
-
+    
     executor.update_parameters(
         slurm_array_parallelism=np.min([50, num_jobs]),
         slurm_mem_per_cpu=f"{gb_ram_request}G",
         slurm_cpus_per_task=cpu_request,
         slurm_time=60,
         slurm_partition="cpu",
+        timeout_min=jobs_mgmt.JOBS_TIMEOUT
         # more slurm_*** resource parameters here
     )
     
@@ -372,11 +373,14 @@ def apply_inverse_transfer_function_cli(
 
     if unique_id != "": # no unique_id means no job submission info being listened to
         JM.startClient()
-        for j in jobs:
+        i=0
+        for j in jobs:           
             job : submitit.Job = j
             job_idx : str = job.job_id
-            JM.putJobInListClient(unique_id, job_idx)
-        JM.stopClient()
+            position = input_position_dirpaths[i]
+            JM.putJobInList(job, unique_id, str(job_idx), position)
+            i += 1
+        JM.setShorterTimeout()
 
     monitor_jobs(jobs, input_position_dirpaths)
 

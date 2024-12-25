@@ -909,7 +909,11 @@ class MainWidget(QWidget):
             raise KeyError(msg)
 
         if not self.bf_channel_found:
-            self.ui.qbutton_acq_phase_from_bf.disconnect()
+            try:
+                self.ui.qbutton_acq_phase_from_bf.disconnect()
+            except Exception as exc:
+                print(exc.args)
+                logging.debug(exc.args)
             self.ui.qbutton_acq_phase_from_bf.setStyleSheet(
                 self.disabled_button_style
             )
