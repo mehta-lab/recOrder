@@ -3,6 +3,9 @@ import socket
 import submitit
 import threading, time
 
+DIR_PATH = os.path.dirname(os.path.realpath(__file__))
+FILE_PATH = os.path.join(DIR_PATH, "main.py")
+
 SERVER_PORT = 8089 # Choose an available port
 JOBS_TIMEOUT = 5 # 5 mins
 SERVER_uIDsjobIDs = {} # uIDsjobIDs[uid][jid] = job

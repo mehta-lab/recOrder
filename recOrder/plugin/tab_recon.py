@@ -15,7 +15,7 @@ from magicgui.type_map import get_widget_class
 import warnings
 
 from recOrder.io import utils
-from recOrder.cli import settings, main, jobs_mgmt
+from recOrder.cli import settings, jobs_mgmt
 from napari.utils import notifications
 
 from concurrent.futures import ThreadPoolExecutor
@@ -113,12 +113,14 @@ class Ui_ReconTab_Form(QWidget):
         self.stand_alone = stand_alone
         if HAS_INSTANCE["val"]:
             self.current_dir_path = str(Path.cwd())
+            self.directory = str(Path.cwd())
             self.current_save_path = HAS_INSTANCE["current_save_path"]
             self.input_directory = HAS_INSTANCE["input_directory"]
             self.save_directory = HAS_INSTANCE["save_directory"]
             self.model_directory = HAS_INSTANCE["model_directory"]
             self.yaml_model_file = HAS_INSTANCE["yaml_model_file"]
         else:
+            self.directory = str(Path.cwd())
             self.current_dir_path = str(Path.cwd())
             self.current_save_path = str(Path.cwd())
             self.input_directory = str(Path.cwd())
@@ -145,22 +147,51 @@ class Ui_ReconTab_Form(QWidget):
         self.modes_widget2.setMaximumHeight(50)
         self.modes_widget2.setMinimumHeight(50)
 
+        self.reconstruction_input_data_label = widgets.Label(
+            name="", value="Input Data"
+        )
         self.reconstruction_input_data_loc = widgets.LineEdit(
             name="", value=self.input_directory
         )
         self.reconstruction_input_data_btn = widgets.PushButton(
-            name="InputData", label="Input Data"
+            name="InputData", label="Browse"
         )
+        self.reconstruction_input_data_btn.native.setMinimumWidth(125)
         self.reconstruction_input_data_btn.clicked.connect(
             self.browse_dir_path_input
         )
         self.reconstruction_input_data_loc.changed.connect(
             self.readAndSetInputPathOnValidation
         )
+        _load_model_btn = DropButton(text="Load Model(s)", recon_tab=self)
+        _load_model_btn.setMinimumWidth(125)
 
+        self.modes_layout2.addWidget(self.reconstruction_input_data_label.native)
         self.modes_layout2.addWidget(self.reconstruction_input_data_loc.native)
         self.modes_layout2.addWidget(self.reconstruction_input_data_btn.native)
+        self.modes_layout2.addWidget(_load_model_btn)
         self.recon_tab_layout.addWidget(self.modes_widget2)
+
+        # _load_model_label = widgets.Label(name="", value="Models Path")
+        # _load_model_loc = widgets.LineEdit(name="", value=self.model_directory)
+        
+        # Passing model location label to model location selector
+        _load_model_btn.clicked.connect(
+            lambda: self.browse_dir_path_model()
+        )
+                
+        # HBox for Loading Model
+        # _hBox_widget_model = QWidget()
+        # _hBox_layout_model = QHBoxLayout()
+        # _hBox_layout_model.setAlignment(QtCore.Qt.AlignmentFlag.AlignTop)
+        # _hBox_widget_model.setLayout(_hBox_layout_model)
+        # _hBox_widget_model.setMaximumHeight(50)
+        # _hBox_widget_model.setMinimumHeight(50)
+        # _hBox_layout_model.addWidget(_load_model_label.native)
+        # _hBox_layout_model.addWidget(_load_model_loc.native)
+        # _hBox_layout_model.addWidget(_load_model_btn)
+        
+        # self.recon_tab_layout.addWidget(_hBox_widget_model)
 
         # Top level - Selection modes, model creation and running
         self.modes_widget = QWidget()
@@ -187,59 +218,35 @@ class Ui_ReconTab_Form(QWidget):
 
         # PushButton to create a copy of the model - UI
         self.reconstruction_mode_enabler = widgets.PushButton(
-            name="CreateModel", label="Create Model"
+            name="BuildModel", label="Build Model"
         )
+        self.reconstruction_mode_enabler.native.setMinimumWidth(125)
         self.reconstruction_mode_enabler.clicked.connect(
-            self._create_acq_contols
-        )
-
-        # PushButton to validate and create the yaml file(s) based on selection
-        self.build_button = widgets.PushButton(name="Build && Run Model")
-        self.build_button.clicked.connect(self.build_model_and_run)
+            self._build_acq_contols
+        )       
 
         # PushButton to clear all copies of models that are create for UI
         self.reconstruction_mode_clear = widgets.PushButton(
             name="ClearModels", label="Clear All Models"
         )
+        self.reconstruction_mode_clear.native.setMinimumWidth(125)
         self.reconstruction_mode_clear.clicked.connect(self._clear_all_models)
+
+        # PushButton to validate and create the yaml file(s) based on selection
+        self.build_button = widgets.PushButton(name="Run Model")
+        self.build_button.native.setMinimumWidth(125)
+        self.build_button.clicked.connect(self.build_model_and_run)
 
         # Editable List holding pydantic class(es) as per user selection
         self.pydantic_classes = list()
+        self.prev_model_settings = {}
         self.index = 0
 
-        self.modes_layout.addWidget(self.reconstruction_mode_enabler.native)
-        self.modes_layout.addWidget(self.build_button.native)
+        self.modes_layout.addWidget(self.reconstruction_mode_enabler.native)        
         self.modes_layout.addWidget(self.reconstruction_mode_clear.native)
+        self.modes_layout.addWidget(self.build_button.native)
         self.recon_tab_layout.addWidget(self.modes_widget)
-
-        _load_model_loc = widgets.LineEdit(name="", value=self.model_directory)
-        # _load_model_btn = widgets.PushButton(
-        #     name="LoadModel", label="Load Model"
-        # )
-        _load_model_btn = DropButton(text="Load Model", recon_tab=self)
-
-        # Passing model location label to model location selector
-        _load_model_btn.clicked.connect(
-            lambda: self.browse_dir_path_model(_load_model_loc)
-        )
-
-        _clear_results_btn = widgets.PushButton(
-            name="ClearResults", label="Clear Results"
-        )
-        _clear_results_btn.clicked.connect(self.clear_results_table)
-
-        # HBox for Loading Model
-        _hBox_widget_model = QWidget()
-        _hBox_layout_model = QHBoxLayout()
-        _hBox_layout_model.setAlignment(QtCore.Qt.AlignmentFlag.AlignTop)
-        _hBox_widget_model.setLayout(_hBox_layout_model)
-        _hBox_widget_model.setMaximumHeight(50)
-        _hBox_widget_model.setMinimumHeight(50)
-        _hBox_layout_model.addWidget(_load_model_loc.native)
-        _hBox_layout_model.addWidget(_load_model_btn)
-        _hBox_layout_model.addWidget(_clear_results_btn.native)
-        self.recon_tab_layout.addWidget(_hBox_widget_model)
-
+        
         # Line seperator between top / middle UI components
         _line = QFrame()
         _line.setMinimumWidth(1)
@@ -268,10 +275,9 @@ class Ui_ReconTab_Form(QWidget):
         )
 
         # Create the splitter
-        splitter = QSplitter(self)
+        splitter = QSplitter()
         splitter.setOrientation(Qt.Orientation.Vertical)
         splitter.setSizes([600, 200])
-        
         self.recon_tab_layout.addWidget(splitter)
 
         # self.recon_tab_layout.addWidget(self.recon_tab_scrollArea_settings)
@@ -292,9 +298,10 @@ class Ui_ReconTab_Form(QWidget):
         _scrollArea.setWidget(_qwidget_settings)
         splitter.addWidget(_scrollArea)
 
-        my_splitter_handle = splitter.handle(1)
+        my_splitter_handle = splitter.handle(1)        
         my_splitter_handle.setStyleSheet("background: 1px rgb(128,128,128);")
         splitter.setStyleSheet("""QSplitter::handle:pressed {background-color: #ca5;}""")
+               
 
         # Table for processing entries
         self.proc_table_QFormLayout = QFormLayout()
@@ -306,6 +313,12 @@ class Ui_ReconTab_Form(QWidget):
             QSizePolicy.Expanding, QSizePolicy.Expanding
         )
         _proc_table_widget.setLayout(self.proc_table_QFormLayout)
+
+        _clear_results_btn = widgets.PushButton(
+            name="ClearResults", label="Clear Results"
+        )
+        _clear_results_btn.clicked.connect(self.clear_results_table)
+        _qwidget_settings_layout.addWidget(_clear_results_btn.native)
         _qwidget_settings_layout.addWidget(_proc_table_widget)
 
         # Stores Model & Components values which cause validation failure - can be highlighted on the model field as Red
@@ -350,12 +363,12 @@ class Ui_ReconTab_Form(QWidget):
         if event.type() == QEvent.Type.Show:
             pass
 
-    def confirmDialog(self):
+    def confirmDialog(self, msg="Confirm your selection ?"):
         qm = QMessageBox
         ret = qm.question(
             self.recon_tab_widget,
             "Confirm",
-            "Confirm your selection ?",
+            msg,
             qm.Yes | qm.No,
         )
         if ret == qm.Yes:
@@ -367,6 +380,10 @@ class Ui_ReconTab_Form(QWidget):
     # ToDo: utilize common functions
     # Input data selector
     def browse_dir_path_input(self):
+        if len(self.pydantic_classes)>0 and not self.confirmDialog("Changing Input Data will reset your models. Continue ?"):
+            return
+        else:
+            self._clear_all_models(silent=True)
         result = self._open_file_dialog(self.input_directory, "dir")
         if result == "":
             return
@@ -376,10 +393,12 @@ class Ui_ReconTab_Form(QWidget):
             self.messageBox(ret_msg)
             return
 
-        self.directory = result
+        self.directory = Path(result).parent.absolute()
         self.current_dir_path = result
         self.input_directory = result
         self.reconstruction_input_data_loc.value = result
+
+        self.prev_model_settings = {}
 
         self.saveLastPaths()
 
@@ -434,7 +453,7 @@ class Ui_ReconTab_Form(QWidget):
         valid, ret_msg = self.validateInputData(result)
 
         if valid:
-            self.directory = result
+            self.directory = Path(result).parent.absolute()
             self.current_dir_path = result
             self.input_directory = result
 
@@ -479,9 +498,9 @@ class Ui_ReconTab_Form(QWidget):
     # Copied from main_widget
     # ToDo: utilize common functions
     # Output data selector
-    def browse_dir_path_model(self, elem):
+    def browse_dir_path_model(self):
         results = self._open_file_dialog(
-            self.model_directory, "files"
+            self.directory, "files", filter="YAML Files (*.yml)"
         )  # returns list
         if len(results) == 0 or results == "":
             return
@@ -490,11 +509,7 @@ class Ui_ReconTab_Form(QWidget):
         self.directory = self.model_directory
         self.current_dir_path = self.model_directory
 
-        elem.value = str(Path(results[0]).absolute())
-        if len(results) > 1:
-            elem.value = self.model_directory
         self.saveLastPaths()
-
         self.openModelFiles(results)
         
 
@@ -597,6 +612,10 @@ class Ui_ReconTab_Form(QWidget):
 
     # clears the results table
     def clear_results_table(self):
+        index = self.proc_table_QFormLayout.rowCount()
+        if index < 1:
+            self.messageBox("There are no processing results to clear !")
+            return
         if self.confirmDialog():
             for i in range(self.proc_table_QFormLayout.rowCount()):
                 self.proc_table_QFormLayout.removeRow(0)
@@ -807,7 +826,7 @@ class Ui_ReconTab_Form(QWidget):
                     notifications.show_info(json_txt)
     
     def messageBoxStandAlone(self, msg):
-        q = QMessageBox(QMessageBox.Warning, "Message",  str(msg))
+        q = QMessageBox(QMessageBox.Warning, "Message",  str(msg), parent=self.recon_tab_widget)
         q.setStandardButtons(QMessageBox.StandardButton.Ok)
         q.setIcon(QMessageBox.Icon.Warning)
         q.exec_()
@@ -1039,7 +1058,7 @@ class Ui_ReconTab_Form(QWidget):
         return model
 
     # Creates UI controls from model based on selections
-    def _create_acq_contols(self):
+    def _build_acq_contols(self):
 
         # Make a copy of selections and unsed for deletion
         selected_modes = []
@@ -1057,6 +1076,17 @@ class Ui_ReconTab_Form(QWidget):
     def _create_acq_contols2(
         self, selected_modes, exclude_modes, myLoadedModel=None, json_dict=None
     ):
+        # duplicate settings from the prev model on new model creation
+        if json_dict is None and len(self.pydantic_classes) > 0:
+            ret = self.build_model_and_run(validate_return_prev_model_json_txt=True)
+            if ret is None:
+                return
+            key, json_txt = ret
+            self.prev_model_settings[key] = json.loads(json_txt)
+        if json_dict is None:
+            key = "-".join(selected_modes)
+            if key in self.prev_model_settings.keys():
+                json_dict = self.prev_model_settings[key]
 
         # initialize the top container and specify what pydantic class to map from
         if myLoadedModel is not None:
@@ -1171,7 +1201,7 @@ class Ui_ReconTab_Form(QWidget):
         # These could be multiple based on user selection for each model
         # Inherits from Input by default at creation time
         name_without_ext = os.path.splitext(self.input_directory)[0]
-        save_path = os.path.join(Path(self.input_directory).parent.absolute(), (name_without_ext + ("_recon"+c_mode_short+num_str) + ".zarr"))
+        save_path = os.path.join(Path(self.input_directory).parent.absolute(), (name_without_ext + ("_"+c_mode_short+"_"+num_str) + ".zarr"))
         save_path_exists = True if Path(save_path).exists() else False
         _output_data_loc = widgets.LineEdit(
             name="", value=save_path, tooltip="" if not save_path_exists else (_validate_alert+" Output file exists")
@@ -1283,11 +1313,11 @@ class Ui_ReconTab_Form(QWidget):
         self.index += 1
 
         if self.index > 1:
-            self.build_button.text = "Build && Run {n} Models".format(
+            self.build_button.text = "Run {n} Models".format(
                 n=self.index
             )
         else:
-            self.build_button.text = "Build && Run Model"
+            self.build_button.text = "Run Model"
 
         return pydantic_model
 
@@ -1319,15 +1349,16 @@ class Ui_ReconTab_Form(QWidget):
             i += 1
         self.index = len(self.pydantic_classes)
         if self.index > 1:
-            self.build_button.text = "Build && Run {n} Models".format(
+            self.build_button.text = "Run {n} Models".format(
                 n=self.index
             )
         else:
-            self.build_button.text = "Build && Run Model"
+            self.build_button.text = "Run Model"
 
     # Clear all the generated pydantic models and clears the pydantic model list
-    def _clear_all_models(self):
-        if self.confirmDialog():
+    def _clear_all_models(self, silent=False):
+        
+        if silent or self.confirmDialog():
             index = self.recon_tab_qwidget_settings_layout.count() - 1
             while index >= 0:
                 myWidget = self.recon_tab_qwidget_settings_layout.itemAt(
@@ -1339,11 +1370,12 @@ class Ui_ReconTab_Form(QWidget):
             self.pydantic_classes.clear()
             CONTAINERS_INFO.clear()
             self.index = 0
-            self.build_button.text = "Build && Run Model"
+            self.build_button.text = "Run Model"
+            self.prev_model_settings = None
 
     # Displays the json output from the pydantic model UI selections by user
     # Loops through all our stored pydantic classes
-    def build_model_and_run(self):
+    def build_model_and_run(self, validate_return_prev_model_json_txt=False):
         # we dont want to have a partial run if there are N models
         # so we will validate them all first and then run in a second loop
         # first pass for validating
@@ -1446,6 +1478,9 @@ class Ui_ReconTab_Form(QWidget):
                 fmt_str = self.formatStringForErrorDisplay(_collectAllErrors)
                 self.messageBox(fmt_str)
                 return
+            
+        if validate_return_prev_model_json_txt:
+            return "-".join(selected_modes), json_txt
 
         # generate a time-stamp for our yaml files to avoid overwriting
         # files generated at the same time will have an index suffix
@@ -1898,7 +1933,7 @@ class Ui_ReconTab_Form(QWidget):
 
     # copied from main_widget
     # file open/select dialog
-    def _open_file_dialog(self, default_path, type):
+    def _open_file_dialog(self, default_path, type, filter="All Files (*)"):
         if type == "dir":
             return self._open_dialog(
                 "select a directory", str(default_path), type
@@ -1906,7 +1941,7 @@ class Ui_ReconTab_Form(QWidget):
         elif type == "file":
             return self._open_dialog("select a file", str(default_path), type)
         elif type == "files":
-            return self._open_dialog("select file(s)", str(default_path), type)
+            return self._open_dialog("select file(s)", str(default_path), type, filter)
         elif type == "save":
             return self._open_dialog("save a file", str(default_path), type)
         else:
@@ -1914,7 +1949,7 @@ class Ui_ReconTab_Form(QWidget):
                 "select a directory", str(default_path), type
             )
 
-    def _open_dialog(self, title, ref, type):
+    def _open_dialog(self, title, ref, type, filter="All Files (*)"):
         """
         opens pop-up dialogue for the user to choose a specific file or directory.
 
@@ -1940,7 +1975,7 @@ class Ui_ReconTab_Form(QWidget):
             )[0]
         elif type == "files":
             path = QFileDialog.getOpenFileNames(
-                None, title, ref, options=options
+                None, title, ref, filter=filter, options=options
             )[0]
         elif type == "save":
             path = QFileDialog.getSaveFileName(
@@ -2430,7 +2465,7 @@ class MyWorker:
             config_path = str(params["config_path"])
             output_path = str(params["output_path"])
             uid = str(params["exp_id"])
-            mainfp = str(main.FILE_PATH)
+            mainfp = str(jobs_mgmt.FILE_PATH)
 
             self.results[params["exp_id"]]["JobUNK"]["status"] = STATUS_submitted_job
 
@@ -2445,8 +2480,10 @@ class MyWorker:
                     config_path,
                     "-o",
                     output_path,
+                    "-rx",
+                    str(20),
                     "-uid",
-                    uid,
+                    uid
                 ]
             )
             self.results[params["exp_id"]]["JobUNK"]["proc"] = proc
@@ -2569,7 +2606,6 @@ class ScrollableLabel(QScrollArea):
 
     def setText(self, text):
         self.label.setText(text)
-
 
 # VScode debugging
 if __name__ == "__main__":
