@@ -44,23 +44,23 @@ try:
             "Your Pydantic library ver:{v}. Recommended ver is: 1.10.19".format(
                 v=version
             )
-        )
-        from pydantic.main import ModelMetaclass
+        )        
         from pydantic.main import ValidationError
         from pydantic.main import BaseModel
-    elif version >= "1.10.19":
         from pydantic.main import ModelMetaclass
+    elif version >= "1.10.19":        
         from pydantic.main import ValidationError
         from pydantic.main import BaseModel
+        from pydantic.main import ModelMetaclass
     else:
         print(
             "Your Pydantic library ver:{v}. Recommended ver is: 1.10.19".format(
                 v=version
             )
-        )
-        from pydantic.v1.main import ModelMetaclass
-        from pydantic.v1.main import ValidationError
-        from pydantic.v1.main import BaseModel
+        )        
+        from pydantic.main import ValidationError
+        from pydantic.main import BaseModel
+        from pydantic.main import ModelMetaclass
 except:
     print("Pydantic library was not found. Ver 1.10.19 is recommended.")
 
