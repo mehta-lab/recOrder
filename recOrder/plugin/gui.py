@@ -926,7 +926,7 @@ class Ui_Form(object):
         self.tabWidget.addTab(self.Acquisition, "")
 
         self.recon_tab = tab_recon.Ui_ReconTab_Form(Form)
-        self.tabWidget.addTab(self.recon_tab.recon_tab_widget, 'Reconstruction')
+        self.tabWidget.addTab(self.recon_tab.recon_tab_mainScrollArea, 'Reconstruction')
 
         self.Display = QtWidgets.QWidget()
         self.Display.setObjectName("Display")

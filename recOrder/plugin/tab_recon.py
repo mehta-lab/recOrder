@@ -1,4 +1,5 @@
 import os, json, subprocess, time, datetime, uuid
+import socket, threading
 from pathlib import Path
 
 from qtpy import QtCore
@@ -18,7 +19,7 @@ from recOrder.io import utils
 from recOrder.cli import settings, jobs_mgmt
 from napari.utils import notifications
 
-from concurrent.futures import ThreadPoolExecutor
+import concurrent.futures
 
 import importlib.metadata
 
@@ -81,6 +82,8 @@ JOB_TRIGGERED_EXC = "Submitted job triggered an exception"
 
 _validate_alert = "⚠"
 _validate_ok = "✔️"
+_green_dot = "🟢"
+_red_dot = "🔴"
 
 # For now replicate CLI processing modes - these could reside in the CLI settings file as well
 # for consistency
@@ -131,13 +134,17 @@ class Ui_ReconTab_Form(QWidget):
         self.input_directory_dataset = None
         self.input_directory_datasetMeta = None
 
-        # Top level parent
+        # Top level parent        
         self.recon_tab_widget = QWidget()
         self.recon_tab_layout = QVBoxLayout()
         self.recon_tab_layout.setAlignment(QtCore.Qt.AlignmentFlag.AlignTop)
         self.recon_tab_layout.setContentsMargins(0, 0, 0, 0)
         self.recon_tab_layout.setSpacing(0)
         self.recon_tab_widget.setLayout(self.recon_tab_layout)
+
+        self.recon_tab_mainScrollArea = QScrollArea()
+        self.recon_tab_mainScrollArea.setWidgetResizable(True)
+        self.recon_tab_mainScrollArea.setWidget(self.recon_tab_widget)
 
         # Top level - Data Input
         self.modes_widget2 = QWidget()
@@ -156,7 +163,7 @@ class Ui_ReconTab_Form(QWidget):
         self.reconstruction_input_data_btn = widgets.PushButton(
             name="InputData", label="Browse"
         )
-        self.reconstruction_input_data_btn.native.setMinimumWidth(125)
+        self.reconstruction_input_data_btn.native.setMinimumWidth(75)
         self.reconstruction_input_data_btn.clicked.connect(
             self.browse_dir_path_input
         )
@@ -164,7 +171,7 @@ class Ui_ReconTab_Form(QWidget):
             self.readAndSetInputPathOnValidation
         )
         _load_model_btn = DropButton(text="Load Model(s)", recon_tab=self)
-        _load_model_btn.setMinimumWidth(125)
+        _load_model_btn.setMinimumWidth(90)
 
         self.modes_layout2.addWidget(self.reconstruction_input_data_label.native)
         self.modes_layout2.addWidget(self.reconstruction_input_data_loc.native)
@@ -220,7 +227,7 @@ class Ui_ReconTab_Form(QWidget):
         self.reconstruction_mode_enabler = widgets.PushButton(
             name="BuildModel", label="Build Model"
         )
-        self.reconstruction_mode_enabler.native.setMinimumWidth(125)
+        self.reconstruction_mode_enabler.native.setMinimumWidth(100)
         self.reconstruction_mode_enabler.clicked.connect(
             self._build_acq_contols
         )       
@@ -229,18 +236,19 @@ class Ui_ReconTab_Form(QWidget):
         self.reconstruction_mode_clear = widgets.PushButton(
             name="ClearModels", label="Clear All Models"
         )
-        self.reconstruction_mode_clear.native.setMinimumWidth(125)
+        self.reconstruction_mode_clear.native.setMinimumWidth(110)
         self.reconstruction_mode_clear.clicked.connect(self._clear_all_models)
 
         # PushButton to validate and create the yaml file(s) based on selection
         self.build_button = widgets.PushButton(name="Run Model")
-        self.build_button.native.setMinimumWidth(125)
+        self.build_button.native.setMinimumWidth(100)
         self.build_button.clicked.connect(self.build_model_and_run)
 
         # Editable List holding pydantic class(es) as per user selection
         self.pydantic_classes = list()
         self.prev_model_settings = {}
         self.index = 0
+        self.pollData = False
 
         self.modes_layout.addWidget(self.reconstruction_mode_enabler.native)        
         self.modes_layout.addWidget(self.reconstruction_mode_clear.native)
@@ -260,6 +268,10 @@ class Ui_ReconTab_Form(QWidget):
         self.recon_tab_layout.addWidget(_line)
 
         # Top level - Central scrollable component which will hold Editable/(vertical) Expanding UI
+        group_box_process_models = QGroupBox("Processing Models")
+        group_box_process_models.setMinimumHeight(200)
+        group_box_process_models_layout = QHBoxLayout()
+        group_box_process_models.setLayout(group_box_process_models_layout)
         self.recon_tab_scrollArea_settings = QScrollArea()
         # self.recon_tab_scrollArea_settings.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
         self.recon_tab_scrollArea_settings.setWidgetResizable(True)
@@ -280,8 +292,8 @@ class Ui_ReconTab_Form(QWidget):
         splitter.setSizes([600, 200])
         self.recon_tab_layout.addWidget(splitter)
 
-        # self.recon_tab_layout.addWidget(self.recon_tab_scrollArea_settings)
-        splitter.addWidget(self.recon_tab_scrollArea_settings)
+        group_box_process_models_layout.addWidget(self.recon_tab_scrollArea_settings)
+        splitter.addWidget(group_box_process_models)
 
         _scrollArea = QScrollArea()
         _scrollArea.setWidgetResizable(True)
@@ -304,6 +316,24 @@ class Ui_ReconTab_Form(QWidget):
                
 
         # Table for processing entries
+        group_box_OTF = QGroupBox("On-The-Fly Processing Queue")
+        group_box_OTF_layout = QHBoxLayout()
+        group_box_OTF.setLayout(group_box_OTF_layout)
+        self.proc_OTF_table_QFormLayout = QFormLayout()
+        self.proc_OTF_table_QFormLayout.setAlignment(QtCore.Qt.AlignmentFlag.AlignTop)
+        self.proc_OTF_table_QFormLayout.setSpacing(0)
+        self.proc_OTF_table_QFormLayout.setContentsMargins(0, 0, 0, 0)
+        _proc_OTF_table_widget = QWidget()
+        _proc_OTF_table_widget.setSizePolicy(
+            QSizePolicy.Expanding, QSizePolicy.Expanding
+        )
+        _proc_OTF_table_widget.setLayout(self.proc_OTF_table_QFormLayout)        
+        group_box_OTF_layout.addWidget(_proc_OTF_table_widget)
+        group_box_OTF.setMaximumHeight(100)
+
+        group_box_JobResults = QGroupBox("Job Results Processing Queue")
+        group_box_JobResults_layout = QHBoxLayout()
+        group_box_JobResults.setLayout(group_box_JobResults_layout)
         self.proc_table_QFormLayout = QFormLayout()
         self.proc_table_QFormLayout.setAlignment(QtCore.Qt.AlignmentFlag.AlignTop)
         self.proc_table_QFormLayout.setSpacing(0)
@@ -313,13 +343,15 @@ class Ui_ReconTab_Form(QWidget):
             QSizePolicy.Expanding, QSizePolicy.Expanding
         )
         _proc_table_widget.setLayout(self.proc_table_QFormLayout)
+        group_box_JobResults_layout.addWidget(_proc_table_widget)
 
         _clear_results_btn = widgets.PushButton(
             name="ClearResults", label="Clear Results"
         )
         _clear_results_btn.clicked.connect(self.clear_results_table)
+        _qwidget_settings_layout.addWidget(group_box_OTF)
         _qwidget_settings_layout.addWidget(_clear_results_btn.native)
-        _qwidget_settings_layout.addWidget(_proc_table_widget)
+        _qwidget_settings_layout.addWidget(group_box_JobResults)
 
         # Stores Model & Components values which cause validation failure - can be highlighted on the model field as Red
         self.modelHighlighterVals = {}
@@ -384,30 +416,23 @@ class Ui_ReconTab_Form(QWidget):
             return
         else:
             self._clear_all_models(silent=True)
-        result = self._open_file_dialog(self.input_directory, "dir")
+        try:
+            result = self._open_file_dialog(self.input_directory, "dir")
+        except Exception as exc:
+            self.messageBox(exc.args)
+            return
+
         if result == "":
             return
 
-        ret, ret_msg = self.validateInputData(result)
-        if not ret:
-            self.messageBox(ret_msg)
-            return
-
-        self.directory = Path(result).parent.absolute()
-        self.current_dir_path = result
-        self.input_directory = result
-        self.reconstruction_input_data_loc.value = result
-
-        self.prev_model_settings = {}
-
-        self.saveLastPaths()
+        self.reconstruction_input_data_loc.value = result        
 
     def browse_dir_path_inputBG(self, elem):
         result = self._open_file_dialog(self.directory, "dir")
         if result == "":
             return
 
-        ret, ret_msg = self.validateInputData(result)
+        ret, ret_msg = self.validateInputData(result, BG=True)
         if not ret:
             self.messageBox(ret_msg)
             return
@@ -416,7 +441,7 @@ class Ui_ReconTab_Form(QWidget):
 
     # not working - not used
     def validateInputData(
-        self, input_data_folder: str, metadata=False
+        self, input_data_folder: str, metadata=False, BG=False
     ) -> bool:
         # Sort and validate the input paths, expanding plates into lists of positions
         # return True, MSG_SUCCESS
@@ -425,8 +450,16 @@ class Ui_ReconTab_Form(QWidget):
             with open_ome_zarr(input_paths, mode="r") as dataset:
                 # ToDo: Metadata reading and implementation in GUI for
                 # channel names, time indicies, etc.
-                if metadata:
+                if not BG and metadata:
                     self.input_directory_dataset = dataset
+
+                if not BG:
+                    self.pollData = False
+                    zattrs = dataset.zattrs
+                    if self.isDatasetAcqRunning(zattrs):
+                        if self.confirmDialog(msg="This seems like an in-process Acquisition. Would you like to process data on-the-fly ?"):
+                            self.pollData = True
+                    
                 return True, MSG_SUCCESS
             raise Exception(
                 "Dataset does not appear to be a valid ome-zarr storage"
@@ -452,15 +485,34 @@ class Ui_ReconTab_Form(QWidget):
         result = self.reconstruction_input_data_loc.value
         valid, ret_msg = self.validateInputData(result)
 
-        if valid:
+        if valid:           
             self.directory = Path(result).parent.absolute()
             self.current_dir_path = result
-            self.input_directory = result
+            self.input_directory = result            
+
+            self.prev_model_settings = {}
 
             self.saveLastPaths()
         else:
             self.reconstruction_input_data_loc.value = self.input_directory
             self.messageBox(ret_msg)
+
+    def isDatasetAcqRunning(self, zattrs: dict)->bool:
+        """
+        Checks the zattrs for CurrentDimensions & FinalDimensions key and tries to figure if
+        data acquisition is running
+        """
+
+        required_order = ['time', 'position', 'z', 'channel']
+        if "CurrentDimensions" in zattrs.keys():
+            my_dict = zattrs["CurrentDimensions"]
+            sorted_dict_acq = {k: my_dict[k] for k in sorted(my_dict, key=lambda x: required_order.index(x))}
+        if "FinalDimensions" in zattrs.keys():
+            my_dict = zattrs["FinalDimensions"]
+            sorted_dict_final = {k: my_dict[k] for k in sorted(my_dict, key=lambda x: required_order.index(x))}
+            if sorted_dict_acq != sorted_dict_final:
+                return True
+        return False
 
     # Copied from main_widget
     # ToDo: utilize common functions
@@ -927,6 +979,22 @@ class Ui_ReconTab_Form(QWidget):
         
         return proc_params
 
+    def addRemoveOTFTableEntry(self, OTF_dir_path, bool_msg):
+        if bool_msg:
+            otf_label = QLabel(text=OTF_dir_path + " " + _green_dot)
+            self.proc_OTF_table_QFormLayout.insertRow(0, otf_label)
+        else:
+            try:
+                for row in range(self.proc_OTF_table_QFormLayout.rowCount()):
+                    widgetItem = self.proc_OTF_table_QFormLayout.itemAt(row)
+                    if widgetItem is not None:
+                        name_widget:QLabel = widgetItem.widget()
+                        name_string = str(name_widget.text())
+                        if OTF_dir_path in name_string:
+                            self.proc_OTF_table_QFormLayout.removeRow(row)
+            except Exception as exc:
+                print(exc.args)
+
     # adds processing entry to _qwidgetTabEntry_layout as row item
     # row item will be purged from table as processing finishes
     # there could be 3 tabs for this processing table status
@@ -1180,13 +1248,13 @@ class Ui_ReconTab_Form(QWidget):
         _line.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Minimum)
         _line.setStyleSheet(
             "border:1px solid rgb(128,128,128); border-width: 1px;"
-        )
+        )        
 
         # PushButton to delete a UI container
         # Use case when a wrong selection of input modes get selected eg Bire+Fl
         # Preferably this root level validation should occur before values arevalidated
         # in order to display and avoid this to occur
-        _del_button = widgets.PushButton(name="Delete this Model")
+        _del_button = widgets.PushButton(name="Delete Model")
 
         c_mode = "-and-".join(selected_modes)
         c_mode_short = "".join(item[:3].capitalize() for item in selected_modes)
@@ -1263,6 +1331,15 @@ class Ui_ReconTab_Form(QWidget):
             c_mode_str
         )  # tableEntryID, tableEntryShortDesc - should update with processing status
         
+        _validate_button = widgets.PushButton(name="Validate Model")
+        _validate_button.clicked.connect(lambda:self._validate_model(_str, _collapsibleBoxWidget))
+
+        _hBox_widget2 = QWidget()
+        _hBox_layout2 = QHBoxLayout()
+        _hBox_layout2.setAlignment(QtCore.Qt.AlignmentFlag.AlignTop)
+        _hBox_widget2.setLayout(_hBox_layout2)
+        _hBox_layout2.addWidget(_validate_button.native)
+        _hBox_layout2.addWidget(_del_button.native)
 
         _expandingTabEntryWidgetLayout = QVBoxLayout()
         _expandingTabEntryWidgetLayout.addWidget(_collapsibleBoxWidget)
@@ -1280,7 +1357,7 @@ class Ui_ReconTab_Form(QWidget):
             recon_pydantic_container.native
         )
         _scrollAreaCollapsibleBoxWidgetLayout.addWidget(_hBox_widget)
-        _scrollAreaCollapsibleBoxWidgetLayout.addWidget(_del_button.native)
+        _scrollAreaCollapsibleBoxWidgetLayout.addWidget(_hBox_widget2)
         _scrollAreaCollapsibleBoxWidgetLayout.addWidget(_line)
 
         _scrollAreaCollapsibleBox.setMinimumHeight(_scrollAreaCollapsibleBoxWidgetLayout.sizeHint().height())
@@ -1308,6 +1385,7 @@ class Ui_ReconTab_Form(QWidget):
                 "container": recon_pydantic_container,
                 "selected_modes": selected_modes.copy(),
                 "exclude_modes": exclude_modes.copy(),
+                "poll_data": self.pollData,
             }
         )
         self.index += 1
@@ -1320,6 +1398,106 @@ class Ui_ReconTab_Form(QWidget):
             self.build_button.text = "Run Model"
 
         return pydantic_model
+
+    def _validate_model(self, _str, _collapsibleBoxWidget):
+        i = 0
+        model_entry_item = None
+        for item in self.pydantic_classes:
+            if item["uuid"] == _str:
+                model_entry_item = item
+                break
+            i += 1
+        if model_entry_item is not None:
+            cls = item["class"]
+            cls_container = item["container"]
+            exclude_modes = item["exclude_modes"]
+            c_mode_str = item["c_mode_str"]
+
+            # build up the arguments for the pydantic model given the current container
+            if cls is None:
+                self.messageBox("No model defined !")
+                return
+
+            pydantic_kwargs = {}
+            pydantic_kwargs, ret_msg = self.get_and_validate_pydantic_args(
+                cls_container, cls, pydantic_kwargs, exclude_modes
+            )
+            if pydantic_kwargs is None:
+                self.messageBox(ret_msg)
+                _collapsibleBoxWidget.setNewName(
+                    f"{c_mode_str} {_validate_alert}"
+                )
+                return
+
+            input_channel_names, ret_msg = self.clean_string_for_list(
+                "input_channel_names", pydantic_kwargs["input_channel_names"]
+            )
+            if input_channel_names is None:
+                self.messageBox(ret_msg)
+                _collapsibleBoxWidget.setNewName(
+                    f"{c_mode_str} {_validate_alert}"
+                )
+                return
+            pydantic_kwargs["input_channel_names"] = input_channel_names
+
+            time_indices, ret_msg = self.clean_string_int_for_list(
+                "time_indices", pydantic_kwargs["time_indices"]
+            )
+            if time_indices is None:
+                self.messageBox(ret_msg)
+                _collapsibleBoxWidget.setNewName(
+                    f"{c_mode_str} {_validate_alert}"
+                )
+                return
+            pydantic_kwargs["time_indices"] = time_indices
+
+            time_indices, ret_msg = self.clean_string_int_for_list(
+                "time_indices", pydantic_kwargs["time_indices"]
+            )
+            if time_indices is None:
+                self.messageBox(ret_msg)
+                _collapsibleBoxWidget.setNewName(
+                    f"{c_mode_str} {_validate_alert}"
+                )
+                return
+            pydantic_kwargs["time_indices"] = time_indices
+
+            if "birefringence" in pydantic_kwargs.keys():
+                background_path, ret_msg = self.clean_path_string_when_empty(
+                    "background_path",
+                    pydantic_kwargs["birefringence"]["apply_inverse"][
+                        "background_path"
+                    ],
+                )
+                if background_path is None:
+                    self.messageBox(ret_msg)
+                    _collapsibleBoxWidget.setNewName(
+                        f"{c_mode_str} {_validate_alert}"
+                    )
+                    return
+                pydantic_kwargs["birefringence"]["apply_inverse"][
+                    "background_path"
+                ] = background_path
+
+            # validate and return errors if None
+            pydantic_model, ret_msg = self.validate_pydantic_model(
+                cls, pydantic_kwargs
+            )
+            if pydantic_model is None:
+                self.messageBox(ret_msg)
+                _collapsibleBoxWidget.setNewName(
+                    f"{c_mode_str} {_validate_alert}"
+                )
+                return
+            if ret_msg == MSG_SUCCESS:
+                _collapsibleBoxWidget.setNewName(
+                    f"{c_mode_str} {_validate_ok}"
+                )
+            else:
+                _collapsibleBoxWidget.setNewName(
+                    f"{c_mode_str} {_validate_alert}"
+                )
+
 
     # UI components deletion - maybe just needs the parent container instead of individual components
     def _delete_model(self, wid0, wid1, wid2, wid3, wid4, wid5, index, _str):
@@ -1371,7 +1549,7 @@ class Ui_ReconTab_Form(QWidget):
             CONTAINERS_INFO.clear()
             self.index = 0
             self.build_button.text = "Run Model"
-            self.prev_model_settings = None
+            self.prev_model_settings = {}
 
     # Displays the json output from the pydantic model UI selections by user
     # Loops through all our stored pydantic classes
@@ -1488,6 +1666,19 @@ class Ui_ReconTab_Form(QWidget):
         ms = now.strftime("%f")[:3]
         unique_id = now.strftime("%Y_%m_%d_%H_%M_%S_") + ms
 
+        if self.pollData:
+            data = open_ome_zarr(self.input_directory, mode="r")
+            if "CurrentDimensions" in data.zattrs.keys():
+                my_dict_time_indices = data.zattrs["CurrentDimensions"]["time"] 
+                # get the prev time_index, since this is current acq
+                if my_dict_time_indices-1 > 1:
+                    time_indices = list(range(0, my_dict_time_indices))
+                else:
+                    time_indices = 0
+
+            pollDataThread = threading.Thread(target=self.addPollLoop, args=(self.input_directory, my_dict_time_indices-1),)
+            pollDataThread.start()
+
         i = 0
         for item in self.pydantic_classes:
             i += 1
@@ -1503,7 +1694,7 @@ class Ui_ReconTab_Form(QWidget):
 
             # build up the arguments for the pydantic model given the current container
             if cls is None:
-                self.messageBox(ret_msg)
+                self.messageBox("No model defined !")
                 return
 
             pydantic_kwargs = {}
@@ -1522,20 +1713,21 @@ class Ui_ReconTab_Form(QWidget):
                 return
             pydantic_kwargs["input_channel_names"] = input_channel_names
 
-            time_indices, ret_msg = self.clean_string_int_for_list(
-                "time_indices", pydantic_kwargs["time_indices"]
-            )
-            if time_indices is None:
-                self.messageBox(ret_msg)
-                return
-            pydantic_kwargs["time_indices"] = time_indices
+            if not self.pollData:
+                time_indices, ret_msg = self.clean_string_int_for_list(
+                    "time_indices", pydantic_kwargs["time_indices"]
+                )
+                if time_indices is None:
+                    self.messageBox(ret_msg)
+                    return
+                pydantic_kwargs["time_indices"] = time_indices
 
-            time_indices, ret_msg = self.clean_string_int_for_list(
-                "time_indices", pydantic_kwargs["time_indices"]
-            )
-            if time_indices is None:
-                self.messageBox(ret_msg)
-                return
+                time_indices, ret_msg = self.clean_string_int_for_list(
+                    "time_indices", pydantic_kwargs["time_indices"]
+                )
+                if time_indices is None:
+                    self.messageBox(ret_msg)
+                    return
             pydantic_kwargs["time_indices"] = time_indices
 
             if "birefringence" in pydantic_kwargs.keys():
@@ -1605,6 +1797,134 @@ class Ui_ReconTab_Form(QWidget):
             self.addTableEntry(
                 tableID, tableDescToolTip, proc_params
             )
+
+    def addPollLoop(self, input_data_path, last_time_index):    
+        _pydantic_classes = self.pydantic_classes.copy()
+        required_order = ['time', 'position', 'z', 'channel']
+        _pollData = True
+
+        tableEntryWorker = AddOTFTableEntryWorkerThread(input_data_path, True)
+        tableEntryWorker.add_tableOTFentry_signal.connect(self.addRemoveOTFTableEntry)
+        tableEntryWorker.start()
+        _breakFlag = False
+        while True:
+            time.sleep(10)
+            
+            try:
+                data = open_ome_zarr(input_data_path, mode="r")
+                if "CurrentDimensions" in data.zattrs.keys():
+                    my_dict1 = data.zattrs["CurrentDimensions"]
+                    sorted_dict_acq = {k: my_dict1[k] for k in sorted(my_dict1, key=lambda x: required_order.index(x))}
+                    my_dict_time_indices_curr = data.zattrs["CurrentDimensions"]["time"] 
+                    # print(sorted_dict_acq)
+                    
+                if "FinalDimensions" in data.zattrs.keys():
+                    my_dict2 = data.zattrs["FinalDimensions"]
+                    sorted_dict_final = {k: my_dict2[k] for k in sorted(my_dict2, key=lambda x: required_order.index(x))}
+                    # print(sorted_dict_final)
+
+                # use the prev time_index, since this is current acq and we need for other dims to finish acq for this t
+                # or when all dims match - signifying acq finished
+                if my_dict_time_indices_curr-2 > last_time_index or json.dumps(sorted_dict_acq) == json.dumps(sorted_dict_final):
+
+                    now = datetime.datetime.now()
+                    ms = now.strftime("%f")[:3]
+                    unique_id = now.strftime("%Y_%m_%d_%H_%M_%S_") + ms
+
+                    i = 0
+                    for item in _pydantic_classes:
+                        i += 1
+                        cls = item["class"]
+                        cls_container = item["container"]
+                        selected_modes = item["selected_modes"]
+                        exclude_modes = item["exclude_modes"]
+                        c_mode_str = item["c_mode_str"]
+
+                        # gather input/out locations
+                        input_dir = f"{item['input'].value}"
+                        output_dir = f"{item['output'].value}"
+
+                        pydantic_kwargs = {}
+                        pydantic_kwargs, ret_msg = self.get_and_validate_pydantic_args(
+                            cls_container, cls, pydantic_kwargs, exclude_modes
+                        )
+
+                        input_channel_names, ret_msg = self.clean_string_for_list(
+                            "input_channel_names", pydantic_kwargs["input_channel_names"]
+                        )
+                        pydantic_kwargs["input_channel_names"] = input_channel_names
+
+                        if _pollData:                        
+                            if json.dumps(sorted_dict_acq) == json.dumps(sorted_dict_final):
+                                time_indices = list(range(last_time_index, my_dict_time_indices_curr))
+                                _breakFlag = True
+                            else:
+                                time_indices = list(range(last_time_index, my_dict_time_indices_curr-2))
+                            pydantic_kwargs["time_indices"] = time_indices
+
+                        if "birefringence" in pydantic_kwargs.keys():
+                            background_path, ret_msg = self.clean_path_string_when_empty(
+                                "background_path",
+                                pydantic_kwargs["birefringence"]["apply_inverse"][
+                                    "background_path"
+                                ],
+                            )
+                            
+                            pydantic_kwargs["birefringence"]["apply_inverse"][
+                                "background_path"
+                            ] = background_path
+
+                        # validate and return errors if None
+                        pydantic_model, ret_msg = self.validate_pydantic_model(
+                            cls, pydantic_kwargs
+                        )
+
+                        # save the yaml files
+                        # path is next to saved data location
+                        save_config_path = str(Path(output_dir).parent.absolute())
+                        yml_file_name = "-and-".join(selected_modes)
+                        yml_file = yml_file_name + "-" + unique_id + "-{:02d}".format(i) + ".yml"
+                        config_path = os.path.join(save_config_path, yml_file)
+                        utils.model_to_yaml(pydantic_model, config_path)
+
+                        expID = "{tID}-{idx}".format(tID=unique_id, idx=i)
+                        tableID = "{tName}: ({tID}-{idx})".format(
+                            tName=c_mode_str, tID=unique_id, idx=i
+                        )
+                        tableDescToolTip = "{tName}: ({tID}-{idx})".format(
+                            tName=yml_file_name, tID=unique_id, idx=i
+                        )
+
+                        proc_params = {}
+                        proc_params["exp_id"] = expID
+                        proc_params["desc"] = tableDescToolTip
+                        proc_params["config_path"] = str(Path(config_path).absolute())
+                        proc_params["input_path"] = str(Path(input_dir).absolute())
+                        proc_params["output_path"] = str(Path(output_dir).absolute())
+                        proc_params["output_path_parent"] = str(
+                            Path(output_dir).parent.absolute()
+                        )
+                        
+                        tableEntryWorker1 = AddTableEntryWorkerThread(tableID, tableDescToolTip, proc_params)
+                        tableEntryWorker1.add_tableentry_signal.connect(self.addTableEntry)
+                        tableEntryWorker1.start()
+
+                    if json.dumps(sorted_dict_acq) == json.dumps(sorted_dict_final) and _breakFlag:
+                        
+                        tableEntryWorker2 = AddOTFTableEntryWorkerThread(input_data_path, False)
+                        tableEntryWorker2.add_tableOTFentry_signal.connect(self.addRemoveOTFTableEntry)
+                        tableEntryWorker2.start()
+
+                        # let child threads finish their work before exiting the parent thread
+                        while tableEntryWorker1.isRunning() or tableEntryWorker2.isRunning():
+                            time.sleep(1)
+                        time.sleep(5)
+                        break
+                    
+                    last_time_index = my_dict_time_indices_curr-2
+            except Exception as exc:
+                print(exc.args)
+
 
     # ======= These function do not implement validation
     # They simply make the data from GUI translate to input types
@@ -1986,86 +2306,6 @@ class Ui_ReconTab_Form(QWidget):
 
         return path
 
-
-class CollapsibleBox(QWidget):
-    def __init__(self, title="", parent=None):
-        super(CollapsibleBox, self).__init__(parent)
-
-        self.toggle_button = QToolButton(
-            text=title, checkable=True, checked=False
-        )
-        self.toggle_button.setStyleSheet("QToolButton { border: none; }")
-        self.toggle_button.setToolButtonStyle(
-            QtCore.Qt.ToolButtonStyle.ToolButtonTextBesideIcon
-        )
-        self.toggle_button.setArrowType(QtCore.Qt.ArrowType.RightArrow)
-        self.toggle_button.pressed.connect(self.on_pressed)
-
-        self.toggle_animation = QtCore.QParallelAnimationGroup(self)
-
-        self.content_area = QScrollArea(maximumHeight=0, minimumHeight=0)
-        self.content_area.setSizePolicy(
-            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed
-        )
-        self.content_area.setFrameShape(QFrame.Shape.NoFrame)
-
-        lay = QVBoxLayout(self)
-        lay.setSpacing(0)
-        lay.setContentsMargins(0, 0, 0, 0)
-        lay.addWidget(self.toggle_button)
-        lay.addWidget(self.content_area)
-
-        self.toggle_animation.addAnimation(
-            QtCore.QPropertyAnimation(self, b"minimumHeight")
-        )
-        self.toggle_animation.addAnimation(
-            QtCore.QPropertyAnimation(self, b"maximumHeight")
-        )
-        self.toggle_animation.addAnimation(
-            QtCore.QPropertyAnimation(self.content_area, b"maximumHeight")
-        )
-
-    def setNewName(self, name):
-        self.toggle_button.setText(name)
-
-    # @QtCore.pyqtSlot()
-    def on_pressed(self):
-        checked = self.toggle_button.isChecked()
-        self.toggle_button.setArrowType(
-            QtCore.Qt.ArrowType.DownArrow if not checked else QtCore.Qt.ArrowType.RightArrow
-        )
-        self.toggle_animation.setDirection(
-            QtCore.QAbstractAnimation.Direction.Forward
-            if not checked
-            else QtCore.QAbstractAnimation.Direction.Backward
-        )
-        self.toggle_animation.start()
-
-    def setContentLayout(self, layout):
-        lay = self.content_area.layout()
-        del lay
-        self.content_area.setLayout(layout)
-        collapsed_height = (
-            self.sizeHint().height() - self.content_area.maximumHeight()
-        )
-        content_height = layout.sizeHint().height()
-        for i in range(self.toggle_animation.animationCount()):
-            animation = self.toggle_animation.animationAt(i)
-            animation.setDuration(500)
-            animation.setStartValue(collapsed_height)
-            animation.setEndValue(collapsed_height + content_height)
-
-        content_animation = self.toggle_animation.animationAt(
-            self.toggle_animation.animationCount() - 1
-        )
-        content_animation.setDuration(500)
-        content_animation.setStartValue(0)
-        content_animation.setEndValue(content_height)
-
-
-import socket, threading
-
-
 class MyWorker:
 
     def __init__(self, formLayout, tab_recon: Ui_ReconTab_Form, parentForm):
@@ -2078,9 +2318,9 @@ class MyWorker:
         self.threadPool = int(self.max_cores / 2)
         self.results = {}
         self.pool = None
+        self.futures = []
         # https://click.palletsprojects.com/en/stable/testing/
-        # self.runner = CliRunner()
-        self.startPool()
+        # self.runner = CliRunner()        
         # jobs_mgmt.shared_var_jobs = self.JobsManager.shared_var_jobs
         self.JobsMgmt = jobs_mgmt.JobsManagement()
         self.JobsMgmt.clearLogs()
@@ -2090,9 +2330,7 @@ class MyWorker:
         thread = threading.Thread(target=self.startServer)
         thread.start()
         self.workerThreadRowDeletion = RowDeletionWorkerThread(self.formLayout)
-        self.workerThreadRowDeletion.removeRowSignal.connect(
-            self.tab_recon.removeRow
-        )
+        self.workerThreadRowDeletion.removeRowSignal.connect(self.tab_recon.removeRow)
         self.workerThreadRowDeletion.start()
 
     def setNewInstances(self, formLayout, tab_recon, parentForm):
@@ -2161,7 +2399,7 @@ class MyWorker:
 
     def startPool(self):
         if self.pool is None:
-            self.pool = ThreadPoolExecutor(max_workers=self.threadPool)
+            self.pool = concurrent.futures.ThreadPoolExecutor(max_workers=self.threadPool)
 
     def shutDownPool(self):
         self.pool.shutdown(wait=True)
@@ -2180,19 +2418,132 @@ class MyWorker:
                     if b"\n" in buf:
                         dataList = buf.split(b"\n")
                     else:
-                        dataList = [buf]
+                        dataList = [buf]                    
                     for data in dataList:
                         if len(data)>0:
                             decoded_string = data.decode()
-                            json_str = str(decoded_string)
-                            json_obj = json.loads(json_str)
-                            for k in json_obj:
-                                expIdx = k
-                                jobIdx = json_obj[k]["jID"]
-                                wellName = json_obj[k]["pos"]
+                            if "CoNvErTeR" in decoded_string: # this request came from an agnostic route - requires processing
+                                json_str = str(decoded_string)
+                                json_obj = json.loads(json_str)
+                                converter_params = json_obj["CoNvErTeR"]
+                                input_data = converter_params["input"]
+                                output_data = converter_params["output"]
+                                recon_params = converter_params["params"]
+                                expID = recon_params["expID"]
+                                mode = recon_params["mode"]
+                                if "config_path" in recon_params.keys():
+                                    config_path = recon_params["config_path"]
+                                else:
+                                    config_path = ""
+
+                                proc_params = {}
+                                proc_params["exp_id"] = expID
+                                proc_params["desc"] = expID                                
+                                proc_params["input_path"] = str(input_data)
+                                proc_params["output_path"] = str(output_data)
+                                proc_params["output_path_parent"] = str(Path(output_data).parent.absolute())
+
+                                if config_path == "":
+                                    model = None
+                                    if len(self.tab_recon.pydantic_classes) > 0:
+                                        for item in self.tab_recon.pydantic_classes:
+                                            if mode == item["selected_modes"]:
+                                                cls = item["class"]
+                                                cls_container = item["container"]
+                                                exclude_modes = item["exclude_modes"]
+
+                                                # gather input/out locations
+                                                output_dir = f"{item['output'].value}"
+                                                if output_data == "":
+                                                    output_data = output_dir
+                                                    proc_params["output_path"] = str(output_data)
+
+                                                # build up the arguments for the pydantic model given the current container
+                                                if cls is None:
+                                                    self.tab_recon.messageBox("No model defined !")
+                                                    return
+
+                                                pydantic_kwargs = {}
+                                                pydantic_kwargs, ret_msg = self.tab_recon.get_and_validate_pydantic_args(
+                                                    cls_container, cls, pydantic_kwargs, exclude_modes
+                                                )
+                                                if pydantic_kwargs is None:
+                                                    self.tab_recon.messageBox(ret_msg)
+                                                    return
+
+                                                input_channel_names, ret_msg = self.tab_recon.clean_string_for_list(
+                                                    "input_channel_names", pydantic_kwargs["input_channel_names"]
+                                                )
+                                                if input_channel_names is None:
+                                                    self.tab_recon.messageBox(ret_msg)
+                                                    return
+                                                pydantic_kwargs["input_channel_names"] = input_channel_names
+
+                                                time_indices, ret_msg = self.tab_recon.clean_string_int_for_list(
+                                                    "time_indices", pydantic_kwargs["time_indices"]
+                                                )
+                                                if time_indices is None:
+                                                    self.tab_recon.messageBox(ret_msg)
+                                                    return
+                                                pydantic_kwargs["time_indices"] = time_indices
+
+                                                time_indices, ret_msg = self.tab_recon.clean_string_int_for_list(
+                                                    "time_indices", pydantic_kwargs["time_indices"]
+                                                )
+                                                if time_indices is None:
+                                                    self.tab_recon.messageBox(ret_msg)
+                                                    return
+                                                pydantic_kwargs["time_indices"] = time_indices
+
+                                                if "birefringence" in pydantic_kwargs.keys():
+                                                    background_path, ret_msg = self.tab_recon.clean_path_string_when_empty(
+                                                        "background_path",
+                                                        pydantic_kwargs["birefringence"]["apply_inverse"][
+                                                            "background_path"
+                                                        ],
+                                                    )
+                                                    if background_path is None:
+                                                        self.tab_recon.messageBox(ret_msg)
+                                                        return
+                                                    pydantic_kwargs["birefringence"]["apply_inverse"][
+                                                        "background_path"
+                                                    ] = background_path
+
+                                                # validate and return errors if None
+                                                pydantic_model, ret_msg = self.tab_recon.validate_pydantic_model(
+                                                    cls, pydantic_kwargs
+                                                )
+                                                if pydantic_model is None:
+                                                    self.tab_recon.messageBox(ret_msg)
+                                                    return
+                                                model = pydantic_model
+                                                break
+                                    if model is None:
+                                        model, msg = self.tab_recon.buildModel(mode)
+                                    yaml_path = os.path.join(str(Path(output_data).parent.absolute()), expID+".yml")
+                                    utils.model_to_yaml(model, yaml_path)
+                                proc_params["config_path"] = str(yaml_path)
+
+                                tableEntryWorker = AddTableEntryWorkerThread(expID, expID, proc_params)
+                                tableEntryWorker.add_tableentry_signal.connect(self.tab_recon.addTableEntry)
+                                tableEntryWorker.start()
+                                time.sleep(10)
+                                return
+                            else:
+                                json_str = str(decoded_string)
+                                json_obj = json.loads(json_str)
+                                for k in json_obj:
+                                    expIdx = k
+                                    jobIdx = json_obj[k]["jID"]
+                                    wellName = json_obj[k]["pos"]
+                                if expIdx not in self.results.keys(): # this job came from agnostic CLI route - no processing
+                                    now = datetime.datetime.now()
+                                    ms = now.strftime("%f")[:3]
+                                    unique_id = now.strftime("%Y_%m_%d_%H_%M_%S_") + ms
+                                    expIdx = expIdx +"-"+ unique_id
                                 self.JobsMgmt.putJobInList(None, expIdx, str(jobIdx), wellName, mode="server")
-                            thread = threading.Thread(target=self.tableUpdateAndCleaupThread,args=(expIdx, jobIdx, wellName, client_socket))
-                            thread.start()
+                                thread = threading.Thread(target=self.tableUpdateAndCleaupThread,args=(expIdx, jobIdx, wellName, client_socket))
+                                thread.start()
                 return
             except:
                 pass
@@ -2208,7 +2559,28 @@ class MyWorker:
             # this request came from server so we can wait for the Job to finish and update progress
             # some wait logic needs to be added otherwise for unknown errors this thread will persist
             # perhaps set a time out limit and then update the status window and then exit
-            params = self.results[expIdx]["JobUNK"].copy()
+
+            if expIdx not in self.results.keys(): # this job came from agnostic route
+                proc_params = {}
+                tableID = "{exp} - {job} ({pos})".format(exp=expIdx, job=jobIdx, pos=wellName)
+                proc_params["exp_id"] = expIdx
+                proc_params["desc"] = tableID
+                proc_params["config_path"] = ""
+                proc_params["input_path"] = ""
+                proc_params["output_path"] = ""
+                proc_params["output_path_parent"] = ""
+                
+                tableEntryWorker = AddTableEntryWorkerThread(tableID, tableID, proc_params)
+                tableEntryWorker.add_tableentry_signal.connect(self.tab_recon.addTableEntry)
+                tableEntryWorker.start()
+                
+                while expIdx not in self.results.keys():
+                    time.sleep(1)
+
+                params = self.results[expIdx]["JobUNK"].copy()
+                params["status"] = STATUS_running_job
+            else:
+                params = self.results[expIdx]["JobUNK"].copy()
 
             if jobIdx not in self.results[expIdx].keys() and len(self.results[expIdx].keys()) == 1:
                 # this is the first job
@@ -2400,19 +2772,33 @@ class MyWorker:
             json_str = json.dumps(json_obj)+"\n"
             client_socket.send(json_str.encode())
 
+        if self.pool is not None:
+            print("Number of running threads:", self.pool._work_queue.qsize())
+            if self.pool._work_queue.qsize() == 0:
+                self.pool.shutdown()
+                self.pool = None
+
     def runInPool(self, params):
+        self.startPool()
         self.results[params["exp_id"]] = {}
         self.results[params["exp_id"]]["JobUNK"] = params
         self.results[params["exp_id"]]["JobUNK"]["status"] = STATUS_running_pool
         self.results[params["exp_id"]]["JobUNK"]["error"] = ""
+
         try:
-            self.pool.submit(self.run, params)
+            # when a request on the listening port arrives with an empty path
+            # we can assume the processing was initiated outside this application
+            # we do not proceed with the processing and will display the results
+            if params["input_path"] != "":
+                f = self.pool.submit(self.run, params)
+                self.futures.append(f)
         except Exception as exc:
             self.results[params["exp_id"]]["JobUNK"]["status"] = STATUS_errored_pool
             self.results[params["exp_id"]]["JobUNK"]["error"] = str("\n".join(exc.args))
             self.tableUpdateAndCleaupThread()
 
     def runMultiInPool(self, multi_params_as_list):
+        self.startPool()
         for params in multi_params_as_list:
             self.results[params["exp_id"]] = {}
             self.results[params["exp_id"]]["JobUNK"] = params
@@ -2436,11 +2822,12 @@ class MyWorker:
 
     def run(self, params):
         # thread where work is passed to CLI which will handle the
-        # multi-processing aspects based on resources
+        # multi-processing aspects as Jobs
         if params["exp_id"] not in self.results.keys():
             self.results[params["exp_id"]] = {}
             self.results[params["exp_id"]]["JobUNK"] = params
             self.results[params["exp_id"]]["JobUNK"]["error"] = ""
+            self.results[params["exp_id"]]["JobUNK"]["status"] = STATUS_running_pool
 
         try:
             # does need further threading ? probably not !
@@ -2449,17 +2836,13 @@ class MyWorker:
             )
             thread.start()
 
-            # self.runInSubProcess(params)
-
-            # check for this job to show up in submitit jobs list
-            # wait for 2 sec before raising an error
-
         except Exception as exc:
             self.results[params["exp_id"]]["JobUNK"]["status"] = STATUS_errored_pool
             self.results[params["exp_id"]]["JobUNK"]["error"] = str("\n".join(exc.args))
             self.tableUpdateAndCleaupThread()
 
     def runInSubProcess(self, params):
+        """function that initiates the processing on the CLI"""
         try:
             input_path = str(params["input_path"])
             config_path = str(params["config_path"])
@@ -2497,7 +2880,36 @@ class MyWorker:
             self.results[params["exp_id"]]["JobUNK"]["error"] = str("\n".join(exc.args))
             self.tableUpdateAndCleaupThread()
 
+class AddOTFTableEntryWorkerThread(QThread):
+    """Worker thread for sending signal for adding component when request comes
+    from a different thread"""
+    add_tableOTFentry_signal = pyqtSignal(str, bool)
+
+    def __init__(self, OTF_dir_path, bool_msg):
+        super().__init__()
+        self.OTF_dir_path = OTF_dir_path
+        self.bool_msg = bool_msg
+
+    def run(self):        
+        # Emit the signal to add the widget to the main thread
+        self.add_tableOTFentry_signal.emit(self.OTF_dir_path, self.bool_msg)
+class AddTableEntryWorkerThread(QThread):
+    """Worker thread for sending signal for adding component when request comes
+    from a different thread"""
+    add_tableentry_signal = pyqtSignal(str, str, dict)
+
+    def __init__(self, expID, desc, params):
+        super().__init__()
+        self.expID = expID
+        self.desc = desc
+        self.params = params
+
+    def run(self):        
+        # Emit the signal to add the widget to the main thread
+        self.add_tableentry_signal.emit(self.expID, self.desc, self.params)
 class AddWidgetWorkerThread(QThread):
+    """Worker thread for sending signal for adding component when request comes
+    from a different thread"""
     add_widget_signal = pyqtSignal(QVBoxLayout, str, str, str, str)
 
     def __init__(self, layout, expID, jID, desc, wellName):
@@ -2514,9 +2926,10 @@ class AddWidgetWorkerThread(QThread):
 
 ROW_POP_QUEUE = []
 
-
-# Emits a signal to QFormLayout on the main thread
 class RowDeletionWorkerThread(QThread):
+    """Searches for a row based on its ID and then
+    emits a signal to QFormLayout on the main thread for deletion"""
+
     removeRowSignal = pyqtSignal(int, str)
 
     def __init__(self, formLayout):
@@ -2553,6 +2966,7 @@ class RowDeletionWorkerThread(QThread):
                 time.sleep(5)
 
 class DropButton(QPushButton):
+    """A drag & drop PushButton to load model file(s)"""
     def __init__(self, text, parent=None, recon_tab:Ui_ReconTab_Form=None):
         super().__init__(text, parent)
         self.setAcceptDrops(True)
@@ -2570,6 +2984,7 @@ class DropButton(QPushButton):
         self.recon_tab.openModelFiles(files)
 
 class DropWidget(QWidget):
+    """A drag & drop widget container to load model file(s) """
     def __init__(self, recon_tab:Ui_ReconTab_Form=None):
         super().__init__()
         self.setAcceptDrops(True)
@@ -2587,6 +3002,7 @@ class DropWidget(QWidget):
         self.recon_tab.openModelFiles(files)
 
 class ScrollableLabel(QScrollArea):
+    """A scrollable label widget used for Job entry """
     def __init__(self, text, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
@@ -2606,6 +3022,88 @@ class ScrollableLabel(QScrollArea):
 
     def setText(self, text):
         self.label.setText(text)
+
+class CollapsibleBox(QWidget):
+    """A collapsible widget"""
+
+    def __init__(self, title="", parent=None, hasPydanticModel=False):
+        super(CollapsibleBox, self).__init__(parent)
+
+        self.hasPydanticModel = hasPydanticModel
+        self.toggle_button = QToolButton(
+            text=title, checkable=True, checked=False
+        )
+        self.toggle_button.setStyleSheet("QToolButton { border: none; }")
+        self.toggle_button.setToolButtonStyle(
+            QtCore.Qt.ToolButtonStyle.ToolButtonTextBesideIcon
+        )
+        self.toggle_button.setArrowType(QtCore.Qt.ArrowType.RightArrow)
+        self.toggle_button.pressed.connect(self.on_pressed)
+
+        self.toggle_animation = QtCore.QParallelAnimationGroup(self)
+
+        self.content_area = QScrollArea(maximumHeight=0, minimumHeight=0)
+        self.content_area.setSizePolicy(
+            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed
+        )
+        self.content_area.setFrameShape(QFrame.Shape.NoFrame)
+
+        lay = QVBoxLayout(self)
+        lay.setSpacing(0)
+        lay.setContentsMargins(0, 0, 0, 0)
+        lay.addWidget(self.toggle_button)
+        lay.addWidget(self.content_area)
+
+        self.toggle_animation.addAnimation(
+            QtCore.QPropertyAnimation(self, b"minimumHeight")
+        )
+        self.toggle_animation.addAnimation(
+            QtCore.QPropertyAnimation(self, b"maximumHeight")
+        )
+        self.toggle_animation.addAnimation(
+            QtCore.QPropertyAnimation(self.content_area, b"maximumHeight")
+        )
+
+    def setNewName(self, name):
+        self.toggle_button.setText(name)
+
+    # @QtCore.pyqtSlot()
+    def on_pressed(self):
+        checked = self.toggle_button.isChecked()
+        self.toggle_button.setArrowType(
+            QtCore.Qt.ArrowType.DownArrow if not checked else QtCore.Qt.ArrowType.RightArrow
+        )
+        self.toggle_animation.setDirection(
+            QtCore.QAbstractAnimation.Direction.Forward
+            if not checked
+            else QtCore.QAbstractAnimation.Direction.Backward
+        )
+        self.toggle_animation.start()
+        if checked and self.hasPydanticModel:
+            # do model verification on close
+            pass
+
+    def setContentLayout(self, layout):
+        lay = self.content_area.layout()
+        del lay
+        self.content_area.setLayout(layout)
+        collapsed_height = (
+            self.sizeHint().height() - self.content_area.maximumHeight()
+        )
+        content_height = layout.sizeHint().height()
+        for i in range(self.toggle_animation.animationCount()):
+            animation = self.toggle_animation.animationAt(i)
+            animation.setDuration(500)
+            animation.setStartValue(collapsed_height)
+            animation.setEndValue(collapsed_height + content_height)
+
+        content_animation = self.toggle_animation.animationAt(
+            self.toggle_animation.animationCount() - 1
+        )
+        content_animation.setDuration(500)
+        content_animation.setStartValue(0)
+        content_animation.setEndValue(content_height)
+
 
 # VScode debugging
 if __name__ == "__main__":

@@ -21,7 +21,7 @@ class JobsManagement():
         thread = threading.Thread(target=self.clearLogFiles, args={self.logsPath,})
         thread.start()
 
-    def clearLogFiles(self, dirPath):
+    def clearLogFiles(self, dirPath, silent=True):
         for filename in os.listdir(dirPath):
             file_path = os.path.join(dirPath, filename)
             try:
@@ -30,7 +30,8 @@ class JobsManagement():
                 elif os.path.isdir(file_path):
                     shutil.rmtree(file_path)
             except Exception as e:
-                print('Failed to delete %s. Reason: %s' % (file_path, e))
+                if not silent:
+                    print('Failed to delete %s. Reason: %s' % (file_path, e))
 
     def checkForJobIDFile(self, jobID, extension="out"):
         files = os.listdir(self.logsPath)
