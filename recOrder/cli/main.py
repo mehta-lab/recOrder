@@ -24,3 +24,6 @@ cli.add_command(reconstruct)
 cli.add_command(compute_tf)
 cli.add_command(apply_inv_tf)
 cli.add_command(gui)
+
+if __name__ == "__main__":
+    cli()
