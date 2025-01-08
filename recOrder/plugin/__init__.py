@@ -3,9 +3,17 @@ import qtpy
 
 if qtpy.PYQT5:
     raise RuntimeError(
-        "Please remove PyQt5 from your environment with `pip uninstall PyQt5`"
+        """
+        The current environment uses PyQt5, which is not supported by recOrder.
+        If you are in an environment with an existing napari installation, 
+        use `pip install napari[pyqt6]` to install PyQt6 then try again.
+        """
     )
 elif qtpy.PYSIDE2:
     raise RuntimeError(
-        "Please remove PySide2 from your environment with `pip uninstall PySide2`"
+        """
+        The current environment uses PySide2, which is not supported by recOrder.
+        If you are in an environment with an existing napari installation, 
+        use `pip install napari[pyside6_experimental]` to install PySide6 then try again.
+        """
     )
