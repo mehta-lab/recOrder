@@ -1,6 +1,6 @@
 # recOrder
-[![Python package index](https://img.shields.io/pypi/v/waveorder.svg)](https://pypi.org/project/recOrder-napari)
-[![PyPI monthly downloads](https://img.shields.io/pypi/dm/waveorder.svg)](https://pypistats.org/packages/recOrder-napari)
+[![Python package index](https://img.shields.io/pypi/v/recOrder-napari.svg)](https://pypi.org/project/recOrder-napari)
+[![PyPI monthly downloads](https://img.shields.io/pypi/dm/recOrder-napari.svg)](https://pypistats.org/packages/recOrder-napari)
 [![Total downloads](https://pepy.tech/badge/recOrder-napari)](https://pepy.tech/project/recOrder-napari)
 [![GitHub contributors](https://img.shields.io/github/contributors-anon/mehta-lab/recOrder)](https://github.com/mehta-lab/recOrder/graphs/contributors)
 ![GitHub Repo stars](https://img.shields.io/github/stars/mehta-lab/recOrder)
