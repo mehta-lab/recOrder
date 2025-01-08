@@ -370,8 +370,8 @@ class Ui_ReconTab_Form(QWidget):
             HAS_INSTANCE["val"] = True
             HAS_INSTANCE["MyWorker"] = self.worker
 
-        app = QApplication.instance()
-        app.lastWindowClosed.connect(
+        self.app = QApplication.instance()
+        self.app.lastWindowClosed.connect(
             self.myCloseEvent
         )  # this line is connection to signal close
 
@@ -379,6 +379,7 @@ class Ui_ReconTab_Form(QWidget):
     def myCloseEvent(self):
         event = QEvent(QEvent.Type.Close)
         self.closeEvent(event)
+        # self.app.exit()
 
     # on napari close - cleanup
     def closeEvent(self, event):
@@ -2323,15 +2324,20 @@ class MyWorker:
         # self.runner = CliRunner()        
         # jobs_mgmt.shared_var_jobs = self.JobsManager.shared_var_jobs
         self.JobsMgmt = jobs_mgmt.JobsManagement()
-        self.JobsMgmt.clearLogs()
         self.useServer = True
         self.serverRunning = True
-        self.server_socket = None
-        thread = threading.Thread(target=self.startServer)
-        thread.start()
-        self.workerThreadRowDeletion = RowDeletionWorkerThread(self.formLayout)
-        self.workerThreadRowDeletion.removeRowSignal.connect(self.tab_recon.removeRow)
-        self.workerThreadRowDeletion.start()
+        self.server_socket = None      
+        self.isInitialized = False  
+
+    def initialize(self): 
+        if not self.isInitialized:       
+            thread = threading.Thread(target=self.startServer)
+            thread.start()
+            self.workerThreadRowDeletion = RowDeletionWorkerThread(self.formLayout)
+            self.workerThreadRowDeletion.removeRowSignal.connect(self.tab_recon.removeRow)
+            self.workerThreadRowDeletion.start()
+            self.JobsMgmt.clearLogs()
+            self.isInitialized = True
 
     def setNewInstances(self, formLayout, tab_recon, parentForm):
         self.formLayout: QFormLayout = formLayout
@@ -2779,6 +2785,9 @@ class MyWorker:
                 self.pool = None
 
     def runInPool(self, params):
+        if not self.isInitialized:
+            self.initialize()
+
         self.startPool()
         self.results[params["exp_id"]] = {}
         self.results[params["exp_id"]]["JobUNK"] = params
