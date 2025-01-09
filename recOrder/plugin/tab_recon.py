@@ -1028,21 +1028,53 @@ class Ui_ReconTab_Form(QWidget):
         
         return proc_params
 
-    def addRemoveOTFTableEntry(self, OTF_dir_path, bool_msg):
-        if bool_msg:
-            otf_label = QLabel(text=OTF_dir_path + " " + _green_dot)
-            self.proc_OTF_table_QFormLayout.insertRow(0, otf_label)
-        else:
+    def addRemoveCheckOTFTableEntry(self, OTF_dir_path, bool_msg, doCheck=False):
+        if doCheck:
             try:
                 for row in range(self.proc_OTF_table_QFormLayout.rowCount()):
                     widgetItem = self.proc_OTF_table_QFormLayout.itemAt(row)
                     if widgetItem is not None:
-                        name_widget:QLabel = widgetItem.widget()
-                        name_string = str(name_widget.text())
+                        name_widget:QWidget = widgetItem.widget()
+                        name_string = str(name_widget.objectName())
                         if OTF_dir_path in name_string:
-                            self.proc_OTF_table_QFormLayout.removeRow(row)
+                            for item in name_widget.findChildren(QPushButton):
+                                _poll_Stop_PushButton:QPushButton = item
+                                return _poll_Stop_PushButton.isChecked()
+                return False                   
             except Exception as exc:
                 print(exc.args)
+                return False
+        else:
+            if bool_msg:
+                _poll_otf_label = QLabel(text=OTF_dir_path + " " + _green_dot)
+                _poll_Stop_PushButton = QPushButton("Stop")
+                _poll_Stop_PushButton.setCheckable(True)  # Make the button checkable
+                _poll_Stop_PushButton.clicked.connect(lambda:self.stopOTF_PushButtonCall(_poll_otf_label, OTF_dir_path + " " + _red_dot))
+                
+                _poll_data_widget = QWidget()
+                _poll_data_widget.setObjectName(OTF_dir_path)
+                _poll_data_widget_layout = QHBoxLayout()
+                _poll_data_widget.setLayout(_poll_data_widget_layout)
+                _poll_data_widget_layout.addWidget(_poll_otf_label)
+                _poll_data_widget_layout.addWidget(_poll_Stop_PushButton)
+
+                self.proc_OTF_table_QFormLayout.insertRow(0, _poll_data_widget)
+            else:
+                try:
+                    for row in range(self.proc_OTF_table_QFormLayout.rowCount()):
+                        widgetItem = self.proc_OTF_table_QFormLayout.itemAt(row)
+                        if widgetItem is not None:
+                            name_widget:QWidget = widgetItem.widget()
+                            name_string = str(name_widget.objectName())
+                            if OTF_dir_path in name_string:
+                                self.proc_OTF_table_QFormLayout.removeRow(row)
+                except Exception as exc:
+                    print(exc.args)
+
+    def stopOTF_PushButtonCall(self, label, txt):
+        _poll_otf_label: QLabel = label
+        _poll_otf_label.setText(txt)
+        self.setDisabled(True)
 
     # adds processing entry to _qwidgetTabEntry_layout as row item
     # row item will be purged from table as processing finishes
@@ -1848,14 +1880,25 @@ class Ui_ReconTab_Form(QWidget):
         required_order = ['time', 'position', 'z', 'channel']
         _pollData = True
 
-        tableEntryWorker = AddOTFTableEntryWorkerThread(input_data_path, True)
-        tableEntryWorker.add_tableOTFentry_signal.connect(self.addRemoveOTFTableEntry)
+        tableEntryWorker = AddOTFTableEntryWorkerThread(input_data_path, True, False)
+        tableEntryWorker.add_tableOTFentry_signal.connect(self.addRemoveCheckOTFTableEntry)
         tableEntryWorker.start()
         _breakFlag = False
         while True:
             time.sleep(10)
             zattrs_data = None
             try:
+                _stopCalled = self.addRemoveCheckOTFTableEntry(input_data_path, True, doCheck=True)
+                if _stopCalled:                            
+                    tableEntryWorker2 = AddOTFTableEntryWorkerThread(input_data_path, False, False)
+                    tableEntryWorker2.add_tableOTFentry_signal.connect(self.addRemoveCheckOTFTableEntry)
+                    tableEntryWorker2.start()
+
+                    # let child threads finish their work before exiting the parent thread
+                    while tableEntryWorker2.isRunning():
+                        time.sleep(1)
+                    time.sleep(5)
+                    break
                 try:
                     data = open_ome_zarr(input_data_path, mode="r")
                     zattrs_data = data.zattrs
@@ -1968,8 +2011,8 @@ class Ui_ReconTab_Form(QWidget):
 
                         if json.dumps(sorted_dict_acq) == json.dumps(sorted_dict_final) and _breakFlag:
                             
-                            tableEntryWorker2 = AddOTFTableEntryWorkerThread(input_data_path, False)
-                            tableEntryWorker2.add_tableOTFentry_signal.connect(self.addRemoveOTFTableEntry)
+                            tableEntryWorker2 = AddOTFTableEntryWorkerThread(input_data_path, False, False)
+                            tableEntryWorker2.add_tableOTFentry_signal.connect(self.addRemoveCheckOTFTableEntry)
                             tableEntryWorker2.start()
 
                             # let child threads finish their work before exiting the parent thread
@@ -2982,16 +3025,17 @@ class ShowDataWorkerThread(QThread):
 class AddOTFTableEntryWorkerThread(QThread):
     """Worker thread for sending signal for adding component when request comes
     from a different thread"""
-    add_tableOTFentry_signal = pyqtSignal(str, bool)
+    add_tableOTFentry_signal = pyqtSignal(str, bool, bool)
 
-    def __init__(self, OTF_dir_path, bool_msg):
+    def __init__(self, OTF_dir_path, bool_msg, doCheck=False):
         super().__init__()
         self.OTF_dir_path = OTF_dir_path
         self.bool_msg = bool_msg
+        self.doCheck = doCheck
 
     def run(self):        
         # Emit the signal to add the widget to the main thread
-        self.add_tableOTFentry_signal.emit(self.OTF_dir_path, self.bool_msg)
+        self.add_tableOTFentry_signal.emit(self.OTF_dir_path, self.bool_msg, self.doCheck)
 class AddTableEntryWorkerThread(QThread):
     """Worker thread for sending signal for adding component when request comes
     from a different thread"""
