@@ -1981,6 +1981,8 @@ class Ui_ReconTab_Form(QWidget):
                         last_time_index = my_dict_time_indices_curr-2
             except Exception as exc:
                 print(exc.args)
+                print("Exiting polling for dataset: {data_path}".format(data_path=input_data_path))
+                break
 
     def loadZattrsDirectlyAsDict(self, zattrsFilePathDir):
         try:
