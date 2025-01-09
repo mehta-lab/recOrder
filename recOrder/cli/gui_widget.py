@@ -17,7 +17,7 @@ def gui():
     app = QApplication(sys.argv)
     app.setStyle("Fusion") # Other options: "Fusion", "Windows", "macOS", "WindowsVista"
     try:
-        qdarktheme.setup_theme('auto')
+        qdarktheme.setup_theme("dark")
     except:pass
     window = MainWindow()
     window.setWindowTitle(PLUGIN_ICON + " " + PLUGIN_NAME + " " + PLUGIN_ICON)
@@ -35,7 +35,7 @@ class MainWindow(QWidget):
         recon_tab = tab_recon.Ui_ReconTab_Form(stand_alone=True)
         layout = QVBoxLayout()        
         self.setLayout(layout)
-        layout.addWidget(recon_tab.recon_tab_widget)
+        layout.addWidget(recon_tab.recon_tab_mainScrollArea)
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     gui()

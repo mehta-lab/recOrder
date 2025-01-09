@@ -90,6 +90,7 @@ class MainWidget(QWidget):
         # Setup GUI elements
         self.ui = gui.Ui_Form()
         self.ui.setupUi(self)
+        self.ui.tab_reconstruction.setViewer(napari_viewer)
 
         # Override initial tab focus
         self.ui.tabWidget.setCurrentIndex(0)
