@@ -21,7 +21,15 @@ class JobsManagement():
         thread = threading.Thread(target=self.clearLogFiles, args={self.logsPath,})
         thread.start()
 
+    def create_dir_if_not_exists(self, directory):
+        if not os.path.exists(directory):
+            os.makedirs(directory)
+            time.sleep(1)
+
     def clearLogFiles(self, dirPath, silent=True):
+
+        self.create_dir_if_not_exists(dirPath)
+
         for filename in os.listdir(dirPath):
             file_path = os.path.join(dirPath, filename)
             try:
