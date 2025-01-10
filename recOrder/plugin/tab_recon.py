@@ -86,6 +86,7 @@ _validate_alert = "⚠"
 _validate_ok = "✔️"
 _green_dot = "🟢"
 _red_dot = "🔴"
+_info_icon = "ⓘ"
 
 # For now replicate CLI processing modes - these could reside in the CLI settings file as well
 # for consistency
@@ -134,6 +135,7 @@ class Ui_ReconTab_Form(QWidget):
 
         self.input_directory_dataset = None
         self.input_directory_datasetMeta = None
+        self.input_channel_names = []
 
         # Parent (Widget) which holds the GUI ##############################
         self.recon_tab_mainScrollArea = QScrollArea()
@@ -466,10 +468,15 @@ class Ui_ReconTab_Form(QWidget):
         # Sort and validate the input paths, expanding plates into lists of positions
         # return True, MSG_SUCCESS
         try:
+            self.input_channel_names = []
+            self.data_input_Label.value = "Input Store"
             input_paths = Path(input_data_folder)
             with open_ome_zarr(input_paths, mode="r") as dataset:
                 # ToDo: Metadata reading and implementation in GUI for
                 # channel names, time indicies, etc.
+                self.input_channel_names = dataset.channel_names
+                self.data_input_Label.value = "Input Store" + " " + _info_icon
+                self.data_input_Label.tooltip = "Channel Names:\n- " + "\n- ".join(self.input_channel_names)
                 if not BG and metadata:
                     self.input_directory_dataset = dataset
 
@@ -1316,17 +1323,6 @@ class Ui_ReconTab_Form(QWidget):
             self.messageBox(ret_msg)
             return
 
-        # Line seperator between pydantic UI components
-        _line = QFrame()
-        _line.setMinimumWidth(1)
-        _line.setFixedHeight(2)
-        _line.setFrameShape(QFrame.HLine)
-        _line.setFrameShadow(QFrame.Sunken)
-        _line.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Minimum)
-        _line.setStyleSheet(
-            "border:1px solid rgb(128,128,128); border-width: 1px;"
-        )        
-
         # PushButton to delete a UI container
         # Use case when a wrong selection of input modes get selected eg Bire+Fl
         # Preferably this root level validation should occur before values arevalidated
@@ -1363,6 +1359,9 @@ class Ui_ReconTab_Form(QWidget):
             lambda: self.readAndSetOutputPathOnValidation(_output_data_loc, _output_data_btn, save_path)
         )
 
+        _show_CheckBox = widgets.CheckBox(name="Show after Reconstruction", value=True)
+        _validate_button = widgets.PushButton(name="Validate")
+
         # Passing all UI components that would be deleted
         _expandingTabEntryWidget = QWidget()
         _del_button.clicked.connect(
@@ -1371,9 +1370,9 @@ class Ui_ReconTab_Form(QWidget):
                 recon_pydantic_container.native,
                 _output_data_loc.native,
                 _output_data_btn.native,
+                _show_CheckBox.native,
+                _validate_button.native,
                 _del_button.native,
-                _line,
-                _idx,
                 _str,
             )
         )
@@ -1405,9 +1404,7 @@ class Ui_ReconTab_Form(QWidget):
         _collapsibleBoxWidget = CollapsibleBox(
             c_mode_str
         )  # tableEntryID, tableEntryShortDesc - should update with processing status
-                
-        _show_CheckBox = widgets.CheckBox(name="Show after Reconstruction", value=True)
-        _validate_button = widgets.PushButton(name="Validate")
+                        
         _validate_button.clicked.connect(lambda:self._validate_model(_str, _collapsibleBoxWidget))
 
         _hBox_widget2 = QWidget()
@@ -1433,11 +1430,10 @@ class Ui_ReconTab_Form(QWidget):
         )
         _scrollAreaCollapsibleBoxWidgetLayout.addWidget(_hBox_widget)
         _scrollAreaCollapsibleBoxWidgetLayout.addWidget(_hBox_widget2)
-        _scrollAreaCollapsibleBoxWidgetLayout.addWidget(_line)
 
         _scrollAreaCollapsibleBox.setMinimumHeight(_scrollAreaCollapsibleBoxWidgetLayout.sizeHint().height())
         _collapsibleBoxWidget.setSizePolicy(
-            QSizePolicy.Expanding, QSizePolicy.Fixed
+            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed
         )
         _collapsibleBoxWidget.setContentLayout(_collapsibleBoxWidgetLayout)
 
@@ -1578,21 +1574,21 @@ class Ui_ReconTab_Form(QWidget):
 
 
     # UI components deletion - maybe just needs the parent container instead of individual components
-    def _delete_model(self, wid0, wid1, wid2, wid3, wid4, wid5, index, _str):
+    def _delete_model(self, wid0, wid1, wid2, wid3, wid4, wid5, wid6, _str):
 
         if not self.confirmDialog():
             return False
 
-        if wid5 is not None:
-            wid5.setParent(None)
-        if wid4 is not None:
-            wid4.setParent(None)
-        if wid3 is not None:
-            wid3.setParent(None)
-        if wid2 is not None:
-            wid2.setParent(None)
-        if wid1 is not None:
-            wid1.setParent(None)
+        # if wid5 is not None:
+        #     wid5.setParent(None)
+        # if wid4 is not None:
+        #     wid4.setParent(None)
+        # if wid3 is not None:
+        #     wid3.setParent(None)
+        # if wid2 is not None:
+        #     wid2.setParent(None)
+        # if wid1 is not None:
+        #     wid1.setParent(None)
         if wid0 is not None:
             wid0.setParent(None)
 
