@@ -474,9 +474,27 @@ class Ui_ReconTab_Form(QWidget):
             with open_ome_zarr(input_paths, mode="r") as dataset:
                 # ToDo: Metadata reading and implementation in GUI for
                 # channel names, time indicies, etc.
-                self.input_channel_names = dataset.channel_names
-                self.data_input_Label.value = "Input Store" + " " + _info_icon
-                self.data_input_Label.tooltip = "Channel Names:\n- " + "\n- ".join(self.input_channel_names)
+                try:
+                    self.input_channel_names = dataset.channel_names
+                    self.data_input_Label.value = "Input Store" + " " + _info_icon
+                    self.data_input_Label.tooltip = "Channel Names:\n- " + "\n- ".join(self.input_channel_names)
+                except Exception as exc:
+                    print(exc.args)
+                
+                try:
+                    for path, pos in dataset.positions():
+                        axes = pos.zgroup.attrs["multiscales"][0]["axes"]
+                        string_array_n = [str(x["name"]) for x in axes]
+                        string_array = [str(x) for x in pos.zgroup.attrs["multiscales"][0]["datasets"][0]["coordinateTransformations"][0]["scale"]]
+                        string_scale = []
+                        for i in range(len(string_array_n)):
+                            string_scale.append("{n}={d}".format(n=string_array_n[i], d=string_array[i]))
+                        txt = "\n\nScale: " + ", ".join(string_scale)
+                        self.data_input_Label.tooltip += txt
+                        break
+                except Exception as exc:
+                    print(exc.args)
+
                 if not BG and metadata:
                     self.input_directory_dataset = dataset
 
