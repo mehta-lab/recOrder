@@ -1453,6 +1453,7 @@ class Ui_ReconTab_Form(QWidget):
                 "class": pydantic_class,
                 "input": self.data_input_LineEdit,
                 "output": os.path.join(Path(self.output_directory).absolute(), _output_data_loc.value),
+                "output_parent_dir": str(Path(self.output_directory).absolute()),
                 "output_LineEdit": _output_data_loc,
                 "output_Button": _output_data_btn,
                 "container": recon_pydantic_container,
@@ -1761,10 +1762,14 @@ class Ui_ReconTab_Form(QWidget):
             selected_modes = item["selected_modes"]
             exclude_modes = item["exclude_modes"]
             c_mode_str = item["c_mode_str"]
+            output_LineEdit = item["output_LineEdit"]
+            output_parent_dir = item["output_parent_dir"]
+
+            full_out_path = os.path.join(output_parent_dir, output_LineEdit.value)
 
             # gather input/out locations
             input_dir = f"{item['input'].value}"
-            output_dir = f"{item['output']}"
+            output_dir = full_out_path
 
             # build up the arguments for the pydantic model given the current container
             if cls is None:
@@ -1936,10 +1941,13 @@ class Ui_ReconTab_Form(QWidget):
                             selected_modes = item["selected_modes"]
                             exclude_modes = item["exclude_modes"]
                             c_mode_str = item["c_mode_str"]
+                            output_LineEdit = item["output_LineEdit"]
+                            output_parent_dir = item["output_parent_dir"]
 
+                            full_out_path = os.path.join(output_parent_dir, output_LineEdit.value)
                             # gather input/out locations
                             input_dir = f"{item['input'].value}"
-                            output_dir = f"{item['output']}"
+                            output_dir = full_out_path
 
                             pydantic_kwargs = {}
                             pydantic_kwargs, ret_msg = self.get_and_validate_pydantic_args(
@@ -2561,9 +2569,12 @@ class MyWorker:
                                                 cls = item["class"]
                                                 cls_container = item["container"]
                                                 exclude_modes = item["exclude_modes"]
+                                                output_LineEdit = item["output_LineEdit"]
+                                                output_parent_dir = item["output_parent_dir"]
+                                                full_out_path = os.path.join(output_parent_dir, output_LineEdit.value)
 
                                                 # gather input/out locations
-                                                output_dir = f"{item['output']}"
+                                                output_dir = full_out_path
                                                 if output_data == "":
                                                     output_data = output_dir
                                                     proc_params["output_path"] = str(output_data)
