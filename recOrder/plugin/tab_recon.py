@@ -1072,7 +1072,7 @@ class Ui_ReconTab_Form(QWidget):
                 return False
         else:
             if bool_msg:
-                _poll_otf_label = QLabel(text=OTF_dir_path + " " + _green_dot)
+                _poll_otf_label = ScrollableLabel(text=OTF_dir_path + " " + _green_dot)
                 _poll_Stop_PushButton = QPushButton("Stop")
                 _poll_Stop_PushButton.setCheckable(True)  # Make the button checkable
                 _poll_Stop_PushButton.clicked.connect(lambda:self.stopOTF_PushButtonCall(_poll_otf_label, OTF_dir_path + " " + _red_dot))
