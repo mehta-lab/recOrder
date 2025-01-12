@@ -566,6 +566,7 @@ class Ui_ReconTab_Form(QWidget):
             for model_item in self.pydantic_classes:
                 output_LineEdit = model_item["output_LineEdit"]
                 output_Button = model_item["output_Button"]
+                model_item["output_parent_dir"] = self.output_directory
 
                 full_out_path = os.path.join(Path(self.output_directory).absolute(), output_LineEdit.value)
                 model_item["output"] = full_out_path
