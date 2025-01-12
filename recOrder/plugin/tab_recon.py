@@ -1361,7 +1361,7 @@ class Ui_ReconTab_Form(QWidget):
         # These could be multiple based on user selection for each model
         # Inherits from Input by default at creation time
         name_without_ext = os.path.splitext(self.input_directory)[0]
-        save_path = os.path.join(Path(self.output_directory).parent.absolute(), (name_without_ext + ("_"+c_mode_short+"_"+num_str) + ".zarr"))
+        save_path = os.path.join(Path(self.output_directory).absolute(), (name_without_ext + ("_"+c_mode_short+"_"+num_str) + ".zarr"))
         save_path_exists = True if Path(save_path).exists() else False
         _output_data_loc = widgets.LineEdit(
             value=Path(save_path).name, tooltip="" if not save_path_exists else (_validate_alert+" Output file exists")
