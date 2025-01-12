@@ -10,6 +10,9 @@ import torch.multiprocessing as mp
 import submitit
 from iohub import open_ome_zarr
 
+from typing import Final
+from recOrder.cli import jobs_mgmt
+
 from recOrder.cli import apply_inverse_models
 from recOrder.cli.parsing import (
     config_filepath,
@@ -18,6 +21,7 @@ from recOrder.cli.parsing import (
     processes_option,
     transfer_function_dirpath,
     ram_multiplier,
+    unique_id,
 )
 from recOrder.cli.printing import echo_headline, echo_settings
 from recOrder.cli.settings import ReconstructionSettings
@@ -28,6 +32,7 @@ from recOrder.cli.utils import (
 from recOrder.io import utils
 from recOrder.cli.monitor import monitor_jobs
 
+JM = jobs_mgmt.JobsManagement()
 
 def _check_background_consistency(
     background_shape, data_shape, input_channel_names
@@ -293,6 +298,7 @@ def apply_inverse_transfer_function_cli(
     output_dirpath: Path,
     num_processes: int = 1,
     ram_multiplier: float = 1.0,
+    unique_id: str = ""
 ) -> None:
     output_metadata = get_reconstruction_output_metadata(
         input_position_dirpaths[0], config_filepath
@@ -337,21 +343,21 @@ def apply_inverse_transfer_function_cli(
         f"{gb_ram_request} GB of memory per CPU."
     )
     executor = submitit.AutoExecutor(folder="logs")
-
+    
     executor.update_parameters(
         slurm_array_parallelism=np.min([50, num_jobs]),
         slurm_mem_per_cpu=f"{gb_ram_request}G",
         slurm_cpus_per_task=cpu_request,
         slurm_time=60,
         slurm_partition="cpu",
+        timeout_min=jobs_mgmt.JOBS_TIMEOUT
         # more slurm_*** resource parameters here
     )
-
+    
     jobs = []
     with executor.batch():
-        for input_position_dirpath in input_position_dirpaths:
-            jobs.append(
-                executor.submit(
+        for input_position_dirpath in input_position_dirpaths:            
+            job: Final = executor.submit(
                     apply_inverse_transfer_function_single_position,
                     input_position_dirpath,
                     transfer_function_dirpath,
@@ -359,11 +365,22 @@ def apply_inverse_transfer_function_cli(
                     output_dirpath / Path(*input_position_dirpath.parts[-3:]),
                     num_processes,
                     output_metadata["channel_names"],
-                )
-            )
+                )           
+            jobs.append(job)
     echo_headline(
         f"{num_jobs} job{'s' if num_jobs > 1 else ''} submitted {'locally' if executor.cluster == 'local' else 'via ' + executor.cluster}."
     )
+
+    if unique_id != "": # no unique_id means no job submission info being listened to
+        JM.startClient()
+        i=0
+        for j in jobs:           
+            job : submitit.Job = j
+            job_idx : str = job.job_id
+            position = input_position_dirpaths[i]
+            JM.putJobInList(job, unique_id, str(job_idx), position)
+            i += 1
+        JM.setShorterTimeout()
 
     monitor_jobs(jobs, input_position_dirpaths)
 
