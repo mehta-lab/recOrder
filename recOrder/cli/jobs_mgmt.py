@@ -1,4 +1,5 @@
-import os, json, shutil
+import os, json
+from pathlib import Path
 import socket
 import submitit
 import threading, time
@@ -13,47 +14,24 @@ class JobsManagement():
     
     def __init__(self, *args, **kwargs):
         self.executor = submitit.AutoExecutor(folder="logs")
-        self.logsPath = self.executor.folder
         self.clientsocket = None
         self.uIDsjobIDs = {} # uIDsjobIDs[uid][jid] = job        
         
-    def clearLogs(self):        
-        thread = threading.Thread(target=self.clearLogFiles, args={self.logsPath,})
-        thread.start()
+    def checkForJobIDFile(self, jobID, logsPath, extension="out"):
 
-    def create_dir_if_not_exists(self, directory):
-        if not os.path.exists(directory):
-            os.makedirs(directory)
-            time.sleep(1)
-
-    def clearLogFiles(self, dirPath, silent=True):
-
-        self.create_dir_if_not_exists(dirPath)
-
-        for filename in os.listdir(dirPath):
-            file_path = os.path.join(dirPath, filename)
+        if Path(logsPath).exists():
+            files = os.listdir(logsPath)
             try:
-                if os.path.isfile(file_path) or os.path.islink(file_path):
-                    os.unlink(file_path)
-                elif os.path.isdir(file_path):
-                    shutil.rmtree(file_path)
-            except Exception as e:
-                if not silent:
-                    print('Failed to delete %s. Reason: %s' % (file_path, e))
-
-    def checkForJobIDFile(self, jobID, extension="out"):
-        files = os.listdir(self.logsPath)
-        try:
-            for file in files:
-                if file.endswith(extension):
-                    if jobID in file:
-                        file_path = os.path.join(self.logsPath, file)
-                        f = open(file_path, "r")
-                        txt = f.read()                    
-                        f.close()
-                        return txt
-        except Exception as exc:
-            print(exc.args)
+                for file in files:
+                    if file.endswith(extension):
+                        if jobID in file:
+                            file_path = os.path.join(logsPath, file)
+                            f = open(file_path, "r")
+                            txt = f.read()                    
+                            f.close()
+                            return txt
+            except Exception as exc:
+                print(exc.args)
         return ""
     
     def setShorterTimeout(self):
@@ -137,7 +115,7 @@ class JobsManagement():
             if jID in self.uIDsjobIDs[uID].keys():
                 self.uIDsjobIDs[uID][jID] = jobBool
 
-    def putJobInList(self, job, uID: str, jID: str, well:str, mode="client"):
+    def putJobInList(self, job, uID: str, jID: str, well:str, log_folder_path:str="", mode="client"):
         try:
             well = str(well)
             if ".zarr" in well:
@@ -150,7 +128,7 @@ class JobsManagement():
                 else:
                     if jID not in self.uIDsjobIDs[uID].keys():
                         self.uIDsjobIDs[uID][jID] = job
-                json_obj = {uID:{"jID": str(jID), "pos": well}}
+                json_obj = {uID:{"jID": str(jID), "pos": well, "log": log_folder_path}}
                 json_str = json.dumps(json_obj)+"\n"
                 self.clientsocket.send(json_str.encode())
             else:

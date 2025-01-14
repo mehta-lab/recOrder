@@ -1,4 +1,4 @@
-import sys, os, json, subprocess, time, datetime, uuid
+import os, json, subprocess, time, datetime, uuid
 import socket, threading
 from pathlib import Path
 
@@ -1479,7 +1479,7 @@ class Ui_ReconTab_Form(QWidget):
                 "selected_modes": selected_modes.copy(),
                 "exclude_modes": exclude_modes.copy(),
                 "poll_data": self.pollData,
-                "show": _show_CheckBox.value,
+                "show": _show_CheckBox,
             }
         )
         self.index += 1
@@ -1889,7 +1889,7 @@ class Ui_ReconTab_Form(QWidget):
             proc_params["input_path"] = str(Path(input_dir).absolute())
             proc_params["output_path"] = str(Path(output_dir).absolute())
             proc_params["output_path_parent"] = str(Path(output_dir).parent.absolute())
-            proc_params["show"] = item["show"]
+            proc_params["show"] = item["show"].value
 
             self.addTableEntry(
                 tableID, tableDescToolTip, proc_params
@@ -2466,7 +2466,6 @@ class MyWorker:
             self.workerThreadRowDeletion = RowDeletionWorkerThread(self.formLayout)
             self.workerThreadRowDeletion.removeRowSignal.connect(self.tab_recon.removeRow)
             self.workerThreadRowDeletion.start()
-            self.JobsMgmt.clearLogs()
             self.isInitialized = True
 
     def setNewInstances(self, formLayout, tab_recon, parentForm):
@@ -2505,7 +2504,7 @@ class MyWorker:
                     break
                 try:                    
                     # dont block the server thread
-                    thread = threading.Thread(target=self.tableUpdateAndCleaupThread,args=("", "", "", client_socket),)
+                    thread = threading.Thread(target=self.tableUpdateAndCleaupThread,args=("", "", "", "", client_socket),)
                     thread.start()
                 except Exception as exc:
                     print(exc.args)
@@ -2544,7 +2543,7 @@ class MyWorker:
     # on errors - table row item is updated but there is no row deletion
     # on successful processing - the row item is expected to be deleted
     # row is being deleted from a seperate thread for which we need to connect using signal
-    def tableUpdateAndCleaupThread(self, expIdx="", jobIdx="", wellName="", client_socket=None):
+    def tableUpdateAndCleaupThread(self, expIdx="", jobIdx="", wellName="", logs_folder_path="", client_socket=None):
         # finished will be updated by the job - submitit status
         jobIdx = str(jobIdx)
         if client_socket is not None and expIdx=="" and jobIdx=="":
@@ -2676,13 +2675,14 @@ class MyWorker:
                                     expIdx = k
                                     jobIdx = json_obj[k]["jID"]
                                     wellName = json_obj[k]["pos"]
+                                    logs_folder_path = json_obj[k]["log"]
                                 if expIdx not in self.results.keys(): # this job came from agnostic CLI route - no processing
                                     now = datetime.datetime.now()
                                     ms = now.strftime("%f")[:3]
                                     unique_id = now.strftime("%Y_%m_%d_%H_%M_%S_") + ms
                                     expIdx = expIdx +"-"+ unique_id
                                 self.JobsMgmt.putJobInList(None, expIdx, str(jobIdx), wellName, mode="server")
-                                thread = threading.Thread(target=self.tableUpdateAndCleaupThread,args=(expIdx, jobIdx, wellName, client_socket))
+                                thread = threading.Thread(target=self.tableUpdateAndCleaupThread,args=(expIdx, jobIdx, wellName, logs_folder_path, client_socket))
                                 thread.start()
                 return
             except:
@@ -2805,7 +2805,7 @@ class MyWorker:
                         break
                     elif params["status"] in [STATUS_errored_job]:
                         jobERR = self.JobsMgmt.checkForJobIDFile(
-                            jobIdx, extension="err"
+                            jobIdx, logs_folder_path, extension="err"
                         )
                         _infoBox.setText(
                             jobIdx + "\n" + params["desc"] + "\n\n" + jobERR
@@ -2814,7 +2814,7 @@ class MyWorker:
                         break
                     else:
                         jobTXT = self.JobsMgmt.checkForJobIDFile(
-                            jobIdx, extension="out"
+                            jobIdx, logs_folder_path, extension="out"
                         )
                         try:
                             if jobTXT == "":  # job file not created yet
@@ -2843,7 +2843,7 @@ class MyWorker:
                             elif JOB_TRIGGERED_EXC in jobTXT:
                                 params["status"] = STATUS_errored_job
                                 jobERR = self.JobsMgmt.checkForJobIDFile(
-                                    jobIdx, extension="err"
+                                    jobIdx, logs_folder_path, extension="err"
                                 )
                                 _infoBox.setText(
                                     jobIdx
@@ -2875,7 +2875,7 @@ class MyWorker:
                                     break
                             else:
                                 jobERR = self.JobsMgmt.checkForJobIDFile(
-                                    jobIdx, extension="err"
+                                    jobIdx, logs_folder_path, extension="err"
                                 )
                                 _infoBox.setText(
                                     jobIdx

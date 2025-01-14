@@ -3,6 +3,7 @@ import warnings
 from functools import partial
 from pathlib import Path
 
+import os
 import click
 import numpy as np
 import torch
@@ -342,7 +343,10 @@ def apply_inverse_transfer_function_cli(
         f"{cpu_request} CPU{'s' if cpu_request > 1 else ''} and "
         f"{gb_ram_request} GB of memory per CPU."
     )
-    executor = submitit.AutoExecutor(folder="logs")
+    
+    name_without_ext = os.path.splitext(Path(output_dirpath).name)[0]
+    executor_folder = os.path.join(Path(output_dirpath).parent.absolute(), name_without_ext + "_logs")
+    executor = submitit.AutoExecutor(folder=Path(executor_folder))
     
     executor.update_parameters(
         slurm_array_parallelism=np.min([50, num_jobs]),
@@ -378,7 +382,7 @@ def apply_inverse_transfer_function_cli(
             job : submitit.Job = j
             job_idx : str = job.job_id
             position = input_position_dirpaths[i]
-            JM.putJobInList(job, unique_id, str(job_idx), position)
+            JM.putJobInList(job, unique_id, str(job_idx), position, str(executor.folder.absolute()))
             i += 1
         JM.setShorterTimeout()
 
