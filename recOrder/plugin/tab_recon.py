@@ -1144,9 +1144,7 @@ class Ui_ReconTab_Form(QWidget):
         _expandingTabEntryWidget = QWidget()
         _expandingTabEntryWidget.toolTip = tableEntryShortDesc
         _expandingTabEntryWidget.setLayout(_expandingTabEntryWidgetLayout)
-        _expandingTabEntryWidget.setSizePolicy(
-            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed
-        )
+        _expandingTabEntryWidget.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
 
         proc_params["tableEntryID"] = tableEntryID
         proc_params["parent_layout"] = _scrollAreaCollapsibleBoxWidgetLayout
@@ -1408,7 +1406,7 @@ class Ui_ReconTab_Form(QWidget):
         _scrollAreaCollapsibleBoxWidgetLayout = QVBoxLayout()
         _scrollAreaCollapsibleBoxWidgetLayout.setAlignment(QtCore.Qt.AlignmentFlag.AlignTop)
 
-        _scrollAreaCollapsibleBoxWidget = QWidget()
+        _scrollAreaCollapsibleBoxWidget = MyWidget()
         _scrollAreaCollapsibleBoxWidget.setLayout(
             _scrollAreaCollapsibleBoxWidgetLayout
         )
@@ -1418,6 +1416,13 @@ class Ui_ReconTab_Form(QWidget):
         _scrollAreaCollapsibleBox.setWidget(_scrollAreaCollapsibleBoxWidget)
                 
         _collapsibleBoxWidgetLayout = QVBoxLayout()
+        _collapsibleBoxWidgetLayout.setAlignment(Qt.AlignmentFlag.AlignTop)
+                
+        scrollbar = _scrollAreaCollapsibleBox.horizontalScrollBar()            
+        _scrollAreaCollapsibleBoxWidget.resized.connect(lambda:self.check_scrollbar_visibility(scrollbar))
+
+        _scrollAreaCollapsibleBoxWidgetLayout.addWidget(scrollbar, alignment=Qt.AlignmentFlag.AlignTop) # Place at the top
+
         _collapsibleBoxWidgetLayout.addWidget(_scrollAreaCollapsibleBox)
 
         _collapsibleBoxWidget = CollapsibleBox(
@@ -1435,30 +1440,25 @@ class Ui_ReconTab_Form(QWidget):
         _hBox_layout2.addWidget(_del_button.native)
 
         _expandingTabEntryWidgetLayout = QVBoxLayout()
+        _expandingTabEntryWidgetLayout.setAlignment(QtCore.Qt.AlignmentFlag.AlignTop)
         _expandingTabEntryWidgetLayout.addWidget(_collapsibleBoxWidget)
 
         _expandingTabEntryWidget.toolTip = c_mode_str
         _expandingTabEntryWidget.setLayout(_expandingTabEntryWidgetLayout)
-        _expandingTabEntryWidget.setSizePolicy(
-            QSizePolicy.Expanding, QSizePolicy.Fixed
-        )
+        _expandingTabEntryWidget.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         _expandingTabEntryWidget.layout().setAlignment(QtCore.Qt.AlignmentFlag.AlignTop)
 
-        _scrollAreaCollapsibleBoxWidgetLayout.addWidget(
-            recon_pydantic_container.native
-        )
+        _scrollAreaCollapsibleBoxWidgetLayout.addWidget(recon_pydantic_container.native)
         _scrollAreaCollapsibleBoxWidgetLayout.addWidget(_hBox_widget)
         _scrollAreaCollapsibleBoxWidgetLayout.addWidget(_hBox_widget2)
 
-        _scrollAreaCollapsibleBox.setMinimumHeight(_scrollAreaCollapsibleBoxWidgetLayout.sizeHint().height())
-        _collapsibleBoxWidget.setSizePolicy(
-            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed
-        )
+        _scrollAreaCollapsibleBox.setMinimumHeight(_scrollAreaCollapsibleBoxWidgetLayout.sizeHint().height()+20)
+        _collapsibleBoxWidget.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         _collapsibleBoxWidget.setContentLayout(_collapsibleBoxWidgetLayout)
 
         self.models_container_widget_layout.addWidget(
             _expandingTabEntryWidget
-        )
+        )        
 
         # Store a copy of the pydantic container along with all its associated components and properties
         # We dont needs a copy of the class but storing for now
@@ -1492,6 +1492,12 @@ class Ui_ReconTab_Form(QWidget):
             self.reconstruction_run_PushButton.text = "RUN Model"
 
         return pydantic_model
+    
+    def check_scrollbar_visibility(self, scrollbar):
+        h_scrollbar = scrollbar
+
+        # Hide scrollbar if not needed
+        h_scrollbar.setVisible(h_scrollbar.maximum() > h_scrollbar.minimum())
 
     def _validate_model(self, _str, _collapsibleBoxWidget):
         i = 0
@@ -3207,6 +3213,15 @@ class ScrollableLabel(QScrollArea):
     def setText(self, text):
         self.label.setText(text)
 
+class MyWidget(QWidget):
+    resized = pyqtSignal()
+
+    def __init__(self):
+        super().__init__()
+
+    def resizeEvent(self, event):
+        self.resized.emit()
+        super().resizeEvent(event)
 class CollapsibleBox(QWidget):
     """A collapsible widget"""
 
