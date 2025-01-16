@@ -2819,6 +2819,21 @@ class MyWorker:
                         try:
                             if jobTXT == "":  # job file not created yet
                                 time.sleep(2)
+                                _tUpdateCount += 2
+                                if _tUpdateCount > 10: # if out file is empty for 10s, check the err file to update user
+                                    jobERR = self.JobsMgmt.checkForJobIDFile(
+                                        jobIdx, logs_folder_path, extension="err"
+                                    )
+                                    _infoBox.setText(
+                                        jobIdx
+                                        + "\n"
+                                        + params["desc"]
+                                        + "\n\n"
+                                        + jobERR
+                                    )
+                                    if _tUpdateCount > _tUpdateCountTimeout:
+                                        self.clientRelease(expIdx, jobIdx, client_socket, params)
+                                        break
                             elif (
                                 params["status"]
                                 == STATUS_finished_job
