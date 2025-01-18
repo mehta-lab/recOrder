@@ -10,12 +10,14 @@ FILE_PATH = os.path.join(DIR_PATH, "main.py")
 SERVER_PORT = 8089 # Choose an available port
 JOBS_TIMEOUT = 5 # 5 mins
 SERVER_uIDsjobIDs = {} # uIDsjobIDs[uid][jid] = job
+
 class JobsManagement():
     
     def __init__(self, *args, **kwargs):
         self.executor = submitit.AutoExecutor(folder="logs")
         self.clientsocket = None
         self.uIDsjobIDs = {} # uIDsjobIDs[uid][jid] = job        
+        self.DATA_QUEUE = []
         
     def checkForJobIDFile(self, jobID, logsPath, extension="out"):
 
@@ -35,7 +37,7 @@ class JobsManagement():
         return ""
     
     def setShorterTimeout(self):
-        self.clientsocket.settimeout(3)
+        self.clientsocket.settimeout(30)
 
     def startClient(self):
         try:
@@ -103,21 +105,37 @@ class JobsManagement():
             print(exc.args)
 
     def checkAllExpJobsCompletion(self, uID):
-        if uID in self.uIDsjobIDs.keys():
-            for jobEntry in self.uIDsjobIDs[uID]:
-                jobsBool = jobEntry["jID"]
-                if jobsBool == False:
+        if uID in SERVER_uIDsjobIDs.keys():
+            for jobEntry in SERVER_uIDsjobIDs[uID].keys():
+                job:submitit.Job = SERVER_uIDsjobIDs[uID][jobEntry]["job"]
+                jobBool = SERVER_uIDsjobIDs[uID][jobEntry]["bool"]
+                if job is not None and job.done() == False:
+                    return False
+                if jobBool == False:
                     return False
         return True
 
     def putJobCompletionInList(self, jobBool, uID: str, jID: str, mode="client"):
-        if uID in self.uIDsjobIDs.keys():
-            if jID in self.uIDsjobIDs[uID].keys():
-                self.uIDsjobIDs[uID][jID] = jobBool
+        if uID in SERVER_uIDsjobIDs.keys():
+            if jID in SERVER_uIDsjobIDs[uID].keys():
+                SERVER_uIDsjobIDs[uID][jID]["bool"] = jobBool
+    
+    def addData(self, data):
+        self.DATA_QUEUE.append(data)
+    
+    def sendDataThread(self):
+        thread = threading.Thread(target=self.sendData)
+        thread.start()
+
+    def sendData(self):
+        data = "".join(self.DATA_QUEUE)
+        self.clientsocket.send(data.encode())
+        self.DATA_QUEUE = []
 
     def putJobInList(self, job, uID: str, jID: str, well:str, log_folder_path:str="", mode="client"):
         try:
             well = str(well)
+            jID = str(jID)
             if ".zarr" in well:
                 wells = well.split(".zarr")
                 well = wells[1].replace("\\","-").replace("/","-")[1:]
@@ -129,32 +147,26 @@ class JobsManagement():
                     if jID not in self.uIDsjobIDs[uID].keys():
                         self.uIDsjobIDs[uID][jID] = job
                 json_obj = {uID:{"jID": str(jID), "pos": well, "log": log_folder_path}}
-                json_str = json.dumps(json_obj)+"\n"
-                self.clientsocket.send(json_str.encode())
+                json_str = json.dumps(json_obj)+"\n"                
+                self.addData(json_str)
             else:
                 # from server side jobs object entry is a None object
                 # this will be later checked as completion boolean for a ExpID which might
                 # have several Jobs associated with it
                 if uID not in SERVER_uIDsjobIDs.keys():
                     SERVER_uIDsjobIDs[uID] = {}
-                    SERVER_uIDsjobIDs[uID][jID] = job
-                else:
-                    if jID not in SERVER_uIDsjobIDs[uID].keys():
-                        SERVER_uIDsjobIDs[uID][jID] = job
+                    SERVER_uIDsjobIDs[uID][jID] = {}
+                    SERVER_uIDsjobIDs[uID][jID]["job"] = job
+                    SERVER_uIDsjobIDs[uID][jID]["bool"] = False
+                else:                    
+                    SERVER_uIDsjobIDs[uID][jID] = {}
+                    SERVER_uIDsjobIDs[uID][jID]["job"] = job
+                    SERVER_uIDsjobIDs[uID][jID]["bool"] = False
         except Exception as exc:
             print(exc.args)
-
-    def hasSubmittedJob(self, uID: str, mode="client")->bool:
-        if mode == "client":
-            if uID in self.uIDsjobIDs.keys():
-                return True
-            return False
-        else:
-            if uID in SERVER_uIDsjobIDs.keys():
-                return True
-            return False
     
     def hasSubmittedJob(self, uID: str, jID: str, mode="client")->bool:
+        jID = str(jID)
         if mode == "client":
             if uID in self.uIDsjobIDs.keys():
                 if jID in self.uIDsjobIDs[uID].keys():

@@ -375,6 +375,7 @@ def apply_inverse_transfer_function_cli(
         f"{num_jobs} job{'s' if num_jobs > 1 else ''} submitted {'locally' if executor.cluster == 'local' else 'via ' + executor.cluster}."
     )
 
+    doPrint = True # CLI prints Job status when used as cmd line
     if unique_id != "": # no unique_id means no job submission info being listened to
         JM.startClient()
         i=0
@@ -384,9 +385,11 @@ def apply_inverse_transfer_function_cli(
             position = input_position_dirpaths[i]
             JM.putJobInList(job, unique_id, str(job_idx), position, str(executor.folder.absolute()))
             i += 1
+        JM.sendDataThread()
         JM.setShorterTimeout()
+        doPrint = False # CLI printing disabled when using GUI
 
-    monitor_jobs(jobs, input_position_dirpaths)
+    monitor_jobs(jobs, input_position_dirpaths, doPrint)
 
 
 @click.command()

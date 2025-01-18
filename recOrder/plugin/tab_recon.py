@@ -1008,7 +1008,7 @@ class Ui_ReconTab_Form(QWidget):
             tableEntryID + " - " + pos
         )  # tableEntryID, tableEntryShortDesc - should update with processing status
         _collapsibleBoxWidget.setSizePolicy(
-            QSizePolicy.Expanding, QSizePolicy.Fixed
+            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed
         )
         _collapsibleBoxWidget.setContentLayout(_collapsibleBoxWidgetLayout)
 
@@ -1144,7 +1144,7 @@ class Ui_ReconTab_Form(QWidget):
         _expandingTabEntryWidget = QWidget()
         _expandingTabEntryWidget.toolTip = tableEntryShortDesc
         _expandingTabEntryWidget.setLayout(_expandingTabEntryWidgetLayout)
-        _expandingTabEntryWidget.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        _expandingTabEntryWidget.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
 
         proc_params["tableEntryID"] = tableEntryID
         proc_params["parent_layout"] = _scrollAreaCollapsibleBoxWidgetLayout
@@ -1377,7 +1377,11 @@ class Ui_ReconTab_Form(QWidget):
         )
 
         _show_CheckBox = widgets.CheckBox(name="Show after Reconstruction", value=True)
-        _validate_button = widgets.PushButton(name="Validate")
+        _show_CheckBox.max_width = 200
+        _rx_Label = widgets.Label(value="rx")
+        _rx_LineEdit = widgets.LineEdit(name="rx", value=1)
+        _rx_LineEdit.max_width = 50
+        _validate_button = widgets.PushButton(name="Validate")        
 
         # Passing all UI components that would be deleted
         _expandingTabEntryWidget = QWidget()
@@ -1435,9 +1439,11 @@ class Ui_ReconTab_Form(QWidget):
         _hBox_layout2 = QHBoxLayout()
         _hBox_layout2.setAlignment(QtCore.Qt.AlignmentFlag.AlignTop)
         _hBox_widget2.setLayout(_hBox_layout2)
-        _hBox_layout2.addWidget(_show_CheckBox.native)
+        _hBox_layout2.addWidget(_show_CheckBox.native)                
         _hBox_layout2.addWidget(_validate_button.native)
         _hBox_layout2.addWidget(_del_button.native)
+        _hBox_layout2.addWidget(_rx_Label.native)
+        _hBox_layout2.addWidget(_rx_LineEdit.native)
 
         _expandingTabEntryWidgetLayout = QVBoxLayout()
         _expandingTabEntryWidgetLayout.setAlignment(QtCore.Qt.AlignmentFlag.AlignTop)
@@ -1480,6 +1486,7 @@ class Ui_ReconTab_Form(QWidget):
                 "exclude_modes": exclude_modes.copy(),
                 "poll_data": self.pollData,
                 "show": _show_CheckBox,
+                "rx":_rx_LineEdit,
             }
         )
         self.index += 1
@@ -1896,6 +1903,7 @@ class Ui_ReconTab_Form(QWidget):
             proc_params["output_path"] = str(Path(output_dir).absolute())
             proc_params["output_path_parent"] = str(Path(output_dir).parent.absolute())
             proc_params["show"] = item["show"].value
+            proc_params["rx"] = item["rx"].value
 
             self.addTableEntry(
                 tableID, tableDescToolTip, proc_params
@@ -2033,6 +2041,7 @@ class Ui_ReconTab_Form(QWidget):
                             proc_params["output_path"] = str(Path(output_dir).absolute())
                             proc_params["output_path_parent"] = str(Path(output_dir).parent.absolute())
                             proc_params["show"] = False
+                            proc_params["rx"] = 1
                             
                             tableEntryWorker1 = AddTableEntryWorkerThread(tableID, tableDescToolTip, proc_params)
                             tableEntryWorker1.add_tableentry_signal.connect(self.addTableEntry)
@@ -2554,7 +2563,7 @@ class MyWorker:
         jobIdx = str(jobIdx)
         if client_socket is not None and expIdx=="" and jobIdx=="":
             try:
-                buf = client_socket.recv(1024)
+                buf = client_socket.recv(10240)
                 if len(buf) > 0:
                     if b"\n" in buf:
                         dataList = buf.split(b"\n")
@@ -2584,6 +2593,7 @@ class MyWorker:
                                 proc_params["output_path"] = str(output_data)
                                 proc_params["output_path_parent"] = str(Path(output_data).parent.absolute())
                                 proc_params["show"] = False
+                                proc_params["rx"] = 1
 
                                 if config_path == "":
                                     model = None
@@ -2688,11 +2698,12 @@ class MyWorker:
                                     unique_id = now.strftime("%Y_%m_%d_%H_%M_%S_") + ms
                                     expIdx = expIdx +"-"+ unique_id
                                 self.JobsMgmt.putJobInList(None, expIdx, str(jobIdx), wellName, mode="server")
+                                # print("Submitting Job: {job} expIdx: {expIdx}".format(job=jobIdx, expIdx=expIdx))
                                 thread = threading.Thread(target=self.tableUpdateAndCleaupThread,args=(expIdx, jobIdx, wellName, logs_folder_path, client_socket))
                                 thread.start()
                 return
-            except:
-                pass
+            except Exception as exc:
+                print(exc.args)
 
         # ToDo: Another approach to this could be to implement a status thread on the client side
         # Since the client is already running till the job is completed, the client could ping status
@@ -2716,6 +2727,7 @@ class MyWorker:
                 proc_params["output_path"] = ""
                 proc_params["output_path_parent"] = ""
                 proc_params["show"] = False
+                proc_params["rx"] = 1
                 
                 tableEntryWorker = AddTableEntryWorkerThread(tableID, tableID, proc_params)
                 tableEntryWorker.add_tableentry_signal.connect(self.tab_recon.addTableEntry)
@@ -2779,8 +2791,9 @@ class MyWorker:
             )  # 5 mins - match executor time-out
             _lastUpdate_jobTXT = ""
             jobTXT = ""
+            # print("Updating Job: {job} expIdx: {expIdx}".format(job=jobIdx, expIdx=expIdx))
             while True:
-                time.sleep(1)  # update every sec and exit on break
+                time.sleep(1)  # update every sec and exit on break                
                 try:
                     if "cancel called" in _cancelJobBtn.text:
                         json_obj = {"uID":expIdx, "jID":jobIdx, "command":"cancel"}
@@ -2792,22 +2805,22 @@ class MyWorker:
                                             + "Please check terminal output for Job status..\n\n"
                                             + jobTXT
                                         )
-                        self.clientRelease(expIdx, jobIdx, client_socket, params)
+                        self.clientRelease(expIdx, jobIdx, client_socket, params, reason=1)
                         break # cancel called by user                            
                     if _infoBox == None:
                         params["status"] = STATUS_user_cleared_job
-                        self.clientRelease(expIdx, jobIdx, client_socket, params)
+                        self.clientRelease(expIdx, jobIdx, client_socket, params, reason=2)
                         break  # deleted by user - no longer needs updating
                     if _infoBox:
                         pass
                 except Exception as exc:
                     print(exc.args)
                     params["status"] = STATUS_user_cleared_job
-                    self.clientRelease(expIdx, jobIdx, client_socket, params)
+                    self.clientRelease(expIdx, jobIdx, client_socket, params, reason=3)
                     break  # deleted by user - no longer needs updating
                 if self.JobsMgmt.hasSubmittedJob(expIdx, jobIdx, mode="server"):
                     if params["status"] in [STATUS_finished_job]:
-                        self.clientRelease(expIdx, jobIdx, client_socket, params)
+                        self.clientRelease(expIdx, jobIdx, client_socket, params, reason=4)
                         break
                     elif params["status"] in [STATUS_errored_job]:
                         jobERR = self.JobsMgmt.checkForJobIDFile(
@@ -2816,7 +2829,7 @@ class MyWorker:
                         _infoBox.setText(
                             jobIdx + "\n" + params["desc"] + "\n\n" + jobERR
                         )
-                        self.clientRelease(expIdx, jobIdx, client_socket, params)
+                        self.clientRelease(expIdx, jobIdx, client_socket, params, reason=5)
                         break
                     else:
                         jobTXT = self.JobsMgmt.checkForJobIDFile(
@@ -2824,6 +2837,7 @@ class MyWorker:
                         )
                         try:
                             if jobTXT == "":  # job file not created yet
+                                # print(jobIdx + " not started yet")
                                 time.sleep(2)
                                 _tUpdateCount += 2
                                 if _tUpdateCount > 10: # if out file is empty for 10s, check the err file to update user
@@ -2838,7 +2852,7 @@ class MyWorker:
                                         + jobERR
                                     )
                                     if _tUpdateCount > _tUpdateCountTimeout:
-                                        self.clientRelease(expIdx, jobIdx, client_socket, params)
+                                        self.clientRelease(expIdx, jobIdx, client_socket, params, reason=6)
                                         break
                             elif (
                                 params["status"]
@@ -2848,10 +2862,10 @@ class MyWorker:
                                 # check to ensure row deletion due to shrinking table
                                 # if not deleted try to delete again
                                 if rowIdx < 0:
-                                    self.clientRelease(expIdx, jobIdx, client_socket, params)
+                                    self.clientRelease(expIdx, jobIdx, client_socket, params, reason=7)
                                     break
                                 else:
-                                    ROW_POP_QUEUE.append(expIdx)
+                                    break
                             elif JOB_COMPLETION_STR in jobTXT:
                                 params["status"] = STATUS_finished_job
                                 _infoBox.setText(jobTXT)
@@ -2859,7 +2873,6 @@ class MyWorker:
                                 # we cant delete the row directly from this thread
                                 # we will use the exp_id to identify and delete the row
                                 # using pyqtSignal
-                                ROW_POP_QUEUE.append(expIdx)
                                 # break - based on status
                             elif JOB_TRIGGERED_EXC in jobTXT:
                                 params["status"] = STATUS_errored_job
@@ -2875,7 +2888,7 @@ class MyWorker:
                                     + "\n\n"
                                     + jobERR
                                 )
-                                self.clientRelease(expIdx, jobIdx, client_socket, params)
+                                self.clientRelease(expIdx, jobIdx, client_socket, params, reason=8)
                                 break
                             elif JOB_RUNNING_STR in jobTXT:
                                 params["status"] = STATUS_running_job
@@ -2892,7 +2905,7 @@ class MyWorker:
                                             + jobTXT
                                         )
                                 if _tUpdateCount > _tUpdateCountTimeout:
-                                    self.clientRelease(expIdx, jobIdx, client_socket, params)
+                                    self.clientRelease(expIdx, jobIdx, client_socket, params, reason=9)
                                     break
                             else:
                                 jobERR = self.JobsMgmt.checkForJobIDFile(
@@ -2905,12 +2918,12 @@ class MyWorker:
                                     + "\n\n"
                                     + jobERR
                                 )
-                                self.clientRelease(expIdx, jobIdx, client_socket, params)
+                                self.clientRelease(expIdx, jobIdx, client_socket, params, reason=10)
                                 break
                         except Exception as exc:
                             print(exc.args)
                 else:
-                    self.clientRelease(expIdx, jobIdx, client_socket, params)
+                    self.clientRelease(expIdx, jobIdx, client_socket, params, reason=11)
                     break
         else:
             # this would occur when an exception happens on the pool side before or during job submission
@@ -2924,8 +2937,9 @@ class MyWorker:
                     poolERR = params["error"]
                     _infoBox.setText(poolERR)
 
-    def clientRelease(self, expIdx, jobIdx, client_socket, params):
+    def clientRelease(self, expIdx, jobIdx, client_socket, params, reason=0):
         # only need to release client from primary job
+        # print("clientRelease Job: {job} expIdx: {expIdx} reason:{reason}".format(job=jobIdx, expIdx=expIdx, reason=reason))
         self.JobsMgmt.putJobCompletionInList(True, expIdx, jobIdx)
         showData_thread = None
         if params["primary"]:
@@ -2938,9 +2952,12 @@ class MyWorker:
 
             while not self.JobsMgmt.checkAllExpJobsCompletion(expIdx):
                 time.sleep(1)
+
             json_obj = {"uID":expIdx, "jID":jobIdx,"command": "clientRelease"}
             json_str = json.dumps(json_obj)+"\n"
             client_socket.send(json_str.encode())
+            ROW_POP_QUEUE.append(expIdx)      
+            # print("FINISHED")                          
 
         if self.pool is not None:
             if self.pool._work_queue.qsize() == 0:
@@ -3024,6 +3041,7 @@ class MyWorker:
             config_path = str(params["config_path"])
             output_path = str(params["output_path"])
             uid = str(params["exp_id"])
+            rx = str(params["rx"])
             mainfp = str(jobs_mgmt.FILE_PATH)
 
             self.results[params["exp_id"]]["JobUNK"]["status"] = STATUS_submitted_job
@@ -3040,7 +3058,7 @@ class MyWorker:
                     "-o",
                     output_path,
                     "-rx",
-                    str(20),
+                    str(rx),
                     "-uid",
                     uid
                 ]
@@ -3203,12 +3221,22 @@ class ScrollableLabel(QScrollArea):
         layout = QVBoxLayout()
         layout.setAlignment(Qt.AlignmentFlag.AlignTop)
         layout.addWidget(self.label)
+        self.label.setSizePolicy(
+            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding
+        )
 
         container = QWidget()
         container.setLayout(layout)
+        container.setSizePolicy(
+            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding
+        )
 
         self.setWidget(container)
         self.setWidgetResizable(True)
+        self.setSizePolicy(
+            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding
+        )
+        self.setAlignment(Qt.AlignmentFlag.AlignTop)
 
     def setText(self, text):
         self.label.setText(text)
