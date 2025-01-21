@@ -7,17 +7,17 @@ import submitit
 import sys
 
 
-def _move_cursor_up(n_lines, doPrint=True):
-    if doPrint:
+def _move_cursor_up(n_lines, do_print=True):
+    if do_print:
         sys.stdout.write("\033[F" * n_lines)
 
 
-def _print_status(jobs, position_dirpaths, elapsed_list, print_indices=None, doPrint=True):
+def _print_status(jobs, position_dirpaths, elapsed_list, print_indices=None, do_print=True):
 
     columns = [15, 30, 40, 50]
 
     # header
-    if doPrint:
+    if do_print:
         sys.stdout.write(
             "\033[K"  # clear line
             "\033[96mID"  # cyan
@@ -48,7 +48,7 @@ def _print_status(jobs, position_dirpaths, elapsed_list, print_indices=None, doP
             color = "\033[91m"  # red
         
         if i in print_indices:
-            if doPrint:
+            if do_print:
                 sys.stdout.write(
                     f"\033[K"  # clear line
                     f"{color}{job.job_id}"
@@ -58,7 +58,7 @@ def _print_status(jobs, position_dirpaths, elapsed_list, print_indices=None, doP
                     f"\033[{columns[3]}G {elapsed_list[i]} s\n"
                 )
     sys.stdout.flush()
-    if doPrint:
+    if do_print:
         print(
             f"\033[32m{complete_count}/{len(jobs)} jobs complete. " 
             "<ctrl+z> to move monitor to background. " 
@@ -92,7 +92,7 @@ def _get_jobs_to_print(jobs, num_to_print):
     return job_indices_to_print
 
 
-def monitor_jobs(jobs: list[submitit.Job], position_dirpaths: list[Path], doPrint=True):
+def monitor_jobs(jobs: list[submitit.Job], position_dirpaths: list[Path], do_print=True):
     """Displays the status of a list of submitit jobs with corresponding paths.
 
     Parameters
@@ -113,7 +113,7 @@ def monitor_jobs(jobs: list[submitit.Job], position_dirpaths: list[Path], doPrin
 
     # print all jobs once if terminal is too small
     if shutil.get_terminal_size().lines - NON_JOB_LINES < len(jobs):
-        _print_status(jobs, position_dirpaths, elapsed_list, doPrint)
+        _print_status(jobs, position_dirpaths, elapsed_list, do_print)
 
     # main monitor loop
     try:
@@ -130,15 +130,15 @@ def monitor_jobs(jobs: list[submitit.Job], position_dirpaths: list[Path], doPrin
                 position_dirpaths,
                 elapsed_list,
                 job_indices_to_print,
-                doPrint,
+                do_print,
             )
 
             time.sleep(1)
-            _move_cursor_up(num_jobs_to_print + 2, doPrint)
+            _move_cursor_up(num_jobs_to_print + 2, do_print)
 
         # Print final status
         time.sleep(1)
-        _print_status(jobs, position_dirpaths, elapsed_list, doPrint=doPrint)
+        _print_status(jobs, position_dirpaths, elapsed_list, do_print=do_print)
 
     # cancel jobs if ctrl+c
     except KeyboardInterrupt:

@@ -14,20 +14,19 @@ SERVER_uIDsjobIDs = {} # uIDsjobIDs[uid][jid] = job
 class JobsManagement():
     
     def __init__(self, *args, **kwargs):
-        self.executor = submitit.AutoExecutor(folder="logs")
         self.clientsocket = None
         self.uIDsjobIDs = {} # uIDsjobIDs[uid][jid] = job        
         self.DATA_QUEUE = []
         
-    def checkForJobIDFile(self, jobID, logsPath, extension="out"):
+    def check_for_jobID_File(self, jobID, logs_path, extension="out"):
 
-        if Path(logsPath).exists():
-            files = os.listdir(logsPath)
+        if Path(logs_path).exists():
+            files = os.listdir(logs_path)
             try:
                 for file in files:
                     if file.endswith(extension):
                         if jobID in file:
-                            file_path = os.path.join(logsPath, file)
+                            file_path = os.path.join(logs_path, file)
                             f = open(file_path, "r")
                             txt = f.read()                    
                             f.close()
@@ -36,22 +35,28 @@ class JobsManagement():
                 print(exc.args)
         return ""
     
-    def setShorterTimeout(self):
+    def set_shorter_timeout(self):
         self.clientsocket.settimeout(30)
-
-    def startClient(self):
+    
+    def start_client(self):
         try:
             self.clientsocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             self.clientsocket.settimeout(300)
             self.clientsocket.connect(('localhost', SERVER_PORT))
             self.clientsocket.settimeout(None)
 
-            thread = threading.Thread(target=self.stopClient)
+            thread = threading.Thread(target=self.stop_client)
             thread.start()
         except Exception as exc:
             print(exc.args)
 
-    def stopClient(self):
+    # The stopClient() is called right with the startClient() but does not stop 
+    # and essentially is a wait thread listening and is triggered by either a 
+    # connection or timeout. Based on condition triggered by user, reconstruction 
+    # completion or errors the end goal is to close the socket connection which 
+    # would let the CLI exit. I could break it down to 2 parts but the idea was to 
+    # keep the clientsocket.close() call within one method to make it easier to follow.
+    def stop_client(self):
         try:
             time.sleep(2)
             while True:
@@ -73,11 +78,11 @@ class JobsManagement():
                                 job_idx = str(json_obj["jID"])
                                 cmd = json_obj["command"]
                                 if cmd == "clientRelease":
-                                    if self.hasSubmittedJob(u_idx, job_idx):
+                                    if self.has_submitted_job(u_idx, job_idx):
                                         self.clientsocket.close()
                                         break
                                 if cmd == "cancel":
-                                    if self.hasSubmittedJob(u_idx, job_idx):
+                                    if self.has_submitted_job(u_idx, job_idx):
                                         try:
                                             job = self.uIDsjobIDs[u_idx][job_idx]
                                             job.cancel()
@@ -104,7 +109,7 @@ class JobsManagement():
             self.clientsocket.close()
             print(exc.args)
 
-    def checkAllExpJobsCompletion(self, uID):
+    def check_all_ExpJobs_completion(self, uID):
         if uID in SERVER_uIDsjobIDs.keys():
             for jobEntry in SERVER_uIDsjobIDs[uID].keys():
                 job:submitit.Job = SERVER_uIDsjobIDs[uID][jobEntry]["job"]
@@ -115,24 +120,24 @@ class JobsManagement():
                     return False
         return True
 
-    def putJobCompletionInList(self, jobBool, uID: str, jID: str, mode="client"):
+    def put_Job_completion_in_list(self, job_bool, uID: str, jID: str, mode="client"):
         if uID in SERVER_uIDsjobIDs.keys():
             if jID in SERVER_uIDsjobIDs[uID].keys():
-                SERVER_uIDsjobIDs[uID][jID]["bool"] = jobBool
+                SERVER_uIDsjobIDs[uID][jID]["bool"] = job_bool
     
-    def addData(self, data):
+    def add_data(self, data):
         self.DATA_QUEUE.append(data)
     
-    def sendDataThread(self):
-        thread = threading.Thread(target=self.sendData)
+    def send_data_thread(self):
+        thread = threading.Thread(target=self.send_data)
         thread.start()
 
-    def sendData(self):
+    def send_data(self):
         data = "".join(self.DATA_QUEUE)
         self.clientsocket.send(data.encode())
         self.DATA_QUEUE = []
 
-    def putJobInList(self, job, uID: str, jID: str, well:str, log_folder_path:str="", mode="client"):
+    def put_Job_in_list(self, job, uID: str, jID: str, well:str, log_folder_path:str="", mode="client"):
         try:
             well = str(well)
             jID = str(jID)
@@ -148,7 +153,7 @@ class JobsManagement():
                         self.uIDsjobIDs[uID][jID] = job
                 json_obj = {uID:{"jID": str(jID), "pos": well, "log": log_folder_path}}
                 json_str = json.dumps(json_obj)+"\n"                
-                self.addData(json_str)
+                self.add_data(json_str)
             else:
                 # from server side jobs object entry is a None object
                 # this will be later checked as completion boolean for a ExpID which might
@@ -165,7 +170,7 @@ class JobsManagement():
         except Exception as exc:
             print(exc.args)
     
-    def hasSubmittedJob(self, uID: str, jID: str, mode="client")->bool:
+    def has_submitted_job(self, uID: str, jID: str, mode="client")->bool:
         jID = str(jID)
         if mode == "client":
             if uID in self.uIDsjobIDs.keys():

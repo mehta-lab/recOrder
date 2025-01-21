@@ -377,16 +377,16 @@ def apply_inverse_transfer_function_cli(
 
     doPrint = True # CLI prints Job status when used as cmd line
     if unique_id != "": # no unique_id means no job submission info being listened to
-        JM.startClient()
+        JM.start_client()
         i=0
         for j in jobs:           
             job : submitit.Job = j
             job_idx : str = job.job_id
             position = input_position_dirpaths[i]
-            JM.putJobInList(job, unique_id, str(job_idx), position, str(executor.folder.absolute()))
+            JM.put_Job_in_list(job, unique_id, str(job_idx), position, str(executor.folder.absolute()))
             i += 1
-        JM.sendDataThread()
-        JM.setShorterTimeout()
+        JM.send_data_thread()
+        JM.set_shorter_timeout()
         doPrint = False # CLI printing disabled when using GUI
 
     monitor_jobs(jobs, input_position_dirpaths, doPrint)
