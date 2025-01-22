@@ -81,6 +81,7 @@ MSG_SUCCESS = {"msg": "success"}
 JOB_COMPLETION_STR = "Job completed successfully"
 JOB_RUNNING_STR = "Starting with JobEnvironment"
 JOB_TRIGGERED_EXC = "Submitted job triggered an exception"
+JOB_OOM_EVENT = "oom_kill event"
 
 _validate_alert = "⚠"
 _validate_ok = "✔️"
@@ -3310,6 +3311,21 @@ class MyWorker:
                                         logs_folder_path,
                                         extension="err",
                                     )
+                                    if JOB_OOM_EVENT in jobERR:
+                                        params["status"] = STATUS_errored_job
+                                        _infoBox.setText(
+                                            jobERR +
+                                            "\n\n"
+                                            + jobTXT
+                                        )
+                                        self.client_release(
+                                            expIdx,
+                                            jobIdx,
+                                            client_socket,
+                                            params,
+                                            reason=0,
+                                        )
+                                        break
                                     _infoBox.setText(
                                         jobIdx
                                         + "\n"
@@ -3323,7 +3339,7 @@ class MyWorker:
                                             jobIdx,
                                             client_socket,
                                             params,
-                                            reason=6,
+                                            reason=0,
                                         )
                                         break
                             elif params["status"] == STATUS_finished_job:
@@ -3336,7 +3352,7 @@ class MyWorker:
                                         jobIdx,
                                         client_socket,
                                         params,
-                                        reason=7,
+                                        reason=6,
                                     )
                                     break
                                 else:
@@ -3368,7 +3384,7 @@ class MyWorker:
                                     jobIdx,
                                     client_socket,
                                     params,
-                                    reason=8,
+                                    reason=0,
                                 )
                                 break
                             elif JOB_RUNNING_STR in jobTXT:
@@ -3376,7 +3392,27 @@ class MyWorker:
                                 _infoBox.setText(jobTXT)
                                 _tUpdateCount += 1
                                 if _tUpdateCount > 60:
-                                    if _lastUpdate_jobTXT != jobTXT:
+                                    jobERR = self.JobsMgmt.check_for_jobID_File(
+                                        jobIdx,
+                                        logs_folder_path,
+                                        extension="err",
+                                    )
+                                    if JOB_OOM_EVENT in jobERR:
+                                        params["status"] = STATUS_errored_job
+                                        _infoBox.setText(
+                                            jobERR +
+                                            "\n\n"
+                                            + jobTXT
+                                        )
+                                        self.client_release(
+                                            expIdx,
+                                            jobIdx,
+                                            client_socket,
+                                            params,
+                                            reason=0,
+                                        )
+                                        break
+                                    elif _lastUpdate_jobTXT != jobTXT:
                                         # if there is an update reset counter
                                         _tUpdateCount = 0
                                         _lastUpdate_jobTXT = jobTXT
@@ -3391,7 +3427,7 @@ class MyWorker:
                                         jobIdx,
                                         client_socket,
                                         params,
-                                        reason=9,
+                                        reason=0,
                                     )
                                     break
                             else:
@@ -3410,14 +3446,14 @@ class MyWorker:
                                     jobIdx,
                                     client_socket,
                                     params,
-                                    reason=10,
+                                    reason=0,
                                 )
                                 break
                         except Exception as exc:
                             print(exc.args)
                 else:
                     self.client_release(
-                        expIdx, jobIdx, client_socket, params, reason=11
+                        expIdx, jobIdx, client_socket, params, reason=0
                     )
                     break
         else:
@@ -3460,7 +3496,9 @@ class MyWorker:
             }
             json_str = json.dumps(json_obj) + "\n"
             client_socket.send(json_str.encode())
-            ROW_POP_QUEUE.append(expIdx)
+
+            if reason != 0: # remove processing entry when exiting without error
+                ROW_POP_QUEUE.append(expIdx)
             # print("FINISHED")
 
         if self.pool is not None:
