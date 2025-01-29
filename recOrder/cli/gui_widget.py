@@ -1,5 +1,5 @@
 import sys
-from PyQt6.QtWidgets import QApplication, QWidget, QVBoxLayout, QStyle
+from qtpy.QtWidgets import QApplication, QWidget, QVBoxLayout, QStyle
 import click
 from recOrder.plugin import tab_recon
 
