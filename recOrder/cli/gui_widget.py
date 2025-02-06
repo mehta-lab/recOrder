@@ -1,7 +1,10 @@
 import sys
-from qtpy.QtWidgets import QApplication, QWidget, QVBoxLayout, QStyle
 import click
 from recOrder.plugin import tab_recon
+
+try:
+    from qtpy.QtWidgets import QApplication, QWidget, QVBoxLayout, QStyle
+except:pass
 
 try:
     import qdarktheme

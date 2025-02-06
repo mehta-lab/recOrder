@@ -14,11 +14,13 @@ from magicgui import widgets
 from magicgui.type_map import get_widget_class
 import warnings
 
-from napari import Viewer
+try:
+    from napari import Viewer
+    from napari.utils import notifications
+except:pass
 
 from recOrder.io import utils
 from recOrder.cli import settings, jobs_mgmt
-from napari.utils import notifications
 
 import concurrent.futures
 
@@ -532,25 +534,31 @@ class Ui_ReconTab_Form(QWidget):
                     print(exc.args)
 
                 try:
-                    for _, pos in dataset.positions():
-                        axes = pos.zgroup.attrs["multiscales"][0]["axes"]
-                        string_array_n = [str(x["name"]) for x in axes]
-                        string_array = [
-                            str(x)
-                            for x in pos.zgroup.attrs["multiscales"][0][
-                                "datasets"
-                            ][0]["coordinateTransformations"][0]["scale"]
-                        ]
-                        string_scale = []
-                        for i in range(len(string_array_n)):
-                            string_scale.append(
-                                "{n}={d}".format(
-                                    n=string_array_n[i], d=string_array[i]
+                    string_pos = []
+                    i = 0
+                    for pos_paths, pos in dataset.positions():
+                        string_pos.append(pos_paths)
+                        if i == 0:
+                            axes = pos.zgroup.attrs["multiscales"][0]["axes"]
+                            string_array_n = [str(x["name"]) for x in axes]
+                            string_array = [
+                                str(x)
+                                for x in pos.zgroup.attrs["multiscales"][0][
+                                    "datasets"
+                                ][0]["coordinateTransformations"][0]["scale"]
+                            ]
+                            string_scale = []
+                            for i in range(len(string_array_n)):
+                                string_scale.append(
+                                    "{n}={d}".format(
+                                        n=string_array_n[i], d=string_array[i]
+                                    )
                                 )
-                            )
-                        txt = "\n\nScale: " + ", ".join(string_scale)
-                        self.data_input_Label.tooltip += txt
-                        break
+                            txt = "\n\nScale: " + ", ".join(string_scale)
+                            self.data_input_Label.tooltip += txt
+                        i += 1
+                    txt = "\n\nPos: " + ", ".join(string_pos)
+                    self.data_input_Label.tooltip += txt
                 except Exception as exc:
                     print(exc.args)
 
