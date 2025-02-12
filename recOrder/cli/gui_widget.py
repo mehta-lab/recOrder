@@ -1,6 +1,9 @@
 import sys
 import click
-from recOrder.plugin import tab_recon
+
+try:
+    from recOrder.plugin import tab_recon
+except:pass
 
 try:
     from qtpy.QtWidgets import QApplication, QWidget, QVBoxLayout, QStyle
