@@ -15,11 +15,6 @@ import dask.array as da
 import numpy as np
 import yaml
 from dask import delayed
-from napari import Viewer
-from napari.components import LayerList
-from napari.qt.threading import create_worker
-from napari.utils.events import Event
-from napari.utils.notifications import show_info, show_warning
 from numpy.typing import NDArray
 from numpydoc.docscrape import NumpyDocString
 from packaging import version
@@ -29,6 +24,14 @@ from qtpy.QtGui import QColor, QPixmap
 from qtpy.QtWidgets import QFileDialog, QSizePolicy, QSlider, QWidget
 from superqt import QDoubleRangeSlider, QRangeSlider
 from waveorder.waveorder_reconstructor import waveorder_microscopy
+
+try:
+    from napari import Viewer
+    from napari.components import LayerList
+    from napari.qt.threading import create_worker
+    from napari.utils.events import Event
+    from napari.utils.notifications import show_info, show_warning
+except:pass
 
 from recOrder.acq.acquisition_workers import (
     BFAcquisitionWorker,
