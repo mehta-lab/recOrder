@@ -18,12 +18,15 @@ from dask import delayed
 from numpy.typing import NDArray
 from numpydoc.docscrape import NumpyDocString
 from packaging import version
-from pycromanager import Core, Studio, zmq_bridge
 from qtpy.QtCore import Qt, Signal, Slot
 from qtpy.QtGui import QColor, QPixmap
 from qtpy.QtWidgets import QFileDialog, QSizePolicy, QSlider, QWidget
 from superqt import QDoubleRangeSlider, QRangeSlider
 from waveorder.waveorder_reconstructor import waveorder_microscopy
+
+try:
+    from pycromanager import Core, Studio, zmq_bridge
+except:pass
 
 try:
     from napari import Viewer
