@@ -557,7 +557,7 @@ class Ui_ReconTab_Form(QWidget):
                             txt = "\n\nScale: " + ", ".join(string_scale)
                             self.data_input_Label.tooltip += txt
                         i += 1
-                    txt = "\n\nPos: " + ", ".join(string_pos)
+                    txt = "\n\nFOV: " + ", ".join(string_pos)
                     self.data_input_Label.tooltip += txt
                 except Exception as exc:
                     print(exc.args)
