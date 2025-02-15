@@ -835,13 +835,6 @@ class MainWidget(QWidget):
             logging.debug("Established ZMQ Bridge and found Core and Studio")
         except NameError:
             print("Is pycromanager package installed?")
-        except EnvironmentError:
-            print(
-                    "Could not establish pycromanager bridge.\n"
-                    "Is Micro-Manager open?\n"
-                    "Is Tools > Options > Run server on port 4827 checked?\n"
-                    f"Are you using nightly build {RECOMMENDED_MM}?\n"
-            )
         except Exception as ex:
             print(
                     "Could not establish pycromanager bridge.\n"
@@ -852,6 +845,12 @@ class MainWidget(QWidget):
             template = "An exception of type {0} occurred. Arguments:\n{1!r}"
             message = template.format(type(ex).__name__, ", ".join(ex.args))
             print(message)
+            raise EnvironmentError(
+                    "Could not establish pycromanager bridge.\n"
+                    "Is Micro-Manager open?\n"
+                    "Is Tools > Options > Run server on port 4827 checked?\n"
+                    f"Are you using nightly build {RECOMMENDED_MM}?"
+            )
 
         # Warn the user if there is a Micro-Manager/ZMQ version mismatch
         # NS: Not quite sure what this is good for, we already know the Core works
