@@ -36,10 +36,12 @@ try:
     from napari.utils.notifications import show_info, show_warning
 except:pass
 
-from recOrder.acq.acquisition_workers import (
-    BFAcquisitionWorker,
-    PolarizationAcquisitionWorker,
-)
+try:
+    from recOrder.acq.acquisition_workers import (
+        BFAcquisitionWorker,
+        PolarizationAcquisitionWorker,
+    )
+except:pass
 from recOrder.calib import Calibration
 from recOrder.calib.Calibration import LC_DEVICE_NAME, QLIPP_Calibration
 from recOrder.calib.calibration_workers import (
@@ -831,15 +833,25 @@ class MainWidget(QWidget):
             # Order is important: If the bridge is created before Core, Core will not work
             self.bridge = zmq_bridge._bridge._Bridge()
             logging.debug("Established ZMQ Bridge and found Core and Studio")
-        except:
-            raise EnvironmentError(
-                (
+        except NameError:
+            print("Is pycromanager package installed?")
+        except EnvironmentError:
+            print(
                     "Could not establish pycromanager bridge.\n"
                     "Is Micro-Manager open?\n"
                     "Is Tools > Options > Run server on port 4827 checked?\n"
-                    f"Are you using nightly build {RECOMMENDED_MM}?"
-                )
+                    f"Are you using nightly build {RECOMMENDED_MM}?\n"
             )
+        except Exception as ex:
+            print(
+                    "Could not establish pycromanager bridge.\n"
+                    "Is Micro-Manager open?\n"
+                    "Is Tools > Options > Run server on port 4827 checked?\n"
+                    f"Are you using nightly build {RECOMMENDED_MM}?\n"
+            )
+            template = "An exception of type {0} occurred. Arguments:\n{1!r}"
+            message = template.format(type(ex).__name__, ", ".join(ex.args))
+            print(message)
 
         # Warn the user if there is a Micro-Manager/ZMQ version mismatch
         # NS: Not quite sure what this is good for, we already know the Core works
