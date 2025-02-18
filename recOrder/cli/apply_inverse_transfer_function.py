@@ -23,7 +23,6 @@ from recOrder.cli.parsing import (
     transfer_function_dirpath,
     ram_multiplier,
     unique_id,
-    verbose
 )
 from recOrder.cli.printing import echo_headline, echo_settings
 from recOrder.cli.settings import ReconstructionSettings
@@ -350,7 +349,6 @@ def apply_inverse_transfer_function_cli(
     executor = submitit.AutoExecutor(folder=Path(executor_folder))
     
     executor.update_parameters(
-        slurm_job_name = "reconstruct",
         slurm_array_parallelism=np.min([50, num_jobs]),
         slurm_mem_per_cpu=f"{gb_ram_request}G",
         slurm_cpus_per_task=cpu_request,
@@ -376,10 +374,9 @@ def apply_inverse_transfer_function_cli(
     echo_headline(
         f"{num_jobs} job{'s' if num_jobs > 1 else ''} submitted {'locally' if executor.cluster == 'local' else 'via ' + executor.cluster}."
     )
-    
-  
+
     doPrint = True # CLI prints Job status when used as cmd line
-    if unique_id != "" and unique_id !="-1": # no unique_id means no job submission info being listened to
+    if unique_id != "": # no unique_id means no job submission info being listened to
         JM.start_client()
         i=0
         for j in jobs:           
@@ -391,13 +388,6 @@ def apply_inverse_transfer_function_cli(
         JM.send_data_thread()
         JM.set_shorter_timeout()
         doPrint = False # CLI printing disabled when using GUI
-    elif unique_id==-1: # CLI used to run automatic pipeline
-        doPrint = False
-        job_ids = [job.job_id for job in jobs]  # Access job IDs after batch submission
-
-        log_path = Path(executor_folder/"submitit_jobs_ids.log")
-        with log_path.open("w") as log_file:
-            log_file.write("\n".join(job_ids))
 
     monitor_jobs(jobs, input_position_dirpaths, doPrint)
 
