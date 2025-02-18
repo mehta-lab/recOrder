@@ -377,6 +377,7 @@ def apply_inverse_transfer_function_cli(
 
     doPrint = True # CLI prints Job status when used as cmd line
     if unique_id != "" and unique_id !="-1": # no unique_id means no job submission info being listened to
+        JM.start_client()
         i=0
         for j in jobs:           
             job : submitit.Job = j
