@@ -4,8 +4,7 @@ from typing import Tuple
 import click
 import numpy as np
 import torch
-from iohub.ngff import Position, open_ome_zarr
-from iohub.ngff_meta import TransformationMeta
+from iohub.ngff import Position, TransformationMeta, open_ome_zarr
 from numpy.typing import DTypeLike
 
 
@@ -103,4 +102,3 @@ def apply_inverse_to_zyx_and_save(
             t_idx, output_channel_indices
         ] = reconstruction_czyx
     click.echo(f"Finished Writing.. t={t_idx}")
-
