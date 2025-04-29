@@ -90,6 +90,11 @@ def apply_inverse_to_zyx_and_save(
     # Load data
     czyx_uint16_numpy = position.data.oindex[t_idx, input_channel_indices]
 
+    # Check if all values in czyx_uint16_numpy are not zeros or Nan
+    if _check_nan_n_zeros(czyx_uint16_numpy):
+        click.echo(f"All values at t={t_idx} are zero or Nan, skipping reconstruction.")
+        return
+
     # convert to np.int32 (torch doesn't accept np.uint16), then convert to tensor float32
     czyx_data = torch.tensor(np.int32(czyx_uint16_numpy), dtype=torch.float32)
 
@@ -104,3 +109,9 @@ def apply_inverse_to_zyx_and_save(
         ] = reconstruction_czyx
     click.echo(f"Finished Writing.. t={t_idx}")
 
+
+def _check_nan_n_zeros(input_array):
+    """
+    Checks if data are all zeros or nan
+    """
+    return np.all(np.isnan(input_array)) or np.all(input_array == 0)
