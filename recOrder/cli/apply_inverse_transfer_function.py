@@ -344,8 +344,8 @@ def apply_inverse_transfer_function_cli(
         f"{gb_ram_request} GB of memory per CPU."
     )
     
-    name_without_ext = os.path.splitext(Path(output_dirpath).name)[0]
-    executor_folder = os.path.join(Path(output_dirpath).parent.absolute(), name_without_ext + "_logs")
+    # name_without_ext = os.path.splitext(Path(output_dirpath).name)[0]
+    executor_folder = output_dirpath.parent / "slurm_output"
     executor = submitit.AutoExecutor(folder=Path(executor_folder))
     
     executor.update_parameters(
@@ -375,28 +375,28 @@ def apply_inverse_transfer_function_cli(
         f"{num_jobs} job{'s' if num_jobs > 1 else ''} submitted {'locally' if executor.cluster == 'local' else 'via ' + executor.cluster}."
     )
 
-    doPrint = True # CLI prints Job status when used as cmd line
-    if unique_id != "" and unique_id !="-1": # no unique_id means no job submission info being listened to
-        JM.start_client()
-        i=0
-        for j in jobs:           
-            job : submitit.Job = j
-            job_idx : str = job.job_id
-            position = input_position_dirpaths[i]
-            JM.put_Job_in_list(job, unique_id, str(job_idx), position, str(executor.folder.absolute()))
-            i += 1
-        JM.send_data_thread()
-        JM.set_shorter_timeout()
-        doPrint = False # CLI printing disabled when using GUI
-    elif unique_id==-1: # CLI used to run automatic pipeline
-        doPrint = False
+    # doPrint = True # CLI prints Job status when used as cmd line
+    # if unique_id != "" and unique_id !="-1": # no unique_id means no job submission info being listened to
+    #     JM.start_client()
+    #     i=0
+    #     for j in jobs:           
+    #         job : submitit.Job = j
+    #         job_idx : str = job.job_id
+    #         position = input_position_dirpaths[i]
+    #         JM.put_Job_in_list(job, unique_id, str(job_idx), position, str(executor.folder.absolute()))
+    #         i += 1
+    #     JM.send_data_thread()
+    #     JM.set_shorter_timeout()
+    #     doPrint = False # CLI printing disabled when using GUI
+    # elif unique_id==-1: # CLI used to run automatic pipeline
+    #     doPrint = False
 
-        job_ids = [job.job_id for job in jobs]  # Access job IDs after batch submission
-        log_path = Path(executor_folder/"submitit_jobs_ids.log")
-        with log_path.open("w") as log_file:
-            log_file.write("\n".join(job_ids))
+    job_ids = [job.job_id for job in jobs]  # Access job IDs after batch submission
+    log_path = Path(executor_folder/"submitit_jobs_ids.log")
+    with log_path.open("w") as log_file:
+        log_file.write("\n".join(job_ids))
 
-    monitor_jobs(jobs, input_position_dirpaths, doPrint)
+  #  monitor_jobs(jobs, input_position_dirpaths, doPrint)
 
 
 @click.command()
